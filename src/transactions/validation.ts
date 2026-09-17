@@ -1,0 +1,103 @@
+import type { TransactionType } from './types';
+
+export interface TransactionFormInput {
+  type: TransactionType;
+  amount: string;
+  description: string;
+  date: string;
+  quantity: string;
+}
+
+export type TransactionFormField = 'amount' | 'date' | 'quantity';
+export type TransactionFormErrors = Partial<Record<TransactionFormField, string>>;
+
+const AMOUNT_MAX = 1e12;
+const QUANTITY_MAX = 1e9;
+
+export function parseAmount(value: string): number | null {
+  const normalized = value.trim().replace(/\s/g, '').replace(',', '.');
+  if (normalized.length === 0) {
+    return null;
+  }
+  const number = Number(normalized);
+  if (!Number.isFinite(number)) {
+    return null;
+  }
+  return number;
+}
+
+export function validateTransactionAmount(value: string): string | null {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return 'transactions.errors.amountRequired';
+  }
+  const number = parseAmount(trimmed);
+  if (number === null) {
+    return 'transactions.errors.amountInvalid';
+  }
+  if (number <= 0) {
+    return 'transactions.errors.amountPositive';
+  }
+  if (number > AMOUNT_MAX) {
+    return 'transactions.errors.amountTooLarge';
+  }
+  return null;
+}
+
+export function validateTransactionDate(value: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+    return 'transactions.errors.dateInvalid';
+  }
+  const date = new Date(`${value.trim()}T00:00:00`);
+  if (Number.isNaN(date.getTime())) {
+    return 'transactions.errors.dateInvalid';
+  }
+  return null;
+}
+
+export function validateTransactionQuantity(value: string, required: boolean): string | null {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return required ? 'transactions.errors.quantityRequired' : null;
+  }
+  if (!/^\d+$/.test(trimmed)) {
+    return 'transactions.errors.quantityInvalid';
+  }
+  const number = Number(trimmed);
+  if (!Number.isSafeInteger(number) || number < 1 || number > QUANTITY_MAX) {
+    return 'transactions.errors.quantityInvalid';
+  }
+  return null;
+}
+
+export function todayAsDateString(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function validateTransactionForm(
+  input: TransactionFormInput,
+  quantityRequired: boolean,
+): TransactionFormErrors {
+  const errors: TransactionFormErrors = {};
+  const amountError = validateTransactionAmount(input.amount);
+  if (amountError) {
+    errors.amount = amountError;
+  }
+  const dateError = validateTransactionDate(input.date);
+  if (dateError) {
+    errors.date = dateError;
+  }
+  const quantityError = validateTransactionQuantity(input.quantity, quantityRequired);
+  if (quantityError) {
+    errors.quantity = quantityError;
+  }
+  return errors;
+}
+
+export function hasTransactionErrors(errors: TransactionFormErrors): boolean {
+  return Object.keys(errors).length > 0;
+}

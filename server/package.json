@@ -1,0 +1,37 @@
+{
+  "name": "kazi-server",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Kazi backend API (authentication)",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test src/app.test.ts src/items/items.test.ts src/items/stock.test.ts src/transactions/transactions.test.ts src/notifications/notifications.test.ts src/sync.test.ts"
+  },
+  "engines": {
+    "node": ">= 22.11.0"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.10.0",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.2",
+    "firebase-admin": "^14.4.0",
+    "jsonwebtoken": "^9.0.3",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.25",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^22.20.2",
+    "tsx": "^4.23.13",
+    "typescript": "^5.9.3"
+  }
+}

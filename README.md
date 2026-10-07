@@ -1,9 +1,9 @@
 # Kazi
 
-Kazi is a simple, secure, bilingual (English / French) digital business notebook for small
-businesses in Cameroon. It helps you track what you sell, what you buy, what you have in stock,
-and how much money is moving through the business — without the complexity of a full accounting
-system.
+Kazi is a simple, secure, trilingual (English / French / Cameroon Pidgin) digital business
+notebook for small businesses in Cameroon. It helps you track what you sell, what you buy, what
+you have in stock, who owes you money, and how much money is moving through the business —
+without the complexity of a full accounting system.
 
 The project is split into two parts:
 
@@ -16,8 +16,9 @@ Both are built for the value proposition: *"Your business, kept simple."*
 
 ## Features
 
-- **Accounts** — sign up, sign in, forgot/reset password. Sessions are 30-day JWTs stored in the
-  device Keychain; passwords are hashed with bcrypt. No account enumeration on the API.
+- **Accounts** — sign up, sign in, forgot/reset password, update your name or business profile,
+  delete your account. Sessions are 30-day JWTs stored in the device Keychain; passwords are
+  hashed with bcrypt and a password another account already uses is refused.
 - **Products & services** — a catalog of what you sell, each with a name, type (product or
   service), price and optional notes.
 - **Inventory** — optional stock tracking per item: record stock in/out (with reasons), get a
@@ -25,11 +26,20 @@ Both are built for the value proposition: *"Your business, kept simple."*
 - **Transactions** — record money in (**sales**) and money out (**purchases**), optionally linked
   to a catalog item. A sale of a tracked item reduces its stock automatically; a purchase
   increases it. Deleting a transaction reverses its stock effect.
-- **Add money** — record cash you put into the business from your own pocket, separate from sales.
-- **History** — a "What happened" feed of every sale, purchase and money-added event, newest first.
-- **Cash balance** — the Home dashboard shows money in, money out, and your current balance.
-- **Bilingual** — English and French, chosen automatically from the device and switchable in the
-  More tab.
+- **Expenses without a product** — an expense does not need a catalog entry: pick a preset
+  (transport, rent, worker pay, …) or say what the money was spent on. The description is
+  required and is enforced identically on the app and the API.
+- **Add money** — record cash you put into the business from your own pocket (capital), separate
+  from sales.
+- **Debts** — note money someone owes you, see what is still owed versus settled, and settle a
+  debt with the day it was paid. Dates of record are shown as `YYYY-MM-DD`.
+- **History** — a "What happened" feed of every sale, expense, capital, debt and product change,
+  grouped by day with received/spent/made totals. Filter by period (today, yesterday, this week,
+  older) or by a custom from–to range; long lists page with "Load more".
+- **Cash balance** — the Home dashboard shows money received, money spent, money made for today,
+  plus low-stock alerts.
+- **Trilingual** — English, French and Cameroon Pidgin, detected from the device and switchable
+  in the More tab.
 
 ---
 
@@ -39,27 +49,42 @@ Both are built for the value proposition: *"Your business, kept simple."*
 Kazi/
   App.tsx                     App entry (language boot, providers, navigator)
   src/
+    activity/     history query types + API (periods, ranges, summaries)
     api/          HTTP client + env config
-    auth/         auth types, session context, validation
+    auth/         auth types, session context, validation, error mapping
     components/   shared UI (Button, Card, TextField, dialogs, toast, logo…)
     config/       env.ts (API host for the dev backend)
+    debts/        debt types, API, client validation
     errors/       ApiError / NetworkError
-    i18n/         i18next setup + EN/FR translations
+    feedback/     in-app feedback API
+    i18n/         i18next setup + EN / FR / PID translations
     items/        catalog types, API, client validation, formatting
     money/        FCFA formatter + balance math
     navigation/   root stack, tabs, auth flow, param lists
-    screens/      auth · home · products · history · more
+    notifications/ push-token registration API
+    offline/      online API facade + connectivity probe (no local queue)
+    screens/      auth · home · products · history · debts · business · more
     storage/      Keychain (secure) + AsyncStorage (preferences)
+    summary/      money summary API
     theme/        colors, spacing, typography
+    transactions/ transaction types, API, client validation
   android/  android/…   native Android project (package com.kazi.app)
   ios/                native iOS project
   __tests__/          jest unit tests
   server/
     src/
-      auth/     signup, login, password reset, JWT
-      items/    catalog CRUD + stock in/out
-      transactions/  sale / purchase / capital + stock effects
-      middleware/, errors.ts, db.ts, app.ts, index.ts
+      activity/     activity feed (period/range filters, pagination)
+      admin/        owner-only read-only dashboard (separate port, optional TLS)
+      auth/         signup, login, password reset, JWT, password fingerprints
+      debts/        debt CRUD + pay
+      feedback/     in-app feedback
+      items/        catalog CRUD + stock in/out
+      middleware/   auth + rate limiting
+      notifications/ push tokens + FCM send
+      summary/      money received / spent / net
+      transactions/ sale / purchase / capital + stock effects
+      validation/   shared zod helpers (money, business dates, strict numbers)
+      app.ts db.ts errors.ts idempotency.ts index.ts log.ts
     data/       SQLite database (git-ignored, created on first boot)
     .env        runtime secrets (git-ignored)
 ```
@@ -97,13 +122,33 @@ Useful scripts:
 
 ### API overview
 
-Auth (`/auth`): `signup`, `login`, `logout`, `me`, `forgot-password`, `reset-password`.
-Items (`/items`, requires auth): `GET/POST /`, `GET/PUT/DELETE /:id`, `POST /:id/stock-in`,
-`POST /:id/stock-out`, `GET /:id/movements`.
-Transactions (`/transactions`, requires auth): `GET/POST /`, `GET/DELETE /:id`.
-
 Authorized endpoints take `Authorization: Bearer <token>`. Errors always use the shape
 `{ "error": { "code": "...", "message": "..." } }`.
+
+| Mount | Endpoints |
+| ----- | --------- |
+| `/auth` | `POST /signup`, `POST /login`, `POST /logout`, `GET /me`, `PATCH /me`, `PATCH /me/names`, `DELETE /me`, `POST /forgot-password`, `POST /reset-password` |
+| `/items` | `GET/POST /`, `GET/PUT/DELETE /:id`, `POST /:id/stock-in`, `POST /:id/stock-out`, `GET /:id/movements` |
+| `/transactions` | `GET/POST /`, `GET/DELETE /:id` |
+| `/debts` | `GET/POST /`, `POST /:id/pay`, `DELETE /:id` |
+| `/summary` | `GET /` — money received, spent and net |
+| `/activity` | `GET /` — `period`, `from`/`to` range, `asOf`, `limit`/`offset`, per-type totals |
+| `/feedback` | `GET/POST /`, `GET/DELETE /:id` |
+| `/notifications` | `POST /push-tokens`, `DELETE /push-tokens`, `POST /send` |
+| `/health` | `GET /` — liveness probe (no auth) |
+
+Every query is scoped to the authenticated user, and business dates (`transactions.date`,
+`debts.date`, `activity.event_date`) are filtered in the caller's own time zone via `asOf`.
+Create, payment and stock writes carry a `clientOpId` in the body: a retried request replays the
+stored response instead of duplicating the record, and reusing the same id for a different
+operation returns `409 IDEMPOTENCY_CONFLICT`.
+
+Authentication and password-reset routes are rate-limited (signup/forgot/reset: 12 per 15 min,
+login: 25 per 15 min), as is `POST /notifications/send` (10 per minute).
+
+The owner-only read-only dashboard runs as a **separate server** — `server/src/admin/`, default
+`http://127.0.0.1:4100` with optional TLS and a `HttpOnly; SameSite=Strict` session cookie —
+exposing `/api/stats`, `/api/series`, `/api/activity`, `/api/feedback` and `/api/users`.
 
 ---
 
@@ -143,7 +188,7 @@ For a standalone build, use `assembleRelease` (requires a signing configuration 
 ### Tests & checks — mobile
 
 ```sh
-npm test        # jest unit tests (validation, formatting, app render)
+npm test        # jest unit tests (validation, formatting, screens, i18n parity)
 npx tsc --noEmit
 npm run lint
 ```
@@ -153,8 +198,8 @@ npm run lint
 ## Testing everything together
 
 1. Start the backend: `cd server && npm run dev`.
-2. Anticipate: backend `npm test` → 47 tests, mobile `npm test` → 69 tests, plus clean
-   `tsc`/`eslint` and a successful `assembleDebug`.
+2. Anticipate: backend `npm test` → 103 tests (8 files), mobile `npm test` → 109 tests
+   (12 suites), plus clean `tsc`/`eslint` and a successful `assembleDebug`.
 3. Run the app from Metro. Create an account, add products/services, toggle stock tracking, add
    stock, record a sale (watch stock drop), record a purchase (watch it rise), add money, and
    confirm the Home balance and History feed update.
@@ -164,11 +209,21 @@ npm run lint
 ## Security notes
 
 - Passwords are never stored in plain text (bcrypt). Tokens live only in the device Keychain.
+- A password another account already uses is refused at signup and at password reset: each
+  account stores salted fingerprints of the passwords it has used, recorded when the password is
+  first used (signup or a successful sign-in).
 - Every query is scoped to the authenticated user; no endpoint exposes other users' data
   (covered by tests).
+- Input is validated with zod on both sides. Money, business dates and page limits reject hex
+  strings, booleans and non-finite numbers instead of coercing them, and out-of-range paging
+  returns `400` rather than a server error.
+- Auth, password-reset and push-send routes are rate-limited. API responses omit `X-Powered-By`;
+  admin dashboard responses are `Cache-Control: no-store`.
 - `JWT_SECRET` must be set to a long random value in production (see `.env.example`).
 - The SQLite DB and `.env` are git-ignored — never commit them.
 - Transport is HTTP in development. Production should terminate TLS in front of the API.
+- Known accepted limitation: signup and forgot-password reveal whether an email is registered.
+  Documented in `SECURITY_ASSESSMENT.md`.
 
 ## Known environment notes
 

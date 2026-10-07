@@ -57,7 +57,7 @@ server suite passes **86/86** and the mobile suite **96/96**.
 | F4 | Low | Signup reveals whether an email is registered (enumeration) | Accepted |
 | F5 | Low | Uploaded image declared MIME type is not verified against content | Accepted |
 | F6 | Low | Auth rate limiter is per-IP and never releases (shared-IP lockout) | Accepted |
-| F7 | Info | `z.coerce.number()` accepts hex strings, arrays and booleans | Accepted |
+| F7 | Info | `z.coerce.number()` accepts hex strings, arrays and booleans | Fixed 2026-10-07 (§9) |
 | F8 | Info | Deployment hardening gaps (secret strength, release signing, TLS) | Recommendation |
 | F9 | Info | Vulnerable transitive dependencies | Recommendation |
 
@@ -314,3 +314,61 @@ This was a time-boxed, source-assisted assessment of a local build. It does not 
 absence of vulnerabilities. Areas not fully exercised include long-running concurrency,
 multi-instance deployments, the Firebase/FCM path with live credentials, and native
 build/reverse-engineering review.
+
+---
+
+## 9. Re-assessment addendum (2026-10-07)
+
+A second adversarial pass was run while building long-term history, date-based filtering,
+product-less expenses, debt payment dates, capital history and the cross-account
+password-reuse guard. It produced new findings (E-*) plus status changes to this report.
+F7 above is re-opened and closed by E-2; F4, F5, F6, F8 and F9 remain as originally accepted
+or recommended.
+
+| # | Severity | Finding | Status |
+|---|----------|---------|--------|
+| E-1 | Medium | `GET /activity?offset=1e308` returned `500 INTERNAL` with a stack trace (`SQLITE_MISMATCH`); `limit`/`offset` were unbounded coerced numbers | Fixed |
+| E-2 | Low | Loose `z.coerce.number()` accepted `price: true` -> 1, `quantity: '0x10'` -> 16, `amount: '0b10000'` -> 16 on amounts, quantities, prices, ratings and paging (F7 re-opened) | Fixed |
+| E-3 | Info | `X-Powered-By: Express` disclosed the stack | Fixed |
+| E-4 | Info | Admin dashboard responses were cacheable | Fixed |
+| E-5 | Low | Admin `LoginThrottle` counted each key independently, so failures spread over several accounts on one IP never tripped the global cap | Fixed |
+| E-6 | Low | `POST /notifications/send` had no rate limit | Fixed |
+| E-7 | Low | Password fingerprints were written with `INSERT OR REPLACE` (destroying the original `created_at`) and only at signup — so every account created before the feature had no fingerprint and the reuse guard silently did not apply to it | Fixed |
+| E-8 | Low | The `idx_client_ops_user` index had been dropped from `db.ts` while adding the fingerprint table, degrading idempotency lookups | Fixed |
+
+### Changes applied
+
+| File | Change |
+|------|--------|
+| `server/src/activity/validation.ts` | `limit` bounded `1..200`, `offset` bounded `0..1_000_000`, both passed through `Number.isFinite`/`Math.trunc`. |
+| `server/src/validation/number.ts` | New `strictNumber()` + `isDecimalString()`: rejects booleans, hex/binary literals and non-finite values before coercion. |
+| `server/src/validation/money.ts`, `items/validation.ts`, `feedback/validation.ts`, `auth/validation.ts`, `debts/validation.ts`, `transactions/validation.ts`, `activity/routes.ts` | Numeric fields switched to the strict schemas. |
+| `server/src/app.ts` | `app.disable('x-powered-by')`. |
+| `server/src/admin/index.ts` | Admin responses `Cache-Control: no-store`; login throttle now checks the global per-IP cap before per-account keys. |
+| `server/src/notifications/routes.ts` | `POST /send` rate-limited (10 per minute). |
+| `server/src/auth/service.ts` | Signup fingerprint write `INSERT OR REPLACE` -> `INSERT OR IGNORE`; successful sign-in now records the fingerprint too, so pre-existing accounts are covered. |
+| `server/src/db.ts` | Restored `idx_client_ops_user`. |
+| Tests | `src/auth/auth.test.ts` (new): reset refuses another account's password, sign-in records the fingerprint, fresh signup still succeeds. `src/activity/activity.test.ts`: paging bounds and coerced-number tricks -> `400`. `src/app.test.ts`: asserts `X-Powered-By` is absent. |
+
+Temporary probes `server/src/__probe_e.ts`, `__probe_e2.ts` and `__probe_admin.ts` were removed
+after the pass; no probe or scratch file remains in the tree.
+
+### Verification (2026-10-07)
+
+Re-attacked against the patched code — every E-1/E-2 payload that previously produced a `500` or
+an accepted bogus value now returns `400 VALIDATION_ERROR`; `X-Powered-By` is absent; admin
+responses carry `no-store`; the admin throttle trips on the global cap; `/notifications/send`
+returns `429` after 10.
+
+Controls re-verified and unchanged: tenant isolation (`404` cross-account), `401` on every
+resource route, JWT tampering / `alg:none` / wrong secret, mass assignment and `__proto__`
+inertness, parameterized SQL, CORS default-deny, 4 MB API / 64 KB admin body limits, malformed
+JSON -> `400`, path traversal -> `404`, no stack traces in responses.
+
+- **Server:** `npm run typecheck` clean; `npm test` -> **103/103 pass** (8 test files).
+- **Mobile:** `npx tsc --noEmit` clean; `npx jest --silent` -> **109/109 pass** (12 suites);
+  `npm run lint` -> 0 errors, 0 warnings.
+
+Residual follow-ups from §7 still open: production reset-code delivery (1), email enumeration
+acceptance decision (2), image content validation (3), per-account login throttling (4),
+production `JWT_SECRET`/keystore/TLS (5), dependency refresh (6).

@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import type Database from 'better-sqlite3';
 import { AppError } from '../errors.js';
@@ -47,6 +48,10 @@ interface ResetRow {
 
 const SALT_ROUNDS = 10;
 
+export function hashPasswordFingerprint(password: string): string {
+  return crypto.createHmac('sha256', requiredSecret()).update(password).digest('hex');
+}
+
 function toPublicUser(row: UserRow): PublicUser {
   return {
     id: row.id,
@@ -90,17 +95,37 @@ export function signUp(db: Database.Database, input: SignupInput): AuthResult {
     );
   }
 
+  const fingerprint = hashPasswordFingerprint(input.password);
+  const fingerprintInUse = db
+    .prepare('SELECT user_id FROM password_fingerprints WHERE fingerprint = ?')
+    .get(fingerprint) as { user_id: number } | undefined;
+
+  if (fingerprintInUse) {
+    throw new AppError(
+      400,
+      'PASSWORD_NOT_ALLOWED',
+      'Please choose a different password.',
+    );
+  }
+
   const passwordHash = bcrypt.hashSync(input.password, SALT_ROUNDS);
 
   let userId: number;
   try {
-    const result = db
-      .prepare(
-        `INSERT INTO users (first_name, last_name, company_name, email, password_hash)
-         VALUES (?, ?, '', ?, ?)`,
-      )
-      .run(input.firstName, input.lastName, input.email.toLowerCase(), passwordHash);
-    userId = Number(result.lastInsertRowid);
+    const signupTx = db.transaction(() => {
+      const result = db
+        .prepare(
+          `INSERT INTO users (first_name, last_name, company_name, email, password_hash)
+           VALUES (?, ?, '', ?, ?)`,
+        )
+        .run(input.firstName, input.lastName, input.email.toLowerCase(), passwordHash);
+      const newUserId = Number(result.lastInsertRowid);
+      db.prepare(
+        'INSERT OR IGNORE INTO password_fingerprints (fingerprint, user_id) VALUES (?, ?)',
+      ).run(fingerprint, newUserId);
+      return newUserId;
+    });
+    userId = signupTx();
   } catch (err) {
     // Safety net for the email UNIQUE constraint. The pre-check above covers
     // the normal path; this catches an adversarial race (for example a future
@@ -136,6 +161,15 @@ export function logIn(db: Database.Database, input: LoginInput): AuthResult {
       'The email or password is incorrect.',
     );
   }
+
+  // Accounts that predate password fingerprinting have no row yet, so a brand
+  // new account could still be created with one of their passwords. Recording
+  // the fingerprint of the password we have just verified closes that gap for
+  // every sign-in, and IGNORE keeps a shared legacy password from turning into
+  // a constraint error.
+  db.prepare(
+    'INSERT OR IGNORE INTO password_fingerprints (fingerprint, user_id) VALUES (?, ?)',
+  ).run(hashPasswordFingerprint(input.password), user.id);
 
   return { token: signAccessToken(user.id, user.token_version, requiredSecret()), user: toPublicUser(user) };
 }
@@ -254,6 +288,19 @@ export function resetPassword(
     );
   }
 
+  const fingerprint = hashPasswordFingerprint(input.password);
+  const fingerprintInUse = db
+    .prepare('SELECT user_id FROM password_fingerprints WHERE fingerprint = ? AND user_id != ?')
+    .get(fingerprint, reset.user_id) as { user_id: number } | undefined;
+
+  if (fingerprintInUse) {
+    throw new AppError(
+      400,
+      'PASSWORD_NOT_ALLOWED',
+      'Please choose a different password.',
+    );
+  }
+
   const passwordHash = bcrypt.hashSync(input.password, SALT_ROUNDS);
   const update = db.transaction(() => {
     // Bumping token_version invalidates every access token that was signed
@@ -266,6 +313,10 @@ export function resetPassword(
        SET password_hash = ?, token_version = token_version + 1, updated_at = datetime('now')
        WHERE id = ?`,
     ).run(passwordHash, reset.user_id);
+    db.prepare('DELETE FROM password_fingerprints WHERE user_id = ?').run(reset.user_id);
+    db.prepare(
+      'INSERT INTO password_fingerprints (fingerprint, user_id) VALUES (?, ?)',
+    ).run(fingerprint, reset.user_id);
     db.prepare('UPDATE password_resets SET used = 1 WHERE token = ?').run(
       hashResetToken(input.token),
     );

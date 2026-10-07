@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { businessDateSchema } from '../validation/date.js';
+import { moneyAmountSchema } from '../validation/money.js';
+import { strictNumber } from '../validation/number.js';
 
 export const debtNameSchema = z
   .string()
@@ -6,10 +9,7 @@ export const debtNameSchema = z
   .min(1, "The person's name is required.")
   .max(100, 'Name must be at most 100 characters.');
 
-export const debtAmountSchema = z.coerce
-  .number()
-  .positive('Amount owed must be greater than 0.')
-  .max(1e12, 'Amount is too large.');
+export const debtAmountSchema = moneyAmountSchema;
 
 export const debtNoteSchema = z
   .string()
@@ -18,10 +18,12 @@ export const debtNoteSchema = z
   .optional()
   .transform(value => (value === '' ? undefined : value));
 
-export const debtDateSchema = z.string().regex(
-  /^\d{4}-\d{2}-\d{2}$/,
-  'Date must be in YYYY-MM-DD format.',
-);
+export const debtDateSchema = businessDateSchema;
+
+export const debtStatusSchema = z.enum(['open', 'paid']).optional();
+export const listDebtsQuerySchema = z.object({
+  status: debtStatusSchema,
+});
 
 export const createDebtSchema = z.object({
   name: debtNameSchema,
@@ -36,9 +38,13 @@ export const createDebtSchema = z.object({
     .optional(),
 });
 
-export const debtIdSchema = z.coerce.number().int().positive();
+export const debtIdSchema = strictNumber(z.coerce.number().int().positive());
 
 export const payDebtSchema = z.object({
+  // The owner marks the debt paid on their own calendar day, which may not be
+  // the server's day. That date becomes the history entry's business date; the
+  // exact instant is recorded separately in paid_at.
+  date: businessDateSchema.optional(),
   clientOpId: z
     .string()
     .trim()
@@ -48,7 +54,11 @@ export const payDebtSchema = z.object({
 });
 
 export type CreateDebtInput = z.infer<typeof createDebtSchema>;
+export type PayDebtInput = z.infer<typeof payDebtSchema>;
 
-export function validate<T>(schema: z.ZodType<T>, data: unknown): T {
-  return schema.parse(data);
+export function validate<S extends z.ZodTypeAny>(
+  schema: S,
+  data: unknown,
+): z.infer<S> {
+  return schema.parse(data) as z.infer<S>;
 }

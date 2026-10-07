@@ -8,6 +8,7 @@ const CODE_TO_KEY: Record<string, string> = {
   TOKEN_EXPIRED: 'auth.errors.tokenExpired',
   INSUFFICIENT_STOCK: 'products.errors.insufficientStock',
   ALREADY_PAID: 'debts.errors.alreadyPaid',
+  PASSWORD_NOT_ALLOWED: 'auth.errors.passwordNotAllowed',
   TOO_MANY_REQUESTS: 'auth.errors.tooManyRequests',
 };
 

@@ -157,7 +157,8 @@ export default function HomeScreen() {
                 <View style={styles.metricWide}>
                   <Text style={styles.metricLabel}>{t('home.moneyMade')}</Text>
                   <Text style={styles.metricNet}>
-                    +{formatMoney(summary.todayReceived)}
+                    {summary.todayNet < 0 ? '' : '+'}
+                    {formatMoney(summary.todayNet)}
                   </Text>
                 </View>
               </View>

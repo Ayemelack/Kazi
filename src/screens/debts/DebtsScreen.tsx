@@ -15,6 +15,7 @@ import { useToast } from '../../components/ui/Toast';
 import { deleteDebt, listDebts, payDebt } from '../../offline/api';
 import type { Debt } from '../../debts/types';
 import { formatMoney } from '../../money/format';
+import { dateToDateString, todayAsDateString } from '../../transactions/validation';
 import type { HistoryStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 
@@ -29,7 +30,8 @@ export default function DebtsScreen({ navigation }: ScreenProps) {
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Debt | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
-  const [payingId, setPayingId] = useState<number | null>(null);
+  const [payTarget, setPayTarget] = useState<Debt | null>(null);
+  const [payBusy, setPayBusy] = useState(false);
 
   const load = useCallback(
     async (mode: 'initial' | 'refresh') => {
@@ -58,19 +60,23 @@ export default function DebtsScreen({ navigation }: ScreenProps) {
     }, [load]),
   );
 
-  const markPaid = async (debt: Debt) => {
-    if (payingId !== null) return;
-    setPayingId(debt.id);
+  const confirmPaid = async () => {
+    if (payBusy || !payTarget) return;
+    setPayBusy(true);
     try {
-      const result = await payDebt(debt.id);
+      // The owner settles the debt on their own calendar day, which becomes
+      // the day it shows up in the history.
+      const result = await payDebt(payTarget.id, todayAsDateString());
       setDebts(prev =>
         prev.map(item => (item.id === result.debt.id ? result.debt : item)),
       );
+      setPayTarget(null);
       toast.show('success', t('debts.markedPaid'));
     } catch (err) {
       toast.show('error', err instanceof Error ? err.message : t('common.error.generic'));
+      setPayTarget(null);
     } finally {
-      setPayingId(null);
+      setPayBusy(false);
     }
   };
 
@@ -126,7 +132,7 @@ export default function DebtsScreen({ navigation }: ScreenProps) {
         >
           {openDebts.length > 0 ? (
             <Card>
-              <Text style={styles.sectionOverline}>{t('debts.open')}</Text>
+              <Text style={styles.sectionOverline}>{t('debts.outstanding')}</Text>
               <Text style={styles.totalOwed}>{formatMoney(totalOwed)}</Text>
               <Text style={styles.totalLabel}>{t('debts.totalOwed')}</Text>
             </Card>
@@ -135,8 +141,8 @@ export default function DebtsScreen({ navigation }: ScreenProps) {
             <DebtRow
               key={debt.id}
               debt={debt}
-              paying={payingId === debt.id}
-              onPay={() => markPaid(debt)}
+              paying={payBusy && payTarget?.id === debt.id}
+              onPay={() => setPayTarget(debt)}
               onDelete={() => setDeleting(debt)}
             />
           ))}
@@ -160,6 +166,18 @@ export default function DebtsScreen({ navigation }: ScreenProps) {
       )}
 
       <ConfirmDialog
+        visible={payTarget !== null}
+        title={t('debts.markPaidConfirmTitle')}
+        message={t('debts.markPaidConfirmMessage')}
+        confirmLabel={t('debts.markPaid')}
+        cancelLabel={t('common.cancel')}
+        tone="primary"
+        loading={payBusy}
+        onConfirm={confirmPaid}
+        onCancel={() => setPayTarget(null)}
+      />
+
+      <ConfirmDialog
         visible={deleting !== null}
         title={t('debts.deleteConfirmTitle')}
         message={t('debts.deleteConfirmMessage')}
@@ -172,6 +190,23 @@ export default function DebtsScreen({ navigation }: ScreenProps) {
       />
     </Screen>
   );
+}
+
+type TFunction = ReturnType<typeof useTranslation>['t'];
+
+// Settled debts show the day they were paid when the server recorded one;
+// older rows (written before paid dates existed) fall back to the hint. The
+// date is rendered the same way as the "Owed since" line above it, so the two
+// never disagree about how a day looks.
+function paidOnText(debt: Debt, t: TFunction): string {
+  if (!debt.paidAt) {
+    return t('debts.settledHint');
+  }
+  const parsed = new Date(debt.paidAt);
+  const date = Number.isNaN(parsed.getTime())
+    ? debt.paidAt
+    : dateToDateString(parsed);
+  return t('debts.paidOn', { date });
 }
 
 function DebtRow({
@@ -201,7 +236,9 @@ function DebtRow({
             {debt.name}
           </Text>
           <Text style={styles.rowMeta} numberOfLines={1}>
-            {paid ? t('debts.settledHint') : t('debts.owedSince', { date: debt.date })}
+            {paid
+              ? paidOnText(debt, t)
+              : t('debts.owedSince', { date: debt.date })}
           </Text>
         </View>
         <Text style={[styles.rowAmount, paid && styles.rowMuted]}>

@@ -96,6 +96,13 @@ async function typeAmount(renderer: ReactTestRenderer.ReactTestRenderer, amount:
   });
 }
 
+async function typeDescription(renderer: ReactTestRenderer.ReactTestRenderer, text: string) {
+  const input = renderer.root.findByProps({ testID: 'transaction-description' });
+  await act(async () => {
+    input.props.onChangeText(text);
+  });
+}
+
 async function save(renderer: ReactTestRenderer.ReactTestRenderer) {
   const button = renderer.root.findByProps({ testID: 'transaction-save' });
   await act(async () => {
@@ -160,12 +167,14 @@ describe('TransactionFormScreen transaction classification', () => {
     await flush();
 
     await typeAmount(renderer, '10000');
+    await typeDescription(renderer, 'Restock sugar');
     await save(renderer);
 
     expect(createTransaction).toHaveBeenCalledTimes(1);
     expect((createTransaction as jest.Mock).mock.calls[0][0]).toMatchObject({
       type: 'purchase',
       amount: 10000,
+      description: 'Restock sugar',
     });
   });
 
@@ -245,5 +254,82 @@ describe('TransactionFormScreen transaction classification', () => {
 
     const input = renderer.root.findByProps({ testID: 'transaction-amount' });
     expect(input.props.value).toBe('');
+  });
+});
+
+describe('TransactionFormScreen expense description', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (listItems as jest.Mock).mockResolvedValue({ items: [] });
+    (createTransaction as jest.Mock).mockResolvedValue({ transaction: {}, queued: false });
+  });
+
+  function render(initialType: 'sale' | 'purchase'): ReactTestRenderer.ReactTestRenderer {
+    let renderer: ReactTestRenderer.ReactTestRenderer | undefined;
+    act(() => {
+      renderer = ReactTestRenderer.create(<Harness initialType={initialType} />);
+    });
+    return renderer!;
+  }
+
+  function findText(renderer: ReactTestRenderer.ReactTestRenderer, text: string) {
+    return renderer.root.findAll(
+      node => typeof node.props?.children === 'string' && node.props.children === text,
+    );
+  }
+
+  it('will not save an expense until it says what the money was spent on', async () => {
+    const renderer = render('purchase');
+    await flush();
+
+    await typeAmount(renderer, '10000');
+    await save(renderer);
+
+    expect(createTransaction).not.toHaveBeenCalled();
+    expect(findText(renderer, 'Describe what the money was spent on.').length).toBeGreaterThan(0);
+
+    await typeDescription(renderer, 'Restock sugar');
+    await save(renderer);
+
+    expect(createTransaction).toHaveBeenCalledTimes(1);
+    expect((createTransaction as jest.Mock).mock.calls[0][0]).toMatchObject({
+      type: 'purchase',
+      amount: 10000,
+      description: 'Restock sugar',
+    });
+  });
+
+  it('still saves a sale without a description', async () => {
+    const renderer = render('sale');
+    await flush();
+
+    await typeAmount(renderer, '5000');
+    await save(renderer);
+
+    expect(createTransaction).toHaveBeenCalledTimes(1);
+    expect((createTransaction as jest.Mock).mock.calls[0][0]).toMatchObject({
+      type: 'sale',
+      amount: 5000,
+    });
+  });
+
+  it('fills the expense description from a preset chip', async () => {
+    const renderer = render('purchase');
+    await flush();
+
+    await typeAmount(renderer, '3000');
+    await act(async () => {
+      renderer.root
+        .findByProps({ testID: 'transaction-preset-transport' })
+        .props.onPress();
+    });
+
+    await save(renderer);
+
+    expect(createTransaction).toHaveBeenCalledTimes(1);
+    expect((createTransaction as jest.Mock).mock.calls[0][0]).toMatchObject({
+      type: 'purchase',
+      description: 'Transport',
+    });
   });
 });

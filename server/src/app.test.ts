@@ -73,6 +73,7 @@ test('API responses include security headers', async () => {
   assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
   assert.equal(response.headers.get('x-frame-options'), 'DENY');
   assert.equal(response.headers.get('referrer-policy'), 'no-referrer');
+  assert.equal(response.headers.get('x-powered-by'), null);
 });
 
 test('resource endpoints reject unauthenticated requests', async () => {
@@ -467,8 +468,9 @@ test('a user cannot read or delete another user debt', async () => {
     firstName: 'Frida',
     lastName: 'Kamga',
     email: 'frida@market.cm',
-    password: 'coupe123',
+    password: 'fridaPassword999',
   });
+  assert.equal(otherSignup.status, 201);
   const otherToken = (otherSignup.data as unknown as AuthResult).token;
 
   const get = await call('GET', `/debts/${debtId}`, undefined, otherToken);
@@ -496,7 +498,7 @@ test('summary reports money received, spent and net', async () => {
   await call(
     'POST',
     '/transactions',
-    { type: 'purchase', amount: 800, date: today },
+    { type: 'purchase', amount: 800, description: 'Restock sugar', date: today },
     signupToken,
   );
   await call(
@@ -598,4 +600,124 @@ test('DELETE /auth/me removes the account', async () => {
     password: 'newpass456',
   });
   assert.equal(login.status, 401);
+});
+
+test('SECURITY: prevents cross-account password reuse', async () => {
+  // 1. Create user Alpha with secretPassword123
+  const userAlpha = await call('POST', '/auth/signup', {
+    firstName: 'Alpha',
+    lastName: 'User',
+    email: 'alpha@market.cm',
+    password: 'secretPassword123',
+  });
+  assert.equal(userAlpha.status, 201);
+
+  // 2. Attempt user Beta with the EXACT same password -> rejected
+  const userBeta = await call('POST', '/auth/signup', {
+    firstName: 'Beta',
+    lastName: 'User',
+    email: 'beta@market.cm',
+    password: 'secretPassword123',
+  });
+  assert.equal(userBeta.status, 400);
+  assert.equal((userBeta.data.error as { code: string }).code, 'PASSWORD_NOT_ALLOWED');
+  assert.equal(
+    (userBeta.data.error as { message: string }).message,
+    'Please choose a different password.',
+  );
+
+  // 3. User Beta with unique password succeeds
+  const userBetaOk = await call('POST', '/auth/signup', {
+    firstName: 'Beta',
+    lastName: 'User',
+    email: 'beta@market.cm',
+    password: 'differentPassword789',
+  });
+  assert.equal(userBetaOk.status, 201);
+});
+
+test('history supports period filtering and financial totals', async () => {
+  const userRes = await call('POST', '/auth/signup', {
+    firstName: 'History',
+    lastName: 'Tester',
+    email: 'history@market.cm',
+    password: 'historyPass2026',
+  });
+  assert.equal(userRes.status, 201);
+  const token = (userRes.data as unknown as AuthResult).token;
+
+  const now = new Date();
+  const todayStr = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+  ].join('-');
+
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = [
+    yesterday.getFullYear(),
+    String(yesterday.getMonth() + 1).padStart(2, '0'),
+    String(yesterday.getDate()).padStart(2, '0'),
+  ].join('-');
+
+  // Create today's sale and spend
+  await call('POST', '/transactions', { type: 'sale', amount: 5000, description: 'Sold shoes', date: todayStr }, token);
+  await call('POST', '/transactions', { type: 'purchase', amount: 1500, description: 'Transport', date: todayStr }, token);
+
+  // Create yesterday's sale
+  await call('POST', '/transactions', { type: 'sale', amount: 2000, description: 'Sold belt', date: yesterdayStr }, token);
+
+  // Query today
+  const todayRes = await call('GET', '/activity?period=today', undefined, token);
+  assert.equal(todayRes.status, 200);
+  const todayData = todayRes.data as { events: unknown[]; summary: { received: number; spent: number; made: number } };
+  assert.equal(todayData.events.length, 2);
+  assert.equal(todayData.summary.received, 5000);
+  assert.equal(todayData.summary.spent, 1500);
+  assert.equal(todayData.summary.made, 3500);
+
+  // Query yesterday
+  const yesterdayRes = await call('GET', '/activity?period=yesterday', undefined, token);
+  assert.equal(yesterdayRes.status, 200);
+  const yesterdayData = yesterdayRes.data as { events: unknown[]; summary: { received: number; spent: number; made: number } };
+  assert.equal(yesterdayData.events.length, 1);
+  assert.equal(yesterdayData.summary.received, 2000);
+  assert.equal(yesterdayData.summary.spent, 0);
+  assert.equal(yesterdayData.summary.made, 2000);
+});
+
+test('debts records paid_at timestamp and filters by status', async () => {
+  const userRes = await call('POST', '/auth/signup', {
+    firstName: 'Debts',
+    lastName: 'Tester',
+    email: 'debt_tester@market.cm',
+    password: 'debtPass2026',
+  });
+  assert.equal(userRes.status, 201);
+  const token = (userRes.data as unknown as AuthResult).token;
+
+  // Create debt
+  const createRes = await call('POST', '/debts', { name: 'Paul', amount: 15000, date: '2026-09-01' }, token);
+  assert.equal(createRes.status, 201);
+  const debt = (createRes.data as { debt: { id: number; status: string; paidAt?: string } }).debt;
+  assert.equal(debt.status, 'open');
+  assert.equal(debt.paidAt, undefined);
+
+  // Mark debt as paid
+  const payRes = await call('POST', `/debts/${debt.id}/pay`, {}, token);
+  assert.equal(payRes.status, 200);
+  const paidDebt = (payRes.data as { debt: { status: string; paidAt: string } }).debt;
+  assert.equal(paidDebt.status, 'paid');
+  assert.ok(typeof paidDebt.paidAt === 'string' && paidDebt.paidAt.length > 0);
+
+  // Filter open debts -> should be empty
+  const openRes = await call('GET', '/debts?status=open', undefined, token);
+  assert.equal(openRes.status, 200);
+  assert.equal((openRes.data as { debts: unknown[] }).debts.length, 0);
+
+  // Filter paid debts -> should contain Paul
+  const paidRes = await call('GET', '/debts?status=paid', undefined, token);
+  assert.equal(paidRes.status, 200);
+  assert.equal((paidRes.data as { debts: { name: string }[] }).debts[0]?.name, 'Paul');
 });

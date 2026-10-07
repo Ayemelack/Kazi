@@ -1,5 +1,27 @@
 # Kazi — Offline-First Verification Report
 
+> **Status: historical, superseded (2026-10-07).**
+>
+> This report describes an offline-first design that was **never fully landed**. The shipped app
+> is online-only, and the report's own test counts and file lists are obsolete. Current state:
+>
+> - `src/offline/` contains exactly four files: `api.ts`, `connectivity.ts`,
+>   `OfflineProvider.tsx`, `types.ts`. `store.ts`, `id.ts`, `repository.ts`, `sync.ts` and
+>   `refresh.ts` **do not exist** in this repository.
+> - `__tests__/offline.test.ts` **does not exist**; there is no offline test suite.
+> - `src/offline/api.ts` is a deliberate pass-through (see its header comment): every read hits
+>   the server and every write waits for the server's answer — nothing is cached, queued or
+>   replayed locally. A failed request surfaces the real error instead of a local record.
+> - What survives is the connectivity indicator: `OfflineProvider` polls `/health` and renders
+>   `src/components/ui/OfflinePill.tsx` only when the phone genuinely has no network.
+> - What landed on the backend is real and still in use: `server/src/idempotency.ts`, the
+>   `client_ops` table, the `clientOpId` body field on create/payment/stock writes, and the
+>   replay tests in `server/src/sync.test.ts` (a retried request replays the stored response;
+>   cross-operation reuse returns `409 IDEMPOTENCY_CONFLICT`).
+>
+> The text below is kept as the record of that effort. Treat the file lists, test names and
+> counts as of 2026-09-13 only.
+
 Date: 2026-09-13
 Scope: Add offline-first capability to the Kazi React Native app and its Express + SQLite backend. Work was strictly limited to offline-first functionality; no unrelated files were changed.
 

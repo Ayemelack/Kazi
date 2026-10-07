@@ -28,6 +28,19 @@ type ScreenProps = NativeStackScreenProps<HistoryStackParamList, 'TransactionFor
 
 const TYPES: TransactionType[] = ['sale', 'purchase'];
 
+// Shortcuts for the everyday expenses a shop owner records. 'other' simply
+// clears the field so the owner can type their own words.
+const EXPENSE_PRESETS = [
+  'workerSalary',
+  'transport',
+  'rent',
+  'electricity',
+  'stock',
+  'repairs',
+  'packaging',
+  'other',
+] as const;
+
 export default function TransactionFormScreen({ navigation, route }: ScreenProps) {
   const { t } = useTranslation();
   const toast = useToast();
@@ -66,7 +79,7 @@ export default function TransactionFormScreen({ navigation, route }: ScreenProps
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-useFocusEffect(
+  useFocusEffect(
     useCallback(() => {
       let cancelled = false;
       (async () => {
@@ -92,6 +105,7 @@ useFocusEffect(
     const validationErrors = validateTransactionForm(
       { type, amount, description, date, quantity },
       quantityRequired,
+      selectedItem !== null,
     );
     if (hasTransactionErrors(validationErrors)) {
       setErrors(validationErrors);
@@ -120,8 +134,14 @@ useFocusEffect(
   };
 
   const canSubmit = !hasTransactionErrors(
-    validateTransactionForm({ type, amount, description, date, quantity }, quantityRequired),
+    validateTransactionForm(
+      { type, amount, description, date, quantity },
+      quantityRequired,
+      selectedItem !== null,
+    ),
   );
+
+  const isExpense = type === 'purchase';
 
   const stockEffectCount =
     selectedItem?.trackStock === true
@@ -181,7 +201,43 @@ useFocusEffect(
         onChange={setDate}
         error={errors.date ? t(errors.date) : undefined}
       />
-      <Text style={styles.fieldLabel}>{t('transactions.item')}</Text>
+      {isExpense ? (
+        <>
+          <TextField
+            testID="transaction-description"
+            label={t('transactions.spentOn')}
+            placeholder={t('transactions.spentOnPlaceholder')}
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            maxLength={200}
+            error={errors.description ? t(errors.description) : undefined}
+          />
+          <View style={styles.presetWrap}>
+            {EXPENSE_PRESETS.map(preset => {
+              const label = t(`transactions.presets.${preset}`);
+              const active = preset !== 'other' && description.trim() === label;
+              return (
+                <Pressable
+                  key={preset}
+                  testID={`transaction-preset-${preset}`}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  onPress={() => setDescription(preset === 'other' ? '' : label)}
+                  style={[styles.preset, active && styles.presetActive]}
+                >
+                  <Text style={[styles.presetText, active && styles.presetTextActive]}>
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      ) : null}
+      <Text style={styles.fieldLabel}>
+        {t(isExpense ? 'transactions.itemOptional' : 'transactions.item')}
+      </Text>
       <Pressable
         testID="transaction-item"
         accessibilityRole="button"
@@ -214,14 +270,16 @@ useFocusEffect(
           </Text>
         </View>
       ) : null}
-      <TextField
-        testID="transaction-description"
-        label={t('transactions.description')}
-        value={description}
-        onChangeText={setDescription}
-        multiline
-        maxLength={200}
-      />
+      {!isExpense ? (
+        <TextField
+          testID="transaction-description"
+          label={t('transactions.description')}
+          value={description}
+          onChangeText={setDescription}
+          multiline
+          maxLength={200}
+        />
+      ) : null}
       {formError ? <Text style={styles.formError}>{formError}</Text> : null}
       <Button
         testID="transaction-save"
@@ -319,5 +377,32 @@ const styles = StyleSheet.create({
     color: colors.error,
     marginBottom: spacing.lg,
     textAlign: 'center',
+  },
+  presetWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: -spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  preset: {
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  presetActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
+  },
+  presetText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  presetTextActive: {
+    color: colors.primaryDark,
+    fontWeight: '600',
   },
 });

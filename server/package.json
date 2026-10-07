@@ -9,7 +9,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test src/app.test.ts src/items/items.test.ts src/items/stock.test.ts src/transactions/transactions.test.ts src/notifications/notifications.test.ts src/sync.test.ts"
+    "test": "node --import tsx --test src/app.test.ts src/auth/auth.test.ts src/activity/activity.test.ts src/items/items.test.ts src/items/stock.test.ts src/transactions/transactions.test.ts src/notifications/notifications.test.ts src/sync.test.ts"
   },
   "engines": {
     "node": ">= 22.11.0"

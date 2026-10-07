@@ -7,6 +7,8 @@ export interface Debt {
   note?: string;
   date: string;
   status: DebtStatus;
+  // ISO-8601 instant the debt was settled, set only once status is 'paid'.
+  paidAt?: string;
   createdAt: string;
 }
 

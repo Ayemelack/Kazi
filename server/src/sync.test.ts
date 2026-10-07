@@ -92,6 +92,7 @@ test('a different clientOpId creates an extra transaction', async () => {
   const body = {
     type: 'purchase',
     amount: 500,
+    description: 'Buy fuel',
     date: '2026-09-13',
     clientOpId: `txn-${Date.now()}-0002`,
   };

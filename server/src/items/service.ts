@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3';
 import { AppError } from '../errors.js';
-import { logActivity } from '../activity/service.js';
+import { deleteActivityRefs, logActivity } from '../activity/service.js';
 import type {
   CreateItemInput,
   StockMovementInput,
@@ -126,7 +126,12 @@ export function deleteItem(
   itemId: number,
 ): void {
   requireOwnedItem(db, userId, itemId);
-  db.prepare('DELETE FROM items WHERE id = ? AND user_id = ?').run(itemId, userId);
+  db.transaction(() => {
+    db.prepare('DELETE FROM items WHERE id = ? AND user_id = ?').run(itemId, userId);
+    // The product's own history entries go with it; money entries created from
+    // sales and purchases of it keep their own ref and stay.
+    deleteActivityRefs(db, userId, { type: 'item', id: itemId });
+  })();
 }
 
 export function createItem(
@@ -155,12 +160,15 @@ export function createItem(
         threshold,
       );
 
+    const itemId = Number(result.lastInsertRowid);
+
     logActivity(db, userId, {
       type: 'product_added',
       title: input.name,
+      ref: { type: 'item', id: itemId },
     });
 
-    return Number(result.lastInsertRowid);
+    return itemId;
   })();
 
   const row = db
@@ -202,6 +210,7 @@ export function updateItem(
     logActivity(db, userId, {
       type: 'product_updated',
       title: input.name,
+      ref: { type: 'item', id: itemId },
     });
   })();
 

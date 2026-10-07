@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3';
 import { AppError } from '../errors.js';
-import { logActivity } from '../activity/service.js';
+import { deleteActivityRefs, logActivity } from '../activity/service.js';
 import { stockIn, stockOut } from '../items/service.js';
 import type { ItemType } from '../items/validation.js';
 import type { CreateTransactionInput } from './validation.js';
@@ -146,6 +146,7 @@ export function createTransaction(
       )
       .run(userId, type, amount, itemId ?? null, quantityApplied, description ?? null, date);
 
+    const transactionId = Number(result.lastInsertRowid);
     const activityType =
       type === 'sale' ? 'sale' : type === 'purchase' ? 'spend' : 'capital';
 
@@ -155,11 +156,12 @@ export function createTransaction(
       amount,
       quantity: quantityApplied ?? undefined,
       eventDate: date,
+      ref: { type: 'transaction', id: transactionId },
     });
 
     const row = db
       .prepare(`${JOIN_QUERY} WHERE t.id = ?`)
-      .get(result.lastInsertRowid) as unknown as TransactionRow;
+      .get(transactionId) as unknown as TransactionRow;
     return row;
   })();
 
@@ -203,5 +205,9 @@ export function deleteTransaction(
       transactionId,
       userId,
     );
+
+    // Drop the history entry in the same transaction, otherwise What Happened
+    // keeps showing a record that no longer exists.
+    deleteActivityRefs(db, userId, { type: 'transaction', id: transactionId });
   })();
 }

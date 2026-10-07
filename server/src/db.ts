@@ -150,6 +150,16 @@ function migrate(db: Database.Database): void {
     );
 
     CREATE INDEX IF NOT EXISTS idx_client_ops_user ON client_ops(user_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS password_fingerprints (
+      fingerprint TEXT PRIMARY KEY,
+      user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_password_fingerprints_user ON password_fingerprints(user_id);
+    CREATE INDEX IF NOT EXISTS idx_activity_user_date ON activity(user_id, event_date DESC, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_transactions_user_type_date ON transactions(user_id, type, date DESC);
   `);
 
   addColumnIfMissing(db, 'items', 'stock', 'INTEGER NOT NULL DEFAULT 0');
@@ -160,7 +170,27 @@ function migrate(db: Database.Database): void {
   addColumnIfMissing(db, 'users', 'last_name', 'TEXT NOT NULL DEFAULT \'\'');
   addColumnIfMissing(db, 'users', 'business_type', 'TEXT NOT NULL DEFAULT \'\'');
   addColumnIfMissing(db, 'users', 'token_version', 'INTEGER NOT NULL DEFAULT 0');
+  addColumnIfMissing(db, 'debts', 'paid_at', 'TEXT');
+  // History events carry a link back to the record that produced them so a
+  // delete of the authoritative record can remove its event log entry too.
+  addColumnIfMissing(db, 'activity', 'ref_type', 'TEXT');
+  addColumnIfMissing(db, 'activity', 'ref_id', 'INTEGER');
+  db.exec(
+    'CREATE INDEX IF NOT EXISTS idx_activity_ref ON activity(user_id, ref_type, ref_id)',
+  );
+  backfillActivityEventDates(db);
   migrateTransactionsTable(db);
+}
+
+// Historical rows were allowed to have a NULL event_date and were filtered on
+// substr(created_at, 1, 10) instead. Date filtering now uses event_date alone,
+// so every existing row must be given one. created_at is stored in UTC by
+// SQLite, which is the best approximation available for rows written before
+// this migration; new rows always receive their business date at insert time.
+function backfillActivityEventDates(db: Database.Database): void {
+  db.exec(
+    `UPDATE activity SET event_date = substr(created_at, 1, 10) WHERE event_date IS NULL`,
+  );
 }
 
 function migrateTransactionsTable(db: Database.Database): void {

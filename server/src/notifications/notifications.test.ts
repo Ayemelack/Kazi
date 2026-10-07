@@ -47,12 +47,13 @@ async function call(
   return { status: response.status, data: text ? (JSON.parse(text) as Record<string, unknown>) : {} };
 }
 
-async function signUpUser(email: string): Promise<string> {
+async function signUpUser(email: string, password?: string): Promise<string> {
+  const pwd = password ?? `fcmPass_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const result = await call('POST', '/auth/signup', {
     firstName: 'Fcm',
     lastName: 'Tester',
     email,
-    password: 'coupe123',
+    password: pwd,
   });
   assert.equal(result.status, 201);
   return (result.data as { token: string }).token;

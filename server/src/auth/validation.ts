@@ -90,6 +90,9 @@ export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type ProfileInput = z.infer<typeof profileSchema>;
 export type AccountInput = z.infer<typeof accountSchema>;
 
-export function validate<T>(schema: z.ZodType<T>, data: unknown): T {
-  return schema.parse(data);
+export function validate<S extends z.ZodTypeAny>(
+  schema: S,
+  data: unknown,
+): z.infer<S> {
+  return schema.parse(data) as z.infer<S>;
 }

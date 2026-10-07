@@ -8,7 +8,7 @@ export interface TransactionFormInput {
   quantity: string;
 }
 
-export type TransactionFormField = 'amount' | 'date' | 'quantity';
+export type TransactionFormField = 'amount' | 'date' | 'quantity' | 'description';
 export type TransactionFormErrors = Partial<Record<TransactionFormField, string>>;
 
 const AMOUNT_MAX = 1e12;
@@ -70,17 +70,37 @@ export function validateTransactionQuantity(value: string, required: boolean): s
   return null;
 }
 
-export function todayAsDateString(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
+export function dateToDateString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+export function todayAsDateString(): string {
+  return dateToDateString(new Date());
+}
+
+// An expense has to say what the money went to. Picking an item names it, so
+// that satisfies the rule on its own; otherwise the description is required.
+// Without this the save would only fail once the server rejects it.
+export function validateTransactionDescription(
+  type: TransactionType,
+  description: string,
+  itemSelected: boolean,
+): string | null {
+  if (type !== 'purchase' || itemSelected) {
+    return null;
+  }
+  return description.trim().length === 0
+    ? 'transactions.errors.descriptionRequired'
+    : null;
 }
 
 export function validateTransactionForm(
   input: TransactionFormInput,
   quantityRequired: boolean,
+  itemSelected = false,
 ): TransactionFormErrors {
   const errors: TransactionFormErrors = {};
   const amountError = validateTransactionAmount(input.amount);
@@ -94,6 +114,14 @@ export function validateTransactionForm(
   const quantityError = validateTransactionQuantity(input.quantity, quantityRequired);
   if (quantityError) {
     errors.quantity = quantityError;
+  }
+  const descriptionError = validateTransactionDescription(
+    input.type,
+    input.description,
+    itemSelected,
+  );
+  if (descriptionError) {
+    errors.description = descriptionError;
   }
   return errors;
 }

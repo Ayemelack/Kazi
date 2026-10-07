@@ -132,11 +132,17 @@ class LoginThrottle {
     if (!this.active(this.global)) {
       this.global = { count: 0, resetAt: now + this.windowMs };
     }
+    // The global cap is checked first and for every key, including a key seen
+    // for the first time; otherwise rotating source IPs would walk straight
+    // past the per-process ceiling.
+    if (this.global.count >= this.maxGlobal) {
+      return { allowed: false, retryAfterMs: Math.max(this.global.resetAt - now, 0) };
+    }
     const bucket = this.perKey.get(key);
     if (!bucket || !this.active(bucket)) {
       return { allowed: true, retryAfterMs: 0 };
     }
-    if (bucket.count >= this.maxPerKey || this.global.count >= this.maxGlobal) {
+    if (bucket.count >= this.maxPerKey) {
       return { allowed: false, retryAfterMs: Math.max(bucket.resetAt - now, 0) };
     }
     return { allowed: true, retryAfterMs: 0 };
@@ -214,6 +220,8 @@ function buildApp(
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Referrer-Policy', 'no-referrer');
+    // Authenticated responses must never be written to a shared cache.
+    res.setHeader('Cache-Control', 'no-store');
     res.setHeader(
       'Content-Security-Policy',
       "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",

@@ -7,7 +7,7 @@ import Screen from '../../components/ui/Screen';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import KaziLogo from '../../components/brand/KaziLogo';
-import WelcomeIllustration from '../../components/brand/WelcomeIllustration';
+import WelcomeVisual from '../../components/brand/WelcomeVisual';
 import type { AuthStackParamList } from '../../navigation/RootNavigator';
 import { colors, spacing, typography } from '../../theme';
 
@@ -24,7 +24,7 @@ function WelcomeScreen({ navigation }: ScreenProps) {
       <Text style={styles.tagline}>{t('empty.homeMessage')}</Text>
       <Text style={styles.message}>{t('welcome.message')}</Text>
       <View style={styles.illustrationWrap}>
-        <WelcomeIllustration />
+        <WelcomeVisual />
       </View>
       <Card>
         <View style={styles.actions}>

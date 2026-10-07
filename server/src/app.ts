@@ -13,6 +13,9 @@ import { errorHandler } from './errors.js';
 
 export function createApp(db: Database.Database): Express {
   const app = express();
+  // Fingerprinting aid only: without this Express advertises "X-Powered-By:
+  // Express" on every response, including error responses.
+  app.disable('x-powered-by');
 
   // Lean security headers for the JSON API. Kept inline so no middleware
   // dependency is introduced for a small, fixed set of headers. Cache-Control

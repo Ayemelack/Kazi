@@ -4,6 +4,7 @@ import type { Debt, DebtInput } from '../debts/types';
 import type { StockMovementInput } from '../items/api';
 import type { MoneySummary } from '../summary/api';
 import type { LocalActivity } from './types';
+import type { ActivityQuery, ActivitySummary } from '../activity/types';
 import { fetchSummary as fetchSummaryRequest } from '../summary/api';
 import {
   createItem as createItemRequest,
@@ -48,10 +49,18 @@ export async function getItem(itemId: number): Promise<{ item: Item }> {
 }
 
 export async function listActivity(
-  limit = 100,
-): Promise<{ events: LocalActivity[] }> {
-  const { events } = await listActivityRequest(limit);
-  return { events: events.map(event => ({ ...event, syncStatus: 'synced' })) };
+  query: ActivityQuery = {},
+): Promise<{
+  events: LocalActivity[];
+  summary: ActivitySummary;
+  totalCount: number;
+  hasMore: boolean;
+}> {
+  const result = await listActivityRequest(query);
+  return {
+    ...result,
+    events: result.events.map(event => ({ ...event, syncStatus: 'synced' })),
+  };
 }
 
 export async function listDebts(): Promise<{ debts: Debt[] }> {
@@ -82,8 +91,11 @@ export async function createDebt(
   return { debt, queued: false };
 }
 
-export async function payDebt(debtId: number): Promise<{ debt: Debt }> {
-  return payDebtRequest(debtId);
+export async function payDebt(
+  debtId: number,
+  paidOn?: string,
+): Promise<{ debt: Debt }> {
+  return payDebtRequest(debtId, paidOn);
 }
 
 export async function deleteDebt(debtId: number): Promise<void> {

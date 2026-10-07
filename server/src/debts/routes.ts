@@ -12,6 +12,7 @@ import {
 import {
   createDebtSchema,
   debtIdSchema,
+  listDebtsQuerySchema,
   payDebtSchema,
   validate,
 } from './validation.js';
@@ -23,7 +24,8 @@ export function createDebtsRouter(db: Database.Database): Router {
 
   router.get('/', (req, res, next) => {
     try {
-      res.status(200).json({ debts: listDebts(db, req.user?.id ?? 0) });
+      const query = validate(listDebtsQuerySchema, req.query);
+      res.status(200).json({ debts: listDebts(db, req.user?.id ?? 0, query.status) });
     } catch (err) {
       next(err);
     }
@@ -65,7 +67,7 @@ export function createDebtsRouter(db: Database.Database): Router {
         userId,
         input.clientOpId,
         'debt_pay',
-        () => payDebt(db, userId, debtId),
+        () => payDebt(db, userId, debtId, input.date),
       );
       res.status(200).json({ debt });
     } catch (err) {

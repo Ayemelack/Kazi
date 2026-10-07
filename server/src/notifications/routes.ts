@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type Database from 'better-sqlite3';
+import { rateLimit } from '../middleware/rateLimit.js';
 import { requireAuth } from '../middleware/auth.js';
 import {
   registerPushToken,
@@ -38,7 +39,11 @@ export function createNotificationsRouter(db: Database.Database): Router {
     }
   });
 
-  router.post('/send', async (req, res, next) => {
+  // Every send fans out to the caller's own push tokens, so an authenticated
+  // caller could otherwise burn the Firebase quota in a tight loop.
+  const sendLimiter = rateLimit({ windowMs: 60_000, max: 10 });
+
+  router.post('/send', sendLimiter, async (req, res, next) => {
     try {
       const input = validate(sendNotificationSchema, req.body);
       const result = await sendNotificationToUser(db, req.user?.id ?? 0, input);

@@ -44,9 +44,14 @@ jest.mock('@notifee/react-native', () => ({
     displayNotification: jest.fn(async () => 'notification-id'),
     requestPermission: jest.fn(async () => ({ authorizationStatus: 1 })),
     onForegroundEvent: jest.fn(),
+    createTriggerNotification: jest.fn(async () => 'kazi-daily-reminder'),
+    cancelNotification: jest.fn(async () => undefined),
+    getTriggerNotifications: jest.fn(async () => []),
   },
   AndroidImportance: { DEFAULT: 3, HIGH: 4 },
   EventType: { PRESS: 1 },
+  TriggerType: { TIMESTAMP: 0 },
+  RepeatFrequency: { HOURLY: 0, DAILY: 1, WEEKLY: 2 },
 }));
 
 jest.mock('@react-native-firebase/messaging', () => ({

@@ -285,11 +285,25 @@ const pid: TranslationSchema = {
   },
   more: {
     myBusiness: 'My business',
+    reminder: 'Daily reminder',
     feedback: 'Feedback',
     support: 'Contact support',
     privacy: 'Privacy policy',
     terms: 'Terms of service',
     deleteAccount: 'Delete my account',
+  },
+  reminder: {
+    title: 'Daily reminder',
+    description: 'You go get one small reminder every day to write your business.',
+    timeLabel: 'Reminder time',
+    hour: 'Hour',
+    minute: 'Minute',
+    note: 'Na just friendly reminder. You can off am any time you want.',
+    permissionDenied:
+      'Kazi need notification permission before e go fit send reminder. You can allow am for your phone settings.',
+    saveError: 'We no fit update your reminder. Please try again.',
+    notificationTitle: 'Kazi reminder',
+    notificationBody: "You don record today's business transactions?",
   },
   feedback: {
     title: 'Help us make Kazi better',

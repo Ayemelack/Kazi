@@ -276,11 +276,25 @@ const en = {
   },
   more: {
     myBusiness: 'My business',
+    reminder: 'Daily reminder',
     feedback: 'Feedback',
     support: 'Contact support',
     privacy: 'Privacy policy',
     terms: 'Terms of service',
     deleteAccount: 'Delete my account',
+  },
+  reminder: {
+    title: 'Daily reminder',
+    description: 'Get one gentle nudge a day to record your business.',
+    timeLabel: 'Reminder time',
+    hour: 'Hour',
+    minute: 'Minute',
+    note: 'This is only a friendly nudge. You can turn it off any time.',
+    permissionDenied:
+      'Kazi needs notification permission to send a reminder. You can enable it in your phone settings.',
+    saveError: 'Could not update your reminder. Please try again.',
+    notificationTitle: 'Kazi reminder',
+    notificationBody: "Have you recorded today's business transactions?",
   },
   feedback: {
     title: 'Help us improve Kazi',

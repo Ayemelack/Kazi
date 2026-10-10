@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import {
+  Bell,
   Building2,
   ChevronRight,
   FileText,
@@ -36,6 +37,7 @@ const MENU_ITEMS: {
   screen: keyof MoreStackParamList;
 }[] = [
   { key: 'business', labelKey: 'more.myBusiness', icon: Building2, iconColor: colors.primaryDark, iconBg: colors.primarySoft, screen: 'MyBusiness' },
+  { key: 'reminder', labelKey: 'more.reminder', icon: Bell, iconColor: colors.primaryDark, iconBg: colors.primarySoft, screen: 'Reminder' },
   { key: 'feedback', labelKey: 'more.feedback', icon: HeartHandshake, iconColor: colors.primaryDark, iconBg: colors.primarySoft, screen: 'Feedback' },
   { key: 'support', labelKey: 'more.support', icon: LifeBuoy, iconColor: colors.primaryDark, iconBg: colors.primarySoft, screen: 'Support' },
   { key: 'privacy', labelKey: 'more.privacy', icon: ShieldCheck, iconColor: colors.primaryDark, iconBg: colors.primarySoft, screen: 'Privacy' },

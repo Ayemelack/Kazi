@@ -9,7 +9,15 @@ export type ActivityType =
   | 'product_added'
   | 'product_updated';
 
-export type HistoryPeriod = 'today' | 'yesterday' | 'this_week' | 'older' | 'all';
+export type HistoryPeriod =
+  | 'today'
+  | 'yesterday'
+  | 'this_week'
+  | 'last_week'
+  | 'this_month'
+  | 'last_month'
+  | 'older'
+  | 'all';
 
 export interface ActivityEvent {
   id: number;

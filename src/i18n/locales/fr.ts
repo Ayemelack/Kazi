@@ -197,9 +197,12 @@ const fr: TranslationSchema = {
       productUpdated: 'Produit modifié',
     },
     periods: {
-      today: 'Aujourd’hui',
+      today: "Aujourd'hui",
       yesterday: 'Hier',
       thisWeek: 'Cette semaine',
+      lastWeek: 'Semaine dernière',
+      thisMonth: 'Ce mois-ci',
+      lastMonth: 'Mois dernier',
       older: 'Plus ancien',
     },
     dayToday: 'Aujourd’hui',

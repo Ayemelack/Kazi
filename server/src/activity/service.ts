@@ -11,7 +11,15 @@ export type ActivityType =
   | 'product_added'
   | 'product_updated';
 
-export type HistoryPeriod = 'today' | 'yesterday' | 'this_week' | 'older' | 'all';
+export type HistoryPeriod =
+  | 'today'
+  | 'yesterday'
+  | 'this_week'
+  | 'last_week'
+  | 'this_month'
+  | 'last_month'
+  | 'older'
+  | 'all';
 
 export type ActivityRefType = 'transaction' | 'debt' | 'item';
 
@@ -175,7 +183,6 @@ export function listActivity(
   // do not send one.
   const anchor = options.asOf ?? localDateString();
   const yesterdayStr = shiftDate(anchor, -1);
-  const weekStartStr = shiftDate(anchor, -6);
 
   let whereClauses: string[] = ['user_id = ?'];
   let params: (string | number)[] = [userId];
@@ -196,11 +203,39 @@ export function listActivity(
     whereClauses.push('event_date = ?');
     params.push(yesterdayStr);
   } else if (period === 'this_week') {
+    const start = shiftDate(anchor, -6);
     whereClauses.push('event_date BETWEEN ? AND ?');
-    params.push(weekStartStr, anchor);
+    params.push(start, anchor);
+  } else if (period === 'last_week') {
+    const end = shiftDate(anchor, -7);
+    const start = shiftDate(end, -6);
+    whereClauses.push('event_date BETWEEN ? AND ?');
+    params.push(start, end);
+  } else if (period === 'this_month') {
+    const anchorDate = new Date(Date.UTC(
+      Number(anchor.slice(0, 4)),
+      Number(anchor.slice(5, 7)) - 1,
+      Number(anchor.slice(8, 10)),
+    ));
+    const start = `${anchorDate.getUTCFullYear()}-${String(anchorDate.getUTCMonth() + 1).padStart(2, '0')}-01`;
+    whereClauses.push('event_date BETWEEN ? AND ?');
+    params.push(start, anchor);
+  } else if (period === 'last_month') {
+    const anchorDate = new Date(Date.UTC(
+      Number(anchor.slice(0, 4)),
+      Number(anchor.slice(5, 7)) - 1,
+      Number(anchor.slice(8, 10)),
+    ));
+    const lastMonthDate = new Date(Date.UTC(anchorDate.getUTCFullYear(), anchorDate.getUTCMonth() - 1, 1));
+    const start = `${lastMonthDate.getUTCFullYear()}-${String(lastMonthDate.getUTCMonth() + 1).padStart(2, '0')}-01`;
+    const endDate = new Date(Date.UTC(anchorDate.getUTCFullYear(), anchorDate.getUTCMonth(), 0));
+    const end = `${endDate.getUTCFullYear()}-${String(endDate.getUTCMonth() + 1).padStart(2, '0')}-${String(endDate.getUTCDate()).padStart(2, '0')}`;
+    whereClauses.push('event_date BETWEEN ? AND ?');
+    params.push(start, end);
   } else if (period === 'older') {
+    const start = shiftDate(anchor, -6);
     whereClauses.push('event_date < ?');
-    params.push(weekStartStr);
+    params.push(start);
   }
 
   const whereSql = whereClauses.join(' AND ');

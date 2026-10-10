@@ -1,0 +1,162 @@
+# Kazi — Project Tracker
+
+Single source of truth for getting Kazi from "works in development" to "production complete".
+Every task below comes from the full code review of 2026-10-09. The detailed fix for each task is
+in [REMEDIATION_PLAN.md](REMEDIATION_PLAN.md); security and performance rules that every task must
+respect are in [SECURITY.md](SECURITY.md) and [PERFORMANCE.md](PERFORMANCE.md). The work is
+executed in 15 agent sessions; their prompts are in [prompt.md](prompt.md).
+
+**Last updated:** 2026-10-09 · **Overall progress:** 0 / 38 tasks done (0%)
+
+---
+
+## How to update this file (do this after every task)
+
+1. Change the task's **Status** in the board below.
+2. Tick its acceptance criteria in [REMEDIATION_PLAN.md](REMEDIATION_PLAN.md).
+3. Update the counts in **Progress by phase** and the **Overall progress** line at the top.
+4. Add one line to the **Update log** at the bottom: date, task ID, what changed, how it was
+   verified (test command and result), and the commit hash.
+5. If the task changed architecture, security posture, performance budgets or deployment steps,
+   update the matching doc in the same commit.
+
+A task is only **Done** when it meets the Definition of Done in [TESTING_QA.md](TESTING_QA.md#definition-of-done).
+
+### Status legend
+
+| Status | Meaning |
+|---|---|
+| ⬜ Not started | No work yet |
+| 🟦 In progress | Someone is working on it |
+| 🟨 Blocked | Waiting on a decision or an external dependency (say which in the log) |
+| 🟪 In review | Code done, waiting for review / verification |
+| ✅ Done | Merged and verified against its acceptance criteria |
+
+---
+
+## Progress by phase
+
+| Phase | Goal | Tasks | Done | Progress |
+|---|---|---|---|---|
+| **P0** | Production blockers — the app cannot ship without these | 9 | 0 | 0% |
+| **P1** | Correctness, security and data integrity | 10 | 0 | 0% |
+| **P2** | Hardening and performance | 16 | 0 | 0% |
+| **P3** | Documentation, hygiene and CI | 3 | 0 | 0% |
+| **Total** | | **38** | **0** | **0%** |
+
+Work the phases in order. Inside a phase, tasks can run in parallel unless the board says otherwise.
+
+---
+
+## Open decisions (owner input needed)
+
+These block or shape specific tasks. Record the decision and date here when made.
+
+| # | Decision | Blocks | Options | Decision |
+|---|---|---|---|---|
+| D1 | Remove the "no two accounts may share a password" rule? | KZ-05 | (a) Remove it and block common/breached passwords instead (**recommended**) · (b) Keep it (leaks which passwords exist) | _pending_ |
+| D2 | How are password-reset codes delivered? | KZ-06 | SMS (best fit for Cameroon) · Email · WhatsApp Business | _pending_ |
+| D3 | Production API domain and hosting | KZ-09, deployment | Domain, VPS/provider, region | _pending_ |
+| D4 | Session model | KZ-13 | Short access token + rotating refresh token (**recommended**) · Keep 30-day tokens with a server-side session table | _pending_ |
+| D5 | Can a sale reduce stock below zero? | KZ-23 | Block (current) · Allow and warn (**recommended** for small shops) | _pending_ |
+| D6 | What sends push notifications? | KZ-03 | Low-stock alert · Daily summary · Debt reminders · None for v1 | _pending_ |
+| D7 | Show the last loaded data when the phone is offline? | PERFORMANCE §4 | Read-only cache of last results (**recommended**) · Stay strictly online | _pending_ |
+
+---
+
+## Task board
+
+### P0 — Production blockers
+
+| ID | Task | Sev | Area | Status | Spec |
+|---|---|---|---|---|---|
+| KZ-01 | Connectivity check uses plain HTTP and fails in release builds (permanent "offline" pill) | High | App | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-01) |
+| KZ-02 | iOS has no Firebase setup; app is expected to crash on launch | High | App / iOS | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-02) |
+| KZ-03 | Push notifications: placeholder `google-services.json`, nothing triggers sends | High | App / API | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-03) |
+| KZ-04 | Money input "1,000" / "1.000" is saved as 1 FCFA | High | App / API | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-04) |
+| KZ-05 | Password-uniqueness rule reveals which passwords are in use | High | API / Security | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-05) |
+| KZ-06 | Password reset is fail-open in dev and does not work at all in production | High | API / App | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-06) |
+| KZ-07 | No way to delete or correct a transaction | High | App / API | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-07) |
+| KZ-08 | Rate limiter ignores proxies, never frees memory | High | API / Security | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-08) |
+| KZ-09 | Release signed with debug key; production API URL is a placeholder | High | Build | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-09) |
+
+### P1 — Correctness, security and data integrity
+
+| ID | Task | Sev | Area | Status | Spec |
+|---|---|---|---|---|---|
+| KZ-10 | Home "today" totals use the server's date instead of the user's | Medium | API / App | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-10) |
+| KZ-11 | App never sends `clientOpId`; retries create duplicate records | Medium | App | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-11) |
+| KZ-12 | Server errors shown in English to French / Pidgin users | Medium | App / API | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-12) |
+| KZ-13 | Logout does not end the session; 30-day tokens; mid-session 401 not handled | Medium | API / App / Security | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-13) |
+| KZ-14 | Item list ships every photo (up to 2 MB each) on every load | Medium | API / App / Perf | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-14) |
+| KZ-15 | iPhone HEIC photos rejected; image bytes never checked | Medium | App / API / Security | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-15) |
+| KZ-16 | App and server validation rules drift apart | Medium | App / API | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-16) |
+| KZ-17 | Offline start with no cached profile shows the business-setup screen | Medium | App | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-17) |
+| KZ-18 | Admin dashboard has no start script; build omits its web files | Medium | API / Admin | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-18) |
+| KZ-19 | Vulnerable dependencies (1 critical + 2 high on server; 1 critical on app tooling) | Medium | Deps / Security | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-19) |
+
+### P2 — Hardening and performance
+
+| ID | Task | Sev | Area | Status | Spec |
+|---|---|---|---|---|---|
+| KZ-20 | Require password to delete the account | Low | API / App / Security | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-20) |
+| KZ-21 | Login timing reveals registered emails; blocking password hashing | Low | API / Security / Perf | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-21) |
+| KZ-22 | Disabled Save buttons give no reason; AddMoney would show raw keys | Low | App / UX | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-22) |
+| KZ-23 | Stock rules: oversell policy, starting stock on create | Low | API / App | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-23) |
+| KZ-24 | Pidgin language code is wrong (`pid`); language never saved on server | Low | App / API | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-24) |
+| KZ-25 | Money stored as REAL with fractions; inconsistent number formatting | Low | API / App | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-25) |
+| KZ-26 | Legacy migration drops `idx_transactions_user_type_date` | Low | API / DB | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-26) |
+| KZ-27 | Admin: malformed cookie causes a 500 | Low | Admin | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-27) |
+| KZ-28 | History "Older" with only a From date includes recent days | Low | App | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-28) |
+| KZ-29 | Weak `JWT_SECRET` accepted at boot | Low | API / Security | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-29) |
+| KZ-30 | Flaky Jest suites time out on a cold cache | Low | Tests | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-30) |
+| KZ-31 | Long lists render with ScrollView + map (no virtualization) | Low | App / Perf | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-31) |
+| KZ-32 | Server performance: SQLite pragmas, statement reuse, single-query summary | Low | API / Perf | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-32) |
+| KZ-33 | Release build: R8/minify off, all ABIs in one APK | Low | Build / Perf | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-33) |
+| KZ-34 | Observability: structured logs, request timing, readiness check | Low | API / Ops | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-34) |
+| KZ-35 | Automated, tested database backups | Medium | Ops | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-35) |
+
+### P3 — Documentation, hygiene and CI
+
+| ID | Task | Sev | Area | Status | Spec |
+|---|---|---|---|---|---|
+| KZ-36 | Correct README and OFFLINE_FIRST_VERIFICATION.md | Low | Docs | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-36) |
+| KZ-37 | Remove unrelated files, unused dependencies and dead offline code | Low | Hygiene | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-37) |
+| KZ-38 | CI pipeline: typecheck, lint, tests, audit on every push | Medium | CI | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-38) |
+
+---
+
+## Production-complete milestones
+
+The product is "complete" when every milestone is checked.
+
+- [ ] **M1 — Ship-blockers cleared:** all P0 tasks Done.
+- [ ] **M2 — Data you can trust:** KZ-04, KZ-07, KZ-10, KZ-11, KZ-25 Done; money totals match between Home, History and the admin dashboard.
+- [ ] **M3 — Secure by default:** every item in the [SECURITY.md](SECURITY.md#release-security-gate) release gate passes.
+- [ ] **M4 — Fast on a budget phone on 3G:** every budget in [PERFORMANCE.md](PERFORMANCE.md#performance-budgets) is met and measured.
+- [ ] **M5 — Release ready:** the [DEPLOYMENT.md](DEPLOYMENT.md#go-live-checklist) go-live checklist passes on a staging server and on real Android and iOS devices.
+
+---
+
+## Baseline (2026-10-09, before any fixes)
+
+| Check | Result |
+|---|---|
+| Server `npm run typecheck` | ✅ clean |
+| Server `npm test` | ✅ 103 / 103 |
+| App `npx tsc --noEmit` | ✅ clean |
+| App `npm run lint` | ✅ clean |
+| App `npm test` | ⚠️ flaky — 3 suites time out on a cold cache; 109 / 109 on rerun |
+| Server `npm audit --omit=dev` | 7 (1 critical, 2 high, 4 moderate) |
+| App `npm audit --omit=dev` | 1 critical (`shell-quote`, tooling), several high |
+
+---
+
+## Update log
+
+Newest first. One line per task or decision.
+
+| Date | Task / Decision | Change | Verified by | Commit |
+|---|---|---|---|---|
+| 2026-10-10 | — | Added docs/prompt.md: 15 session prompts + resume prompt covering all 38 tasks | — | — |
+| 2026-10-09 | — | Docs folder created from the full code review; 38 tasks logged, 7 decisions open | — | — |

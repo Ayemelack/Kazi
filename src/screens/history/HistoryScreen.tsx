@@ -48,9 +48,7 @@ const PERIODS: PeriodOption[] = [
   'today',
   'yesterday',
   'this_week',
-  'last_week',
   'this_month',
-  'last_month',
   'older',
 ];
 
@@ -58,9 +56,7 @@ const PERIOD_LABEL_KEY: Record<PeriodOption, string> = {
   today: 'history.periods.today',
   yesterday: 'history.periods.yesterday',
   this_week: 'history.periods.thisWeek',
-  last_week: 'history.periods.lastWeek',
   this_month: 'history.periods.thisMonth',
-  last_month: 'history.periods.lastMonth',
   older: 'history.periods.older',
 };
 

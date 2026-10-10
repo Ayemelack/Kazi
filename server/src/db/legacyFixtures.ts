@@ -1,35 +1,9 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import Database from 'better-sqlite3';
+// Test fixtures: a frozen copy of the boot-time migrate() that server/src/db.ts
+// ran before numbered migrations existed (commit 3d7b703). Used only to build
+// "pre-framework" databases in tests. Do not change it to match new code.
+import type Database from 'better-sqlite3';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-interface Options {
-  filename?: string;
-}
-
-export function resolveDatabasePath(): string {
-  return process.env.DATABASE_PATH ?? path.join(__dirname, '..', 'data', 'kazi.db');
-}
-
-export function openDatabase({ filename }: Options = {}): Database.Database {
-  const location = filename ?? resolveDatabasePath();
-
-  if (location !== ':memory:') {
-    fs.mkdirSync(path.dirname(location), { recursive: true });
-  }
-
-  const db = new Database(location);
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
-
-  migrate(db);
-  return db;
-}
-
-function migrate(db: Database.Database): void {
-  db.exec(`
+export const LEGACY_SCHEMA_SQL = `
     CREATE TABLE IF NOT EXISTS users (
       id            INTEGER PRIMARY KEY AUTOINCREMENT,
       company_name  TEXT NOT NULL,
@@ -160,7 +134,10 @@ function migrate(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_password_fingerprints_user ON password_fingerprints(user_id);
     CREATE INDEX IF NOT EXISTS idx_activity_user_date ON activity(user_id, event_date DESC, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_transactions_user_type_date ON transactions(user_id, type, date DESC);
-  `);
+`;
+
+export function legacyMigrate(db: Database.Database): void {
+  db.exec(LEGACY_SCHEMA_SQL);
 
   addColumnIfMissing(db, 'items', 'stock', 'INTEGER NOT NULL DEFAULT 0');
   addColumnIfMissing(db, 'items', 'track_stock', 'INTEGER NOT NULL DEFAULT 0');

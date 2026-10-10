@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { after, afterEach, before, beforeEach, test } from 'node:test';
 import type { Server } from 'node:http';
 import type Database from 'better-sqlite3';
-import { openDatabase } from '../db.js';
+import { openDatabase } from '../db/index.js';
 import { createApp } from '../app.js';
 
 let server: Server;

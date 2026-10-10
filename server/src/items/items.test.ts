@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import type { Server } from 'node:http';
-import { openDatabase } from '../db.js';
+import { openDatabase } from '../db/index.js';
 import { createApp } from '../app.js';
 import type { AuthResult } from '../auth/service.js';
 import type { Item } from './service.js';

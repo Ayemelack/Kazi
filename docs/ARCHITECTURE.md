@@ -232,9 +232,36 @@ erDiagram
 | `push_tokens` | token (unique), platform | |
 | `feedback` | rating 1–5, liked, disliked, suggestion | |
 
-Migrations run on boot in `server/src/db.ts` (`CREATE … IF NOT EXISTS` + `addColumnIfMissing`).
-**Target:** numbered migrations recorded in a `schema_migrations` table once the schema changes
-for KZ-05, KZ-13, KZ-14 and KZ-25 land, so each change runs exactly once and in order.
+### 6.1 Migrations
+
+The schema changes only through numbered migrations in `server/src/db/migrations/`
+(`NNNN_<name>.ts`, listed in order in `migrations/index.ts`). `openDatabase()` in
+`server/src/db/index.ts` sets `journal_mode = WAL` and `foreign_keys = ON`, then
+`runMigrations()` (`server/src/db/migrate.ts`) applies every migration newer than the highest
+version in `schema_migrations(version INTEGER PRIMARY KEY, name TEXT, applied_at TEXT)`:
+
+1. For each pending migration: `foreign_keys = OFF` (so tables can be rebuilt), then one
+   transaction that runs `up(db)`, runs `PRAGMA foreign_key_check` (any violation throws and rolls
+   the migration back), and records the version; then `foreign_keys = ON`.
+2. A failure stops the server from starting; earlier migrations stay committed.
+3. A database whose version is newer than the build logs a warning and is left alone (rollback to
+   the previous release, see [DEPLOYMENT.md](DEPLOYMENT.md) §4).
+
+`0001_baseline` is the schema as it stood when the framework was introduced (2026-10-10): the
+original `CREATE … IF NOT EXISTS` statements (SQL text unchanged), every column added later with
+`addColumnIfMissing`, the `activity.event_date` backfill and the rebuild that lets `transactions`
+hold `'capital'`. Every step is idempotent, so the same migration creates a fresh database and
+baselines a database created before `schema_migrations` existed, without data loss; both end with
+an identical `sqlite_master` (tested). It also restores `idx_transactions_user_type_date`, which the
+old rebuild dropped (KZ-26).
+
+Rules for new migrations:
+
+- Never edit a migration that has shipped; add a new file with the next number.
+- SQLite can't change a column type or CHECK in place: create the new table, copy, drop, rename,
+  then recreate **every** index; preserve `sqlite_sequence` when ids must not be reused.
+- Test each migration on a fresh database and on a database with the previous schema and data
+  (`server/src/db/migrations.test.ts`; `legacyFixtures.ts` holds the frozen pre-framework code).
 
 ---
 

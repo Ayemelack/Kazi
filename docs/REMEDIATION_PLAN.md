@@ -362,8 +362,12 @@ login; [ ] dates format correctly in all three languages.
 
 ### KZ-26
 **Restore the dropped index** — `migrateTransactionsTable` must recreate
-`idx_transactions_user_type_date`; add an idempotent "ensure indexes" step after all migrations.
-Acceptance: [ ] test on a legacy-schema DB shows all three transaction indexes.
+`idx_transactions_user_type_date`. _Done in session 1:_ the old boot-time code became migration
+`0001_baseline`, which recreates all three transaction indexes after the rebuild. With numbered
+migrations a separate "ensure indexes" step is not needed: any later migration that rebuilds a
+table recreates its indexes (rule in [ARCHITECTURE.md](ARCHITECTURE.md) §6.1).
+Acceptance: [x] test on a legacy-schema DB shows all three transaction indexes
+(`server/src/db/migrations.test.ts`, "pre-capital database upgrades…"; fails if the re-creation is removed).
 
 ### KZ-27
 **Admin cookie parsing** — wrap `decodeURIComponent` in `try/catch`, ignore bad cookies.

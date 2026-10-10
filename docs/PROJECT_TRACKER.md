@@ -7,7 +7,7 @@ respect are in [SECURITY.md](SECURITY.md) and [PERFORMANCE.md](PERFORMANCE.md). 
 executed in 15 agent sessions; their prompts, the standing rules and the owner decisions are in
 **[prompt.md](prompt.md)** (see [Execution plan](#execution-plan)).
 
-**Last updated:** 2026-10-10 · **Overall progress:** 0 / 38 tasks done (0%)
+**Last updated:** 2026-10-10 · **Overall progress:** 1 / 38 tasks done (3%)
 
 ---
 
@@ -41,9 +41,9 @@ A task is only **Done** when it meets the Definition of Done in [TESTING_QA.md](
 |---|---|---|---|---|
 | **P0** | Production blockers — the app cannot ship without these | 9 | 0 | 0% |
 | **P1** | Correctness, security and data integrity | 10 | 0 | 0% |
-| **P2** | Hardening and performance | 16 | 0 | 0% |
+| **P2** | Hardening and performance | 16 | 1 | 6% |
 | **P3** | Documentation, hygiene and CI | 3 | 0 | 0% |
-| **Total** | | **38** | **0** | **0%** |
+| **Total** | | **38** | **1** | **3%** |
 
 Work the phases in order. Inside a phase, tasks can run in parallel unless the board says otherwise.
 
@@ -86,7 +86,7 @@ resume prompt at the end of that file.
 | 9 | Release build and configuration | KZ-09, KZ-33 | P0 / P2 | ⬜ |
 | 10 | Sessions and app start | KZ-13, KZ-17 | P1 | ⬜ |
 | 11 | Items, images and stock | KZ-14, KZ-15, KZ-23 | P1 / P2 | ⬜ |
-| 12 | Server performance, observability, backups, admin | KZ-32, KZ-34, KZ-35, KZ-26, KZ-18 | P1 / P2 | ⬜ |
+| 12 | Server performance, observability, backups, admin | KZ-32, KZ-34, KZ-35, KZ-18 (KZ-26 done in session 1) | P1 / P2 | ⬜ |
 | 13 | App performance and read cache | KZ-31, decision D7 | P2 | ⬜ |
 | 14 | Documentation | KZ-36 | P3 | ⬜ |
 | 15 | Release-readiness audit | Milestones M1–M5 | Final | ⬜ |
@@ -134,7 +134,7 @@ resume prompt at the end of that file.
 | KZ-23 | Stock rules: oversell policy, starting stock on create | Low | API / App | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-23) |
 | KZ-24 | Pidgin language code is wrong (`pid`); language never saved on server | Low | App / API | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-24) |
 | KZ-25 | Money stored as REAL with fractions; inconsistent number formatting | Low | API / App | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-25) |
-| KZ-26 | Legacy migration drops `idx_transactions_user_type_date` | Low | API / DB | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-26) |
+| KZ-26 | Legacy migration drops `idx_transactions_user_type_date` | Low | API / DB | ✅ Done | [→](REMEDIATION_PLAN.md#kz-26) |
 | KZ-27 | Admin: malformed cookie causes a 500 | Low | Admin | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-27) |
 | KZ-28 | History "Older" with only a From date includes recent days | Low | App | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-28) |
 | KZ-29 | Weak `JWT_SECRET` accepted at boot | Low | API / Security | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-29) |
@@ -187,6 +187,7 @@ Newest first. One line per task or decision.
 
 | Date | Task / Decision | Change | Verified by | Commit |
 |---|---|---|---|---|
+| 2026-10-10 | KZ-26 + structure | Numbered migration framework: `server/src/db.ts` → `server/src/db/` (same exports), `schema_migrations`, per-migration transaction with foreign keys off + `foreign_key_check`; `0001_baseline` reproduces the old boot schema byte-for-byte and recreates all three transaction indexes after the capital rebuild (KZ-26, folded in) and keeps `sqlite_sequence`. 7 new tests (fresh, pre-capital, pre-framework, reopen no-op, rollback, FK violation, ordering); KZ-26 assertion and sequence assertion each fail when their fix is removed. Server test script now globs `src/**/*.test.ts` | `cd server && npm run typecheck && npm test && npm run build` → clean, 111/111 pass (103 before + 1 shared + 7 migrations), build OK; built server boots on a temp DB and applies `1_baseline` | this commit |
 | 2026-10-10 | D1–D7 | Owner decisions copied from prompt.md into the Decisions table (D2 email provider and D3 still pending); Execution plan section added; branch `release/production-readiness` created | — | this commit |
 | 2026-10-10 | — | Added docs/prompt.md: 15 session prompts + resume prompt covering all 38 tasks | — | — |
 | 2026-10-09 | — | Docs folder created from the full code review; 38 tasks logged, 7 decisions open | — | — |

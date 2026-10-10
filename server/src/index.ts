@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { createApp } from './app.js';
-import { openDatabase, resolveDatabasePath } from './db.js';
+import { openDatabase, resolveDatabasePath } from './db/index.js';
 import { log } from './log.js';
 
 // Fail fast instead of serving 500s on the first authenticated request.

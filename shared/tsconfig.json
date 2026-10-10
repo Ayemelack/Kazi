@@ -1,0 +1,23 @@
+{
+  // Shared code runs in Hermes (app) and Node (API). "lib" has no DOM and
+  // "types" is empty, so Node or React Native APIs can't creep into src/.
+  // Tests are type-checked separately with Node types (tsconfig.test.json).
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2022"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "rootDir": "src",
+    "outDir": "dist",
+    "declaration": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
+}

@@ -1,7 +1,7 @@
 module.exports = {
   preset: '@react-native/jest-preset',
   setupFiles: ['./jest.setup.js'],
-  testPathIgnorePatterns: ['/node_modules/', '/server/'],
+  testPathIgnorePatterns: ['/node_modules/', '/server/', '/shared/'],
   moduleNameMapper: {
     '^lucide-react-native$': '<rootDir>/__mocks__/lucide-react-native.js',
   },

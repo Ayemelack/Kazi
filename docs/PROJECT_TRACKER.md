@@ -4,9 +4,10 @@ Single source of truth for getting Kazi from "works in development" to "producti
 Every task below comes from the full code review of 2026-10-09. The detailed fix for each task is
 in [REMEDIATION_PLAN.md](REMEDIATION_PLAN.md); security and performance rules that every task must
 respect are in [SECURITY.md](SECURITY.md) and [PERFORMANCE.md](PERFORMANCE.md). The work is
-executed in 15 agent sessions; their prompts are in [prompt.md](prompt.md).
+executed in 15 agent sessions; their prompts, the standing rules and the owner decisions are in
+**[prompt.md](prompt.md)** (see [Execution plan](#execution-plan)).
 
-**Last updated:** 2026-10-09 · **Overall progress:** 0 / 38 tasks done (0%)
+**Last updated:** 2026-10-10 · **Overall progress:** 0 / 38 tasks done (0%)
 
 ---
 
@@ -48,19 +49,47 @@ Work the phases in order. Inside a phase, tasks can run in parallel unless the b
 
 ---
 
-## Open decisions (owner input needed)
+## Decisions
 
-These block or shape specific tasks. Record the decision and date here when made.
+Owner decisions that shape specific tasks, copied from [prompt.md](prompt.md#owner-decisions) on
+2026-10-10. Record each new decision and its date here. A task that depends on a _pending_ entry
+builds everything that doesn't need the answer and marks the rest 🟨 Blocked.
 
 | # | Decision | Blocks | Options | Decision |
 |---|---|---|---|---|
-| D1 | Remove the "no two accounts may share a password" rule? | KZ-05 | (a) Remove it and block common/breached passwords instead (**recommended**) · (b) Keep it (leaks which passwords exist) | _pending_ |
-| D2 | How are password-reset codes delivered? | KZ-06 | SMS (best fit for Cameroon) · Email · WhatsApp Business | _pending_ |
-| D3 | Production API domain and hosting | KZ-09, deployment | Domain, VPS/provider, region | _pending_ |
-| D4 | Session model | KZ-13 | Short access token + rotating refresh token (**recommended**) · Keep 30-day tokens with a server-side session table | _pending_ |
-| D5 | Can a sale reduce stock below zero? | KZ-23 | Block (current) · Allow and warn (**recommended** for small shops) | _pending_ |
-| D6 | What sends push notifications? | KZ-03 | Low-stock alert · Daily summary · Debt reminders · None for v1 | _pending_ |
-| D7 | Show the last loaded data when the phone is offline? | PERFORMANCE §4 | Read-only cache of last results (**recommended**) · Stay strictly online | _pending_ |
+| D1 | Remove the "no two accounts may share a password" rule? | KZ-05 | (a) Remove it and block common/breached passwords instead (**recommended**) · (b) Keep it (leaks which passwords exist) | **2026-10-10:** REMOVE it; block common/breached passwords instead |
+| D2 | How are password-reset codes delivered? | KZ-06 | SMS (best fit for Cameroon) · Email · WhatsApp Business | **2026-10-10:** EMAIL first (address already on every account); SMS later (needs phone numbers collected and verified first). Email provider: _pending_ (examples: Brevo, Postmark, Amazon SES) |
+| D3 | Production API domain and hosting | KZ-09, deployment | Domain, VPS/provider, region | _pending_ (still open 2026-10-10) |
+| D4 | Session model | KZ-13 | Short access token + rotating refresh token (**recommended**) · Keep 30-day tokens with a server-side session table | **2026-10-10:** 15-min access token + rotating refresh token (`sessions` table) |
+| D5 | Can a sale reduce stock below zero? | KZ-23 | Block (current) · Allow and warn (**recommended** for small shops) | **2026-10-10:** ALLOW; stock may go negative, shown in red, warning in history |
+| D6 | What sends push notifications? | KZ-03 | Low-stock alert · Daily summary · Debt reminders · None for v1 | **2026-10-10:** Low-stock alert only (v1) |
+| D7 | Show the last loaded data when the phone is offline? | PERFORMANCE §4 | Read-only cache of last results (**recommended**) · Stay strictly online | **2026-10-10:** YES — last results for Home, Products, History page 1 |
+
+---
+
+## Execution plan
+
+The work runs as 15 agent sessions on the branch `release/production-readiness`, one commit per
+task. Each session's prompt is in [prompt.md](prompt.md); a stopped session continues with the
+resume prompt at the end of that file.
+
+| # | Session | Tasks | Tracker phase | Status |
+|---|---|---|---|---|
+| 1 | Foundation and project structure | Structure (shared/, migrations, root scripts), KZ-30, KZ-37, KZ-38 (+ KZ-26, folded into the baseline migration) | Setup | 🟦 In progress |
+| 2 | Shared contracts: money and validation | KZ-04, KZ-16, KZ-25 | P0 / P1 / P2 | ⬜ |
+| 3 | Connectivity, errors and language | KZ-01, KZ-12, KZ-22, KZ-24 | P0 / P1 / P2 | ⬜ |
+| 4 | Authentication hardening | KZ-05, KZ-29, KZ-21, KZ-20 | P0 / P2 | ⬜ |
+| 5 | Password reset | KZ-06 | P0 | ⬜ |
+| 6 | Abuse protection and dependencies | KZ-19, KZ-08, KZ-27 | P0 / P1 / P2 | ⬜ |
+| 7 | Transactions, history and idempotency | KZ-07, KZ-11, KZ-10, KZ-28 | P0 / P1 / P2 | ⬜ |
+| 8 | Push notifications and Firebase | KZ-02, KZ-03 | P0 | ⬜ |
+| 9 | Release build and configuration | KZ-09, KZ-33 | P0 / P2 | ⬜ |
+| 10 | Sessions and app start | KZ-13, KZ-17 | P1 | ⬜ |
+| 11 | Items, images and stock | KZ-14, KZ-15, KZ-23 | P1 / P2 | ⬜ |
+| 12 | Server performance, observability, backups, admin | KZ-32, KZ-34, KZ-35, KZ-26, KZ-18 | P1 / P2 | ⬜ |
+| 13 | App performance and read cache | KZ-31, decision D7 | P2 | ⬜ |
+| 14 | Documentation | KZ-36 | P3 | ⬜ |
+| 15 | Release-readiness audit | Milestones M1–M5 | Final | ⬜ |
 
 ---
 
@@ -158,5 +187,6 @@ Newest first. One line per task or decision.
 
 | Date | Task / Decision | Change | Verified by | Commit |
 |---|---|---|---|---|
+| 2026-10-10 | D1–D7 | Owner decisions copied from prompt.md into the Decisions table (D2 email provider and D3 still pending); Execution plan section added; branch `release/production-readiness` created | — | this commit |
 | 2026-10-10 | — | Added docs/prompt.md: 15 session prompts + resume prompt covering all 38 tasks | — | — |
 | 2026-10-09 | — | Docs folder created from the full code review; 38 tasks logged, 7 decisions open | — | — |

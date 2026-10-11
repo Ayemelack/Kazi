@@ -5,28 +5,20 @@ import { useTranslation } from 'react-i18next';
 import { CloudOff, RefreshCw } from 'lucide-react-native';
 import { colors, radius, spacing, typography, zIndex } from '../../theme';
 
-// Small unobtrusive banner shown while the device can't reach the backend
-// (or a change is still waiting to sync). Deliberately static and non-blocking:
-// it sits under the toast area and never intercepts touches.
+// Small unobtrusive banner shown while the device has no internet connection.
+// Deliberately static and non-blocking: it sits under the toast area and never
+// intercepts touches.
 
-export function OfflinePill({
-  online,
-  pendingCount,
-}: {
-  online: boolean;
-  pendingCount: number;
-}) {
+export function OfflinePill({ online }: { online: boolean }) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
   const label = useMemo(() => {
     if (!online) {
-      return pendingCount > 0
-        ? t('offline.offlineWithPending')
-        : t('offline.youAreOffline');
+      return t('offline.youAreOffline');
     }
     return t('offline.syncPending');
-  }, [online, pendingCount, t]);
+  }, [online, t]);
 
   const Icon = online ? RefreshCw : CloudOff;
   const [bg, fg] = online

@@ -75,9 +75,9 @@ export async function listTransactions(): Promise<{ transactions: Transaction[] 
 
 export async function createTransaction(
   input: TransactionInput,
-): Promise<{ transaction: Transaction; queued: boolean }> {
+): Promise<{ transaction: Transaction }> {
   const { transaction } = await createTransactionRequest(input);
-  return { transaction, queued: false };
+  return { transaction };
 }
 
 export async function deleteTransaction(transactionId: number): Promise<void> {
@@ -86,9 +86,9 @@ export async function deleteTransaction(transactionId: number): Promise<void> {
 
 export async function createDebt(
   input: DebtInput,
-): Promise<{ debt: Debt; queued: boolean }> {
+): Promise<{ debt: Debt }> {
   const { debt } = await createDebtRequest(input);
-  return { debt, queued: false };
+  return { debt };
 }
 
 export async function payDebt(
@@ -104,9 +104,9 @@ export async function deleteDebt(debtId: number): Promise<void> {
 
 export async function createItem(
   input: ItemInput,
-): Promise<{ item: Item; queued: boolean }> {
+): Promise<{ item: Item }> {
   const { item } = await createItemRequest(input);
-  return { item, queued: false };
+  return { item };
 }
 
 export async function updateItem(

@@ -67,13 +67,13 @@ export default function AddMoneyScreen({ navigation }: ScreenProps) {
     setFormError(null);
     setSubmitting(true);
     try {
-      const result = await createTransaction({
+      await createTransaction({
         type: 'capital',
         amount: parseAmount(amount) ?? 0,
         date: date.trim(),
         description: description.trim() || undefined,
       });
-      toast.show('success', result.queued ? t('offline.savedOnPhone') : t('transactions.saved'));
+      toast.show('success', t('transactions.saved'));
       navigation.goBack();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : t('common.error.generic'));

@@ -116,7 +116,7 @@ describe('TransactionFormScreen item loading', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (listItems as jest.Mock).mockResolvedValue({ items: [] });
-    (createTransaction as jest.Mock).mockResolvedValue({ transaction: {}, queued: false });
+    (createTransaction as jest.Mock).mockResolvedValue({ transaction: {} });
   });
 
   it('reloads the product list when the screen regains focus', async () => {
@@ -152,7 +152,7 @@ describe('TransactionFormScreen transaction classification', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (listItems as jest.Mock).mockResolvedValue({ items: [] });
-    (createTransaction as jest.Mock).mockResolvedValue({ transaction: {}, queued: false });
+    (createTransaction as jest.Mock).mockResolvedValue({ transaction: {} });
   });
 
   function render(initialType: 'sale' | 'purchase'): ReactTestRenderer.ReactTestRenderer {
@@ -262,7 +262,7 @@ describe('TransactionFormScreen expense description', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (listItems as jest.Mock).mockResolvedValue({ items: [] });
-    (createTransaction as jest.Mock).mockResolvedValue({ transaction: {}, queued: false });
+    (createTransaction as jest.Mock).mockResolvedValue({ transaction: {} });
   });
 
   function render(initialType: 'sale' | 'purchase'): ReactTestRenderer.ReactTestRenderer {

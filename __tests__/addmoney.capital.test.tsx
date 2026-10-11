@@ -102,7 +102,7 @@ async function save(renderer: ReactTestRenderer.ReactTestRenderer) {
 describe('AddMoneyScreen capital persistence and display', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (createTransaction as jest.Mock).mockResolvedValue({ transaction: {}, queued: false });
+    (createTransaction as jest.Mock).mockResolvedValue({ transaction: {} });
     (fetchSummary as jest.Mock).mockResolvedValue({ summary: SUMMARY_CAPITAL });
   });
 

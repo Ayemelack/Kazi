@@ -19,7 +19,6 @@ const CONNECTIVITY_POLL_MS = 30_000;
 
 interface OfflineStatus {
   online: boolean;
-  pendingCount: number;
   ready: boolean;
 }
 
@@ -36,7 +35,6 @@ export function useOfflineStatus(): OfflineStatus {
 export function OfflineProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<OfflineStatus>({
     online: true,
-    pendingCount: 0,
     ready: true,
   });
 
@@ -79,7 +77,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   // React to connectivity changes from the device network monitor.
   useEffect(() => {
     const unsubscribe = subscribeConnectivity(online => {
-      setStatus({ online, pendingCount: 0, ready: true });
+      setStatus({ online, ready: true });
     });
     return unsubscribe;
   }, []);
@@ -89,7 +87,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   return (
     <OfflineContext.Provider value={value}>
       {children}
-      {status.ready && !status.online ? <OfflinePill online={status.online} pendingCount={0} /> : null}
+      {status.ready && !status.online ? <OfflinePill online={status.online} /> : null}
     </OfflineContext.Provider>
   );
 }

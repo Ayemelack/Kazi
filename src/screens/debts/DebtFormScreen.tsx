@@ -44,8 +44,8 @@ function DebtFormScreen({ navigation }: ScreenProps) {
     setFormError(null);
     setSubmitting(true);
     try {
-      const createResult = await createDebt({ name: name.trim(), amount: numericAmount, date: date.trim(), note: note.trim() || undefined });
-      toast.show('success', createResult.queued ? t('offline.savedOnPhone') : t('debts.created'));
+      await createDebt({ name: name.trim(), amount: numericAmount, date: date.trim(), note: note.trim() || undefined });
+      toast.show('success', t('debts.created'));
       navigation.goBack();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : t('common.error.generic'));

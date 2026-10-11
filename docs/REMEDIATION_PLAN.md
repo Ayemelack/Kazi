@@ -447,7 +447,18 @@ after KZ-01). Acceptance: [ ] every endpoint and command in README exists.
 **Hygiene** — move `zulu-chronicle/` out of this repo; remove `@react-native/new-app-screen`;
 delete unused offline types (`PendingOp`, `LocalItem`, `LocalTransaction`, `LocalDebt`,
 `pendingCount`, `queued`) and unused API functions after KZ-07 decides which stay.
-Acceptance: [ ] `tsc`, lint and tests pass; no unused exports reported.
+
+_Done in session 1:_ `zulu-chronicle/` copied to `../kazi-archive/zulu-chronicle/` (SHA-256 of all
+three files verified) and removed; `@react-native/new-app-screen` uninstalled (no references);
+`PendingOp`, `LocalItem`, `LocalTransaction`, `LocalDebt` removed; `pendingCount` removed from
+`OfflineProvider` and `OfflinePill`; `queued` removed from the `offline/api.ts` write results and
+the four screens that read it; unused `KAZI_NOTIFICATION_CHANNEL` alias removed; locale keys
+`offline.offlineWithPending`, `offline.savedOnPhone`, `offline.notAvailableOffline` removed from
+en/fr/pid. Kept (still used): `LocalActivity`, `SyncStatus`, `syncStatus` (History).
+Left for KZ-07 (session 7), as this spec says: `getDebt`, `getTransaction`, `listStockMovements`.
+Acceptance: [x] `tsc`, lint and tests pass; [x] no unused exports reported other than the three
+API functions deferred to KZ-07 (a scan of every `export` in `src/` against all other app files;
+exports used only inside their own module, such as prop types, are allowed).
 
 ### KZ-38
 **CI pipeline** — GitHub Actions (or equivalent) on every push and PR: app `tsc`, lint, Jest;

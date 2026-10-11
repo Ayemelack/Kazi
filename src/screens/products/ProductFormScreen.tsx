@@ -135,8 +135,8 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
         await updateItem(itemId, input);
         toast.show('success', t('products.itemUpdated'));
       } else {
-        const result = await createItem(input);
-        toast.show('success', result.queued ? t('offline.savedOnPhone') : t('products.itemCreated'));
+        await createItem(input);
+        toast.show('success', t('products.itemCreated'));
       }
       navigation.goBack();
     } catch (err) {

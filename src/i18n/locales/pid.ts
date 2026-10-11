@@ -343,12 +343,8 @@ const pid: TranslationSchema = {
   },
   offline: {
     youAreOffline: 'You no get internet',
-    offlineWithPending:
-      'You no get internet — changes go sync when you get internet.',
     syncPending: 'Some changes never sync yet — we go dey try.',
     waitingToSync: 'E don save for this phone — e dey wait to sync.',
-    savedOnPhone: 'E don save for this phone. E go sync when you get internet.',
-    notAvailableOffline: 'This one need internet.',
   },
   auth: {
     welcomeBack: 'Welcome back',

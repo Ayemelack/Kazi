@@ -7,7 +7,7 @@ respect are in [SECURITY.md](SECURITY.md) and [PERFORMANCE.md](PERFORMANCE.md). 
 executed in 15 agent sessions; their prompts, the standing rules and the owner decisions are in
 **[prompt.md](prompt.md)** (see [Execution plan](#execution-plan)).
 
-**Last updated:** 2026-10-10 · **Overall progress:** 2 / 38 tasks done (5%)
+**Last updated:** 2026-10-10 · **Overall progress:** 3 / 38 tasks done (8%)
 
 ---
 
@@ -42,8 +42,8 @@ A task is only **Done** when it meets the Definition of Done in [TESTING_QA.md](
 | **P0** | Production blockers — the app cannot ship without these | 9 | 0 | 0% |
 | **P1** | Correctness, security and data integrity | 10 | 0 | 0% |
 | **P2** | Hardening and performance | 16 | 2 | 13% |
-| **P3** | Documentation, hygiene and CI | 3 | 0 | 0% |
-| **Total** | | **38** | **2** | **5%** |
+| **P3** | Documentation, hygiene and CI | 3 | 1 | 33% |
+| **Total** | | **38** | **3** | **8%** |
 
 Work the phases in order. Inside a phase, tasks can run in parallel unless the board says otherwise.
 
@@ -150,7 +150,7 @@ resume prompt at the end of that file.
 | ID | Task | Sev | Area | Status | Spec |
 |---|---|---|---|---|---|
 | KZ-36 | Correct README and OFFLINE_FIRST_VERIFICATION.md | Low | Docs | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-36) |
-| KZ-37 | Remove unrelated files, unused dependencies and dead offline code | Low | Hygiene | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-37) |
+| KZ-37 | Remove unrelated files, unused dependencies and dead offline code | Low | Hygiene | ✅ Done | [→](REMEDIATION_PLAN.md#kz-37) |
 | KZ-38 | CI pipeline: typecheck, lint, tests, audit on every push | Medium | CI | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-38) |
 
 ---
@@ -187,6 +187,7 @@ Newest first. One line per task or decision.
 
 | Date | Task / Decision | Change | Verified by | Commit |
 |---|---|---|---|---|
+| 2026-10-11 | KZ-37 | `zulu-chronicle/` copied to `../kazi-archive/zulu-chronicle/` (all 3 files SHA-256 verified) and removed; `@react-native/new-app-screen` uninstalled (no references in src, App, index.js, tests, Gradle or Podfile); removed `PendingOp`, `LocalItem`, `LocalTransaction`, `LocalDebt`, `pendingCount` (provider + pill), `queued` (facade results + 4 screens + test mocks), the unused `KAZI_NOTIFICATION_CHANNEL` alias, and locale keys `offline.offlineWithPending` / `savedOnPhone` / `notAvailableOffline` (en, fr, pid). Kept `LocalActivity`, `SyncStatus`, `syncStatus` (History). Left `getDebt`, `getTransaction`, `listStockMovements` for KZ-07 per spec. No user-visible change: `queued` was always false and `pendingCount` always 0 | `npx tsc --noEmit` clean; `eslint .` clean; unused-export scan of `src/` → only the 3 deferred API functions; i18n parity test passes; full suites green in the 3 cold runs logged under KZ-30 | this commit |
 | 2026-10-11 | KZ-30 | Cause measured with an instrumented Babel transformer: RN lazy getters + host-component refs made the first test of each screen suite transform ~70 modules inside its timeout (28 s of 30 s). `testTimeout: 30000` alone still failed (cold `npm run check` before the fix: 3 suites timed out at 30 s, 107/110). Fix: `jest/preloadReactNative.js` (untimed setup), `jest/unmountAfterEach.js` (no timers after teardown), `ToastProvider` clears its timer on unmount, Jest `roots` limited to app folders, form harnesses get a first tab (no `GO_BACK` noise) | Clean `npm ci` in shared/, root, server/, then Jest cache cleared before each of 3 cold runs: run 1 `npm run check` exit 0 (shared 1/1, app 13 suites 110/110 + tsc + lint, server 111/111 + tsc + build); runs 2 and 3 `npx jest` 110/110; 0 `GO_BACK` / post-teardown messages. Machine was CPU-saturated (99%) by other apps, so suite times were 25–340 s | this commit |
 | 2026-10-10 | KZ-26 + structure | Numbered migration framework: `server/src/db.ts` → `server/src/db/` (same exports), `schema_migrations`, per-migration transaction with foreign keys off + `foreign_key_check`; `0001_baseline` reproduces the old boot schema byte-for-byte and recreates all three transaction indexes after the capital rebuild (KZ-26, folded in) and keeps `sqlite_sequence`. 7 new tests (fresh, pre-capital, pre-framework, reopen no-op, rollback, FK violation, ordering); KZ-26 assertion and sequence assertion each fail when their fix is removed. Server test script now globs `src/**/*.test.ts` | `cd server && npm run typecheck && npm test && npm run build` → clean, 111/111 pass (103 before + 1 shared + 7 migrations), build OK; built server boots on a temp DB and applies `1_baseline` | this commit |
 | 2026-10-10 | D1–D7 | Owner decisions copied from prompt.md into the Decisions table (D2 email provider and D3 still pending); Execution plan section added; branch `release/production-readiness` created | — | this commit |

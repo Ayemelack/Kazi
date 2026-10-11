@@ -331,11 +331,8 @@ const en = {
   },
   offline: {
     youAreOffline: "You're offline",
-    offlineWithPending: "You're offline — changes will sync when you're online.",
     syncPending: "Some changes haven't synced yet — we'll keep trying.",
     waitingToSync: 'Saved on this phone — waiting to sync.',
-    savedOnPhone: "Saved on this phone. It will sync when you're online.",
-    notAvailableOffline: 'This needs an internet connection.',
   },
   auth: {
     welcomeBack: 'Welcome back',

@@ -333,11 +333,8 @@ const fr: TranslationSchema = {
   },
   offline: {
     youAreOffline: 'Vous êtes hors ligne',
-    offlineWithPending: 'Vous êtes hors ligne — les changements seront synchronisés au retour en ligne.',
     syncPending: 'Certains changements ne sont pas encore synchronisés — nous réessayons.',
     waitingToSync: 'Enregistré sur ce téléphone — en attente de synchronisation.',
-    savedOnPhone: 'Enregistré sur ce téléphone. Ce sera synchronisé au retour en ligne.',
-    notAvailableOffline: 'Cette action nécessite une connexion internet.',
   },
   auth: {
     welcomeBack: 'Bon retour',

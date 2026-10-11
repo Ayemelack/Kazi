@@ -116,7 +116,7 @@ export default function TransactionFormScreen({ navigation, route }: ScreenProps
     setSubmitting(true);
     try {
       const parsedQuantity = quantity.trim() === '' ? undefined : Number(quantity.trim());
-      const result = await createTransaction({
+      await createTransaction({
         type,
         amount: parseAmount(amount) ?? 0,
         description: description.trim() || undefined,
@@ -124,7 +124,7 @@ export default function TransactionFormScreen({ navigation, route }: ScreenProps
         itemId: selectedItem?.id,
         quantity: parsedQuantity,
       });
-      toast.show('success', result.queued ? t('offline.savedOnPhone') : t('transactions.saved'));
+      toast.show('success', t('transactions.saved'));
       navigation.goBack();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : t('common.error.generic'));

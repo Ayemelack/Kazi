@@ -21,8 +21,6 @@ let foregroundEventRegistered = false;
 let foregroundMessageRegistered = false;
 let tokenRefreshRegistered = false;
 
-export const KAZI_NOTIFICATION_CHANNEL = KAZI_CHANNEL_ID;
-
 export async function ensureNotificationChannel(): Promise<string> {
   return notifee.createChannel({
     id: KAZI_CHANNEL_ID,

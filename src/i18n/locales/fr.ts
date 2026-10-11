@@ -275,6 +275,7 @@ const fr: TranslationSchema = {
     english: 'English',
     french: 'Français',
     pidgin: 'Pidgin Kamto',
+    dismissAnnouncement: 'Fermer',
   },
   more: {
     myBusiness: 'Mon entreprise',

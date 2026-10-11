@@ -282,6 +282,7 @@ const pid: TranslationSchema = {
     english: 'English',
     french: 'Français',
     pidgin: 'Cameroon Pidgin',
+    dismissAnnouncement: 'Close',
   },
   more: {
     myBusiness: 'My business',

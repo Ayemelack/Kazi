@@ -273,6 +273,7 @@ const en = {
     english: 'English',
     french: 'French',
     pidgin: 'Cameroon Pidgin',
+    dismissAnnouncement: 'Dismiss',
   },
   more: {
     myBusiness: 'My business',

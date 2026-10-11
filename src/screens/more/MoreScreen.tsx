@@ -11,6 +11,7 @@ import {
   LogOut,
   ShieldCheck,
   Trash2,
+  X,
   type LucideIcon,
 } from 'lucide-react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -21,6 +22,8 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { useToast } from '../../components/ui/Toast';
 import { setAppLanguage, type AppLanguage } from '../../i18n';
 import { useAuth } from '../../auth/AuthContext';
+import { useAnnouncement } from '../../announcements/useAnnouncement';
+import { announcementBodyFor } from '../../announcements/logic';
 import type { MoreStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 
@@ -54,6 +57,7 @@ export default function MoreScreen({ navigation }: ScreenProps) {
     : 'en';
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const { announcement, dismiss } = useAnnouncement();
 
   const confirmSignOut = async () => {
     if (signingOut) return;
@@ -91,6 +95,25 @@ export default function MoreScreen({ navigation }: ScreenProps) {
             </View>
           </View>
         </Card>
+
+        {announcement && (
+          <Card style={styles.announcementCard}>
+            <View style={styles.announcementRow}>
+              <Text style={styles.announcementText} testID="announcement-body">
+                {announcementBodyFor(announcement, current)}
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('moreScreen.dismissAnnouncement')}
+                testID="announcement-dismiss"
+                onPress={() => dismiss(announcement)}
+                style={({ pressed }) => [styles.announcementDismiss, pressed && styles.rowPressed]}
+              >
+                <X size={16} color={colors.textMuted} />
+              </Pressable>
+            </View>
+          </Card>
+        )}
 
         {MENU_ITEMS.map(item => (
           <Pressable
@@ -198,6 +221,25 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSecondary,
     marginTop: 2,
+  },
+  announcementCard: {
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  announcementRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  announcementText: {
+    flex: 1,
+    ...typography.body,
+    color: colors.textPrimary,
+  },
+  announcementDismiss: {
+    padding: spacing.xs,
+    borderRadius: radius.md,
   },
   menuRow: {
     flexDirection: 'row',

@@ -158,6 +158,19 @@ function migrate(db: Database.Database): void {
     );
 
     CREATE INDEX IF NOT EXISTS idx_password_fingerprints_user ON password_fingerprints(user_id);
+
+    CREATE TABLE IF NOT EXISTS announcements (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      body_en     TEXT NOT NULL DEFAULT '',
+      body_fr     TEXT,
+      body_pid    TEXT,
+      min_version TEXT NOT NULL DEFAULT '',
+      max_version TEXT NOT NULL DEFAULT '',
+      active      INTEGER NOT NULL DEFAULT 1,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE INDEX IF NOT EXISTS idx_activity_user_date ON activity(user_id, event_date DESC, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_transactions_user_type_date ON transactions(user_id, type, date DESC);
   `);

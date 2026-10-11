@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express, { type Express } from 'express';
 import type Database from 'better-sqlite3';
+import { createAnnouncementsRouter } from './announcements/routes.js';
 import { createAuthRouter } from './auth/routes.js';
 import { createActivityRouter } from './activity/routes.js';
 import { createDebtsRouter } from './debts/routes.js';
@@ -51,6 +52,7 @@ export function createApp(db: Database.Database): Express {
     res.status(200).json({ status: 'ok' });
   });
 
+  app.use('/announcements', createAnnouncementsRouter(db));
   app.use('/auth', createAuthRouter(db));
   app.use('/items', createItemsRouter(db));
   app.use('/transactions', createTransactionsRouter(db));

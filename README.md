@@ -71,6 +71,9 @@ Kazi/
   android/  android/…   native Android project (package com.kazi.app)
   ios/                native iOS project
   __tests__/          jest unit tests
+  shared/             @kazi/shared — contracts imported by both app and server
+    src/              pure TypeScript (no runtime deps, no Node/RN APIs) → built to dist/
+  .github/workflows/  ci.yml — app, server and audit jobs on every push / PR
   server/
     src/
       activity/     activity feed (period/range filters, pagination)
@@ -84,7 +87,9 @@ Kazi/
       summary/      money received / spent / net
       transactions/ sale / purchase / capital + stock effects
       validation/   shared zod helpers (money, business dates, strict numbers)
-      app.ts db.ts errors.ts idempotency.ts index.ts log.ts
+      db/           openDatabase() + migration runner (schema_migrations)
+        migrations/ numbered schema migrations (0001_baseline, …)
+      app.ts errors.ts idempotency.ts index.ts log.ts
     data/       SQLite database (git-ignored, created on first boot)
     .env        runtime secrets (git-ignored)
 ```
@@ -96,14 +101,16 @@ Kazi/
 Requirements: **Node.js ≥ 22.11**.
 
 ```sh
+(cd shared && npm install)   # first time only — builds @kazi/shared, which the API imports
 cd server
 npm install            # first time only
 cp .env.example .env   # first time only — set a real JWT_SECRET
 npm run dev            # starts the API on http://localhost:4000 (auto-reloads)
 ```
 
-The API listens on port `4000` by default (override with `PORT`). It creates and migrates its
-SQLite database automatically at `server/data/kazi.db` on first boot.
+The API listens on port `4000` by default (override with `PORT`). It creates its SQLite
+database at `server/data/kazi.db` on first boot and applies any pending numbered migrations
+(`server/src/db/migrations/`) on every boot.
 
 > **Dev note:** there is no email service yet. Outside production, `POST /auth/forgot-password`
 > returns the reset code in the response body so the app flow can be tested end to end. In
@@ -119,6 +126,7 @@ Useful scripts:
 | `npm test`             | Run the API test suite (node --test)             |
 | `npm run build`        | Compile to `dist/`                               |
 | `npm start`            | Run the compiled `dist/` build                   |
+| `npm run check`        | Typecheck + tests + build                        |
 
 ### API overview
 
@@ -185,21 +193,33 @@ The debug build loads JavaScript from Metro, so keep `npm start` running on the 
 For a standalone build, use `assembleRelease` (requires a signing configuration added in
 `android/app/build.gradle`).
 
-### Tests & checks — mobile
+### Tests & checks
+
+Install order matters on a fresh clone: `shared/` first (its `prepare` script builds
+`shared/dist`), then the app and the server.
 
 ```sh
-npm test        # jest unit tests (validation, formatting, screens, i18n parity)
-npx tsc --noEmit
+(cd shared && npm ci) && npm ci && (cd server && npm ci)
+
+npm run check        # everything: shared, then app typecheck + lint + Jest, then server typecheck + tests + build
+npm run typecheck    # app types only (npx tsc --noEmit)
 npm run lint
+npm test             # Jest: validation, formatting, screens, i18n parity
+cd server && npm run check    # server only
+cd shared && npm run check    # shared only (typecheck + node --test + build)
 ```
+
+After editing `shared/src`, rebuild it (`npm run check` at the root does) so the app and server
+see the change. CI (`.github/workflows/ci.yml`) runs the same checks on every push and pull
+request, plus a dependency audit.
 
 ---
 
 ## Testing everything together
 
 1. Start the backend: `cd server && npm run dev`.
-2. Anticipate: backend `npm test` → 103 tests (8 files), mobile `npm test` → 109 tests
-   (12 suites), plus clean `tsc`/`eslint` and a successful `assembleDebug`.
+2. Anticipate: `npm run check` passes — backend 111 tests (10 files), mobile 110 tests
+   (13 suites), shared 1 test, clean `tsc`/`eslint` — and a successful `assembleDebug`.
 3. Run the app from Metro. Create an account, add products/services, toggle stock tracking, add
    stock, record a sale (watch stock drop), record a purchase (watch it rise), add money, and
    confirm the Home balance and History feed update.

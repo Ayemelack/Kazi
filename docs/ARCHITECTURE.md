@@ -60,9 +60,23 @@ kazi/
   src/                    Mobile app (see §4)
   android/, ios/          Native projects (package com.kazi.app)
   __tests__/              Jest tests for the app
+  shared/                 @kazi/shared: contracts both sides import (ADR A10)
+    src/                  Pure TypeScript; tests run with node --test
+    dist/                 Build output (ESM + .d.ts, git-ignored), what app and server load
   server/src/             API (see §5) and admin dashboard (server/src/admin)
+    db/                   openDatabase(), migration runner (§6.1)
+      migrations/         Numbered migrations NNNN_<name>.ts
+  .github/workflows/      CI: ci.yml (app, server, audit; release jobs are manual placeholders)
   docs/                   This documentation set
 ```
+
+**Shared contracts.** Anything the app and the API must agree on — limits, parsers, error codes,
+types — lives once in `shared/src`. The package has no runtime dependencies and no Node or React
+Native APIs (its `tsconfig.json` has no `types` and no DOM lib, so the compiler rejects them).
+It is built with `tsc` and consumed through `file:` links: `"@kazi/shared": "file:./shared"`
+(app) and `"file:../shared"` (server). Metro watches `shared/` and follows the symlink; Jest
+transforms `shared/dist` with the app's Babel config; the server resolves it with NodeNext. Install
+`shared/` first (its `prepare` script builds `dist/`) and rebuild it after editing.
 
 ---
 
@@ -344,6 +358,8 @@ response: no second sale, no second stock movement (after KZ-11).
 | A7 | Short-lived access token + refresh token | Proposed (KZ-13, D4) | Real logout and revocation |
 | A8 | Images stored and served separately from item JSON | Proposed (KZ-14) | Keeps list payloads small on 3G |
 | A9 | Error codes, not messages, drive the UI | Proposed (KZ-12) | Correct language for every user |
+| A10 | One shared contracts package (`@kazi/shared`, built with tsc, `file:` links) | Accepted (2026-10-10, session 1) | App and API can't drift on limits, parsers and codes. Metro 0.87 (symlinks + `exports` on by default), Jest and NodeNext all resolved the link without workarounds, so the path-mapped-source fallback wasn't needed |
+| A11 | Numbered migrations recorded in `schema_migrations`, one transaction each, `foreign_key_check` before commit | Accepted (2026-10-10, session 1) | Each schema change runs exactly once, in order, all-or-nothing; pre-framework databases are baselined in place (§6.1) |
 
 Add a row for every new architectural decision, and update the status when it changes.
 

@@ -137,10 +137,16 @@ template `debug.keystore`).
 
 ## 4. Deploying the API
 
-1. On a clean checkout of the release tag: `cd server && npm ci && npm run build && npm test`.
-2. Copy `dist/`, `package.json`, `package-lock.json` to the server; `npm ci --omit=dev` there
+1. On a clean checkout of the release tag: `(cd shared && npm ci)`, then
+   `cd server && npm ci && npm run build && npm test`.
+2. Copy `server/dist/`, `server/package.json`, `server/package-lock.json` **and** `shared/package.json`
+   + `shared/dist/` to the host, keeping the `server/` and `shared/` folders side by side (the API
+   depends on `"@kazi/shared": "file:../shared"`). Run `npm ci --omit=dev` in `server/` there
    (better-sqlite3 builds natively for the server's platform).
-3. **Back up the database** (`§5`) before every deploy — migrations run on boot.
+3. **Back up the database** (`§5`) before every deploy — pending numbered migrations
+   (`server/src/db/migrations`, see [ARCHITECTURE.md](ARCHITECTURE.md) §6.1) run on boot, each in
+   its own transaction; a failed migration stops the boot and leaves the database at the last good
+   version.
 4. `systemctl restart kazi-api`; check `curl -fsS https://api.<domain>/health` and `/ready` (KZ-34).
 5. Watch logs for 10 minutes (error rate, p95 latency).
 

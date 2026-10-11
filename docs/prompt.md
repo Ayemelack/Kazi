@@ -514,7 +514,7 @@ D7 — read cache (single source of truth stays the server).
 - src/cache/: per-user, keyed by request (Home summary, Products list, History page 1 for the default period), stored in memory and AsyncStorage with a timestamp. Cleared on logout, on account deletion and on user switch. Never caches tokens or anything from auth endpoints.
 - Screens render cached data immediately with a subtle "Updated <time>" line, then refresh in the background; after any successful write, invalidate the affected keys.
 - When offline, cached screens stay readable and write actions show the translated offline message. Writes are never queued.
-- Update docs/ARCHITECTURE.md §4.4 and ADR table (A10: read-only cache), and docs/PERFORMANCE.md §4.
+- Update docs/ARCHITECTURE.md §4.4 and ADR table (A12: read-only cache; A10/A11 were used in session 1), and docs/PERFORMANCE.md §4.
 
 Done when: KZ-31 acceptance met (or fps measurement Blocked with steps), the cache has tests for per-user isolation, invalidation and logout clearing, and npm run check passes. End with the handoff report.
 ```

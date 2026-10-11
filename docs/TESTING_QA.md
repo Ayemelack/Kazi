@@ -5,16 +5,20 @@ pipeline that enforces it.
 
 ---
 
-## 1. Current state (baseline 2026-10-09)
+## 1. Current state (updated 2026-10-10, session 1)
+
+**One command runs everything:** `npm run check` at the repository root — `shared/` typecheck +
+tests + build, then app typecheck + lint + Jest, then server typecheck + tests + build. On a fresh
+clone install `shared/` first: `(cd shared && npm ci) && npm ci && (cd server && npm ci)`.
 
 | Suite | Runner | Command | Result |
 |---|---|---|---|
-| Server (8 files, 103 tests) | `node --test` via `tsx` | `cd server && npm test` | ✅ all pass |
-| Server types | `tsc` | `cd server && npm run typecheck` | ✅ clean |
-| App (12 suites, 109 tests) | Jest, `@react-native/jest-preset` | `npm test` | ⚠️ 3 suites time out on a cold cache, pass on rerun (KZ-30) |
-| App types | `tsc` | `npx tsc --noEmit` | ✅ clean |
+| Shared (`shared/src/**/*.test.ts`) | `node --test` via `tsx` | `cd shared && npm run check` | ✅ 1 / 1; typecheck + build clean |
+| Server (`src/**/*.test.ts`, 10 files, 111 tests) | `node --test` via `tsx` (glob, so new files are never skipped) | `cd server && npm run check` (typecheck + test + build) | ✅ all pass |
+| App (13 suites, 110 tests) | Jest, `@react-native/jest-preset`, `testTimeout` 30 s | `npm test` | ✅ passes cold (KZ-30) |
+| App types | `tsc` | `npm run typecheck` | ✅ clean |
 | App lint | ESLint | `npm run lint` | ✅ clean |
-| CI | — | — | ❌ none (KZ-38) |
+| CI | GitHub Actions | `.github/workflows/ci.yml` | Added (KZ-38); see [CI pipeline](#ci-pipeline) |
 
 Existing coverage is strong on server validation, idempotency, stock effects and cross-user
 isolation, and on app validation, money formatting and i18n parity. Gaps: no end-to-end tests, no

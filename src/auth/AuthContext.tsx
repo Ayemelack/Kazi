@@ -18,8 +18,11 @@ import {
   resetPassword,
   signUpAccount,
   updateAccountNames,
+  updateLanguage,
   updateProfile,
 } from './api';
+import { isAppLanguage, type AppLanguage } from '@kazi/shared';
+import i18n, { loadStoredChoice, setAppLanguage } from '../i18n';
 import { initializeNotifications, unregisterCurrentToken } from '../notifications/service';
 import type {
   AccountNamesInput,
@@ -48,9 +51,27 @@ export interface AuthContextValue {
   completeBusinessProfile: (input: ProfileInput) => Promise<void>;
   updateAccountNames: (input: AccountNamesInput) => Promise<void>;
   deleteAccount: () => Promise<void>;
+  changeLanguage: (language: AppLanguage) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+// KZ-24: the language follows the account. The phone's own choice wins; a
+// phone with no choice yet (new install) takes the one saved on the server.
+async function adoptServerLanguage(user: PublicUser): Promise<void> {
+  if (!isAppLanguage(user.language) || (await loadStoredChoice()) !== null) {
+    return;
+  }
+  await setAppLanguage(user.language);
+}
+
+// Saving the language on the server is best effort: it never blocks or fails
+// the switch on the phone.
+function saveLanguageOnServer(language: string): void {
+  if (isAppLanguage(language)) {
+    updateLanguage(language).catch(() => {});
+  }
+}
 
 export function useAuth(): AuthContextValue {
   const context = useContext(AuthContext);
@@ -81,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (cancelled) {
           return;
         }
+        await adoptServerLanguage(freshUser);
         setUser(freshUser);
         await setJson(USER_STORAGE_KEY, freshUser);
         setStatus('authenticated');
@@ -123,12 +145,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const result = await signUpAccount(input);
         await saveToken(result.token);
         await setJson(USER_STORAGE_KEY, result.user);
+        // A new account starts in the language the app is showing.
+        saveLanguageOnServer(i18n.language);
         setUser(result.user);
         setStatus('authenticated');
       },
       async logIn(input) {
         const result = await logInAccount(input);
         await saveToken(result.token);
+        await adoptServerLanguage(result.user);
         await setJson(USER_STORAGE_KEY, result.user);
         setUser(result.user);
         setStatus('authenticated');
@@ -163,6 +188,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await removeKey(USER_STORAGE_KEY);
         setUser(null);
         setStatus('unauthenticated');
+      },
+      async changeLanguage(language) {
+        await setAppLanguage(language);
+        if (status === 'authenticated') {
+          saveLanguageOnServer(language);
+        }
       },
     }),
     [status, user],

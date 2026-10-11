@@ -57,7 +57,7 @@ Kazi/
     debts/        debt types, API, client validation
     errors/       ApiError / NetworkError
     feedback/     in-app feedback API
-    i18n/         i18next setup + EN / FR / PID translations
+    i18n/         i18next setup + en / fr / wes (Cameroonian Pidgin) translations
     items/        catalog types, API, client validation, formatting
     money/        FCFA formatter + balance math
     navigation/   root stack, tabs, auth flow, param lists
@@ -135,7 +135,7 @@ Authorized endpoints take `Authorization: Bearer <token>`. Errors always use the
 
 | Mount | Endpoints |
 | ----- | --------- |
-| `/auth` | `POST /signup`, `POST /login`, `POST /logout`, `GET /me`, `PATCH /me`, `PATCH /me/names`, `DELETE /me`, `POST /forgot-password`, `POST /reset-password` |
+| `/auth` | `POST /signup`, `POST /login`, `POST /logout`, `GET /me`, `PATCH /me`, `PATCH /me/names`, `PATCH /me/language`, `DELETE /me`, `POST /forgot-password`, `POST /reset-password` |
 | `/items` | `GET/POST /`, `GET/PUT/DELETE /:id`, `POST /:id/stock-in`, `POST /:id/stock-out`, `GET /:id/movements` |
 | `/transactions` | `GET/POST /`, `GET/DELETE /:id` |
 | `/debts` | `GET/POST /`, `POST /:id/pay`, `DELETE /:id` |

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
+import { formattingLocale } from '../../i18n';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   ArrowDownLeft,
@@ -396,7 +397,10 @@ function dayLabel(
     return t('history.dayYesterday');
   }
   const parsed = new Date(`${key}T00:00:00`);
-  return Number.isNaN(parsed.getTime()) ? key : parsed.toLocaleDateString();
+  // Month spelled out, so the heading follows the app language.
+  return Number.isNaN(parsed.getTime())
+    ? key
+    : parsed.toLocaleDateString(formattingLocale(), { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 function shiftDay(value: string, days: number): string {
@@ -517,7 +521,7 @@ function formatDay(iso: string): string {
   if (Number.isNaN(date.getTime())) {
     return iso;
   }
-  return date.toLocaleDateString();
+  return date.toLocaleDateString(formattingLocale());
 }
 
 function ActionSheet({

@@ -382,8 +382,14 @@ tests; [ ] new product can be created with stock in one step.
 ### KZ-24
 **Language code and server sync** — rename `pid` to a valid tag (migration of the stored
 preference: read `pid`, write the new tag). `setAppLanguage` also `PATCH /auth/me/language`; on
-login, use the server value if the device has none. Acceptance: [ ] language survives reinstall +
-login; [ ] dates format correctly in all three languages.
+login, use the server value if the device has none. Acceptance: [x] language survives reinstall +
+login _(unit-tested with empty storage + login; confirm on a device in the QA script)_; [x] dates
+format correctly in all three languages.
+**Done (2026-10-11):** the valid tag is `wes`, the ISO 639-3 code for Cameroonian Pidgin, rather
+than a private-use tag (ADR A13). Dates use a formatting locale separate from the language code
+(`en-CM`, `fr-CM`, `wes` → `en-CM`). Server: `PATCH /auth/me/language` (`en|fr|wes`) and
+migration `0003_language_wes`. The app saves the choice on the phone first and on the server best
+effort; a new account is saved with the language on screen.
 
 ### KZ-25
 **Integer money storage and one formatter** — migration: `amount`/`price` columns to `INTEGER`

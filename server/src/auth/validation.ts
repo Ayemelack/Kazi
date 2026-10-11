@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  APP_LANGUAGES,
   BUSINESS_TYPE_MAX,
   COMPANY_NAME_MAX,
   COMPANY_NAME_MIN,
@@ -90,12 +91,18 @@ export const accountSchema = z.object({
   lastName: nameSchema.optional(),
 });
 
+// The user's app language (KZ-24), so it follows them to a new phone.
+export const languageSchema = z.object({
+  language: z.enum(APP_LANGUAGES),
+});
+
 export type SignupInput = z.infer<typeof signupSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type ProfileInput = z.infer<typeof profileSchema>;
 export type AccountInput = z.infer<typeof accountSchema>;
+export type LanguageInput = z.infer<typeof languageSchema>;
 
 export function validate<S extends z.ZodTypeAny>(
   schema: S,

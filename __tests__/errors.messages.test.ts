@@ -9,11 +9,11 @@ import {
 import i18n from '../src/i18n';
 import en from '../src/i18n/locales/en';
 import fr from '../src/i18n/locales/fr';
-import pid from '../src/i18n/locales/pid';
+import wes from '../src/i18n/locales/wes';
 import { ApiError, NetworkError } from '../src/errors/ApiError';
 import { LocalError, errorField, errorMessage } from '../src/errors/messages';
 
-const LOCALES = { en, fr, pid };
+const LOCALES = { en, fr, wes };
 
 describe('error translations', () => {
   it.each(Object.entries(LOCALES))('%s has a message for every API error code', (_, locale) => {

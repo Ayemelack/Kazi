@@ -13,9 +13,9 @@ clone install `shared/` first: `(cd shared && npm ci) && npm ci && (cd server &&
 
 | Suite | Runner | Command | Result |
 |---|---|---|---|
-| Shared (`shared/src/**/*.test.ts`) | `node --test` via `tsx` | `cd shared && npm run check` | ✅ 1 / 1; typecheck + build clean |
-| Server (`src/**/*.test.ts`, 10 files, 111 tests) | `node --test` via `tsx` (glob, so new files are never skipped) | `cd server && npm run check` (typecheck + test + build) | ✅ all pass |
-| App (13 suites, 110 tests) | Jest, `@react-native/jest-preset`, `testTimeout` 30 s | `npm test` | ✅ passes cold (KZ-30) |
+| Shared (`shared/src/**/*.test.ts`) | `node --test` via `tsx` | `cd shared && npm run check` | ✅ 78 / 78; typecheck + build clean |
+| Server (`src/**/*.test.ts`, 16 files, 238 tests) | `node --test` via `tsx` (glob, so new files are never skipped) | `cd server && npm run check` (typecheck + test + build) | ✅ all pass |
+| App (20 suites, 226 tests) | Jest, `@react-native/jest-preset`, `testTimeout` 30 s | `npm test` | ✅ passes cold (KZ-30) |
 | App types | `tsc` | `npm run typecheck` | ✅ clean |
 | App lint | ESLint | `npm run lint` | ✅ clean |
 | CI | GitHub Actions | `.github/workflows/ci.yml` | Added (KZ-38); see [CI pipeline](#ci-pipeline) |
@@ -147,6 +147,8 @@ Run on one low-end Android phone, one recent Android phone and one iPhone, in En
 - [ ] Cold start time within budget; app starts with Firebase misconfigured (KZ-02).
 - [ ] Notifications arrive in foreground, background and when the app is closed.
 - [ ] Language switch persists after reinstall + login (KZ-24).
+- [ ] With an error and a date on screen (a failed save; the History list), switch EN → FR →
+      Pidgin in More: the error text and the dates change with it (KZ-12, KZ-24).
 
 ---
 

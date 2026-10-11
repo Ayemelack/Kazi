@@ -1,6 +1,7 @@
+// Cameroonian Pidgin (ISO 639-3 "wes").
 import type { TranslationSchema } from './en';
 
-const pid: TranslationSchema = {
+const wes: TranslationSchema = {
   common: {
     appName: 'Kazi',
     retry: 'Try am again',
@@ -478,4 +479,4 @@ const pid: TranslationSchema = {
   },
 };
 
-export default pid;
+export default wes;

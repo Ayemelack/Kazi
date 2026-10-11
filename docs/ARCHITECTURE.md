@@ -99,7 +99,7 @@ fetch → HTTPS → API
 Rules:
 
 - Screens never call `fetch` directly; they go through the facade.
-- All user-visible text goes through i18next (`src/i18n/locales/{en,fr,pid}.ts`); the parity test
+- All user-visible text goes through i18next (`src/i18n/locales/{en,fr,wes}.ts`); the parity test
   keeps the three locales in sync.
 - Validation lives in `<domain>/validation.ts` and returns **translation keys**, never text.
 - Forms show errors through `useFormErrors` (`src/forms/`, KZ-22): a field's error appears once the
@@ -291,6 +291,8 @@ still store 12.5 as a REAL). Old values are rounded half away from zero; a posit
 0.5 becomes 1 so `amount > 0` still holds. It logs one warning with the number of rounded rows per
 table, never the values.
 
+`0003_language_wes` (KZ-24) is data-only: `users.language = 'pid'` becomes `'wes'`.
+
 Rules for new migrations:
 
 - Never edit a migration that has shipped; add a new file with the next number.
@@ -333,9 +335,18 @@ Rules for new migrations:
 
 ### 7.3 Internationalisation
 
-- Locales: `en`, `fr`, Pidgin. **Target (KZ-24):** rename the Pidgin code from `pid` (which is the
-  ISO code for Piaroa) to a private-use tag such as `x-pidgin-cm` or `en-CM`, and keep the
-  user's choice on the server.
+- Languages: `en`, `fr`, `wes` (`APP_LANGUAGES` in `shared/src/language.ts`). **Decision
+  (KZ-24, ADR A13):** Cameroonian Pidgin is `wes`, its ISO 639-3 code. The old `pid` is Piaroa;
+  a private-use tag (`x-pidgin-cm`) or `en-CM` was considered and rejected because a registered
+  code exists and `en-CM` means Cameroonian English. A stored `pid` choice becomes `wes` on load,
+  and migration `0003_language_wes` rewrites `users.language`.
+- The language code picks the translations; dates and numbers use a separate **formatting
+  locale** (`formattingLocale()` in `src/i18n`): `en` → `en-CM`, `fr` → `fr-CM`, `wes` → `en-CM`
+  (Intl has no Pidgin data). The date picker and History's day headings use it.
+- The choice follows the account: switching language saves it on the phone first, then
+  `PATCH /auth/me/language` (`en|fr|wes`, the caller's own row) best effort, never blocking the
+  switch. A new account is saved with the language on screen. After login, or at start with a
+  session, a phone with no saved choice (for example after a reinstall) takes the server's value.
 - No user-facing English text may come from the server: errors are translated by code (KZ-12,
   §5.4).
 
@@ -398,9 +409,10 @@ response: no second sale, no second stock movement (after KZ-11).
 | A6 | Whole-number FCFA everywhere | Accepted (2026-10-11, KZ-04, KZ-25) | Removes the decimal-separator ambiguity that corrupts amounts |
 | A7 | Short-lived access token + refresh token | Proposed (KZ-13, D4) | Real logout and revocation |
 | A8 | Images stored and served separately from item JSON | Proposed (KZ-14) | Keeps list payloads small on 3G |
-| A9 | Error codes, not messages, drive the UI | Proposed (KZ-12) | Correct language for every user |
+| A9 | Error codes, not messages, drive the UI | Accepted (2026-10-11, KZ-12) | Correct language for every user; codes, rules and fields live in `@kazi/shared` (§5.4) |
 | A10 | One shared contracts package (`@kazi/shared`, built with tsc, `file:` links) | Accepted (2026-10-10, session 1) | App and API can't drift on limits, parsers and codes. Metro 0.87 (symlinks + `exports` on by default), Jest and NodeNext all resolved the link without workarounds, so the path-mapped-source fallback wasn't needed |
 | A11 | Numbered migrations recorded in `schema_migrations`, one transaction each, `foreign_key_check` before commit | Accepted (2026-10-10, session 1) | Each schema change runs exactly once, in order, all-or-nothing; pre-framework databases are baselined in place (§6.1) |
+| A13 | Pidgin is `wes` (ISO 639-3); dates use a formatting locale separate from the language code | Accepted (2026-10-11, KZ-24) | `pid` is Piaroa; a registered code beats a private-use tag; Intl has no `wes` data, so formatting uses `en-CM` (§7.3). A12 is reserved for the read cache (session 13) |
 
 Add a row for every new architectural decision, and update the status when it changes.
 

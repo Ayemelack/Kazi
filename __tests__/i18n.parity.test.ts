@@ -1,6 +1,6 @@
 import en from '../src/i18n/locales/en';
 import fr from '../src/i18n/locales/fr';
-import pid from '../src/i18n/locales/pid';
+import wes from '../src/i18n/locales/wes';
 
 type Tree = { [key: string]: string | Tree };
 
@@ -20,7 +20,7 @@ function leaves(node: unknown, prefix = ''): Record<string, string> {
 const trees: [string, Record<string, string>][] = [
   ['en', leaves(en as Tree)],
   ['fr', leaves(fr as Tree)],
-  ['pid', leaves(pid as Tree)],
+  ['wes', leaves(wes as Tree)],
 ];
 
 describe('translation files', () => {

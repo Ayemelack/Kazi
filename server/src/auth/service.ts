@@ -6,6 +6,7 @@ import { createResetToken, hashResetToken, signAccessToken } from './jwt.js';
 import type {
   AccountInput,
   ForgotPasswordInput,
+  LanguageInput,
   LoginInput,
   ProfileInput,
   ResetPasswordInput,
@@ -215,6 +216,20 @@ export function updateAccountNames(
     `UPDATE users SET first_name = ?, last_name = ?, updated_at = datetime('now') WHERE id = ?`,
   ).run(firstName, lastName, userId);
 
+  return toPublicUser(selectUser(db, userId) as unknown as UserRow);
+}
+
+export function updateLanguage(
+  db: Database.Database,
+  userId: number,
+  input: LanguageInput,
+): PublicUser {
+  const result = db
+    .prepare(`UPDATE users SET language = ?, updated_at = datetime('now') WHERE id = ?`)
+    .run(input.language, userId);
+  if (result.changes === 0) {
+    throw new AppError(404, 'NOT_FOUND', 'Account not found.');
+  }
   return toPublicUser(selectUser(db, userId) as unknown as UserRow);
 }
 

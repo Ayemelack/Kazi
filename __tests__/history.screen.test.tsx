@@ -3,7 +3,7 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import '../src/i18n';
+import i18n from '../src/i18n';
 import HistoryScreen from '../src/screens/history/HistoryScreen';
 import { listActivity } from '../src/offline/api';
 import { todayAsDateString } from '../src/transactions/validation';
@@ -180,5 +180,38 @@ describe('HistoryScreen', () => {
 
     expect(countText(renderer, 'Nothing has happened yet.')).toBe(1);
     expect(renderer.root.findByProps({ testID: 'history-period-today' })).toBeTruthy();
+  });
+});
+
+describe('HistoryScreen dates follow the app language (KZ-24)', () => {
+  afterEach(async () => {
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
+  });
+
+  it('re-formats an older day heading when the language changes', async () => {
+    (listActivity as jest.Mock).mockResolvedValue(
+      response({ events: [event(9, 'sale', '2025-03-04', 100)], totalCount: 1 }),
+    );
+    const renderer = await renderHistory();
+    const text = () =>
+      renderer.root
+        .findAllByType(Text)
+        .map(node => [node.props.children].flat(Infinity).join(''))
+        .join('|');
+
+    expect(text()).toContain('March 2025');
+
+    await act(async () => {
+      await i18n.changeLanguage('fr');
+    });
+    expect(text()).toContain('mars 2025');
+    expect(text()).not.toContain('March 2025');
+
+    await act(async () => {
+      await i18n.changeLanguage('wes');
+    });
+    expect(text()).toContain('March 2025');
   });
 });

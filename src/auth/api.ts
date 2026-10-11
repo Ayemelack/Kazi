@@ -1,3 +1,4 @@
+import type { AppLanguage } from '@kazi/shared';
 import { apiRequest } from '../api/client';
 import type {
   AccountNamesInput,
@@ -70,6 +71,14 @@ export function updateAccountNames(
   return apiRequest<{ user: AuthResult['user'] }>('/auth/me/names', {
     method: 'PATCH',
     body: input,
+    auth: true,
+  });
+}
+
+export function updateLanguage(language: AppLanguage): Promise<{ user: AuthResult['user'] }> {
+  return apiRequest<{ user: AuthResult['user'] }>('/auth/me/language', {
+    method: 'PATCH',
+    body: { language },
     auth: true,
   });
 }

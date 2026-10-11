@@ -8,7 +8,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import i18n from '../src/i18n';
 import en from '../src/i18n/locales/en';
 import fr from '../src/i18n/locales/fr';
-import pid from '../src/i18n/locales/pid';
+import wes from '../src/i18n/locales/wes';
 import { ToastProvider } from '../src/components/ui/Toast';
 import LoginScreen from '../src/screens/auth/LoginScreen';
 import SignupScreen from '../src/screens/auth/SignupScreen';
@@ -224,7 +224,7 @@ describe.each(FORMS)('%s form (KZ-22)', (_, render, saveID) => {
     expectVisibleReasonWhenDisabled(renderer, saveID);
     expectNoRawKeys(renderer);
 
-    for (const lng of ['fr', 'pid']) {
+    for (const lng of ['fr', 'wes']) {
       await act(async () => {
         await i18n.changeLanguage(lng);
       });
@@ -315,7 +315,7 @@ describe('validator keys (KZ-22)', () => {
     '2999-01-01',
     '2026-01-15',
   ];
-  const LOCALES = { en, fr, pid } as Record<string, object>;
+  const LOCALES = { en, fr, wes } as Record<string, object>;
 
   function collectKeys(): Set<string> {
     const keys = new Set<string>();

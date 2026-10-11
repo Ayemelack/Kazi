@@ -10,6 +10,7 @@ import {
   localDateString,
 } from '@kazi/shared';
 import Button from './Button';
+import { formattingLocale } from '../../i18n';
 import { colors, radius, spacing, typography, zIndex } from '../../theme';
 
 interface DatePickerModalProps {
@@ -106,7 +107,7 @@ export function shiftMonth(
 
 export default function DatePickerModal({ visible, value, onSelect, onClose }: DatePickerModalProps) {
   const { t, i18n } = useTranslation();
-  const locale = i18n.language ?? 'en';
+  const locale = formattingLocale(i18n.language);
 
   const [draft, setDraft] = useState<DateParts>(() => parseDate(value));
   const [view, setView] = useState<{ year: number; month: number }>(() => {

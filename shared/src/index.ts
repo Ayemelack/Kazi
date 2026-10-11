@@ -6,3 +6,4 @@ export { MONEY_MAX, MONEY_SEPARATOR, formatMoney, parseMoneyInput } from './mone
 export * from './limits.js';
 export * from './date.js';
 export * from './errors.js';
+export * from './language.js';

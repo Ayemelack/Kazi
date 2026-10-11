@@ -10,11 +10,13 @@ import {
   resetPassword,
   signUp,
   updateAccountNames,
+  updateLanguage,
   updateProfile,
 } from './service.js';
 import {
   accountSchema,
   forgotPasswordSchema,
+  languageSchema,
   loginSchema,
   profileSchema,
   resetPasswordSchema,
@@ -124,6 +126,16 @@ export function createAuthRouter(db: Database.Database): Router {
         req.user?.id ?? 0,
         validate(accountSchema, req.body),
       );
+      res.status(200).json({ user });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // The app language follows the account (KZ-24). Only the caller's own row.
+  router.patch('/me/language', requireAuth(db), (req, res, next) => {
+    try {
+      const user = updateLanguage(db, req.user?.id ?? 0, validate(languageSchema, req.body));
       res.status(200).json({ user });
     } catch (err) {
       next(err);

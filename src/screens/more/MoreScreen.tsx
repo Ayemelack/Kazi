@@ -18,12 +18,16 @@ import AppHeader from '../../components/ui/AppHeader';
 import Card from '../../components/ui/Card';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { useToast } from '../../components/ui/Toast';
-import { setAppLanguage, type AppLanguage } from '../../i18n';
+import { APP_LANGUAGES, isAppLanguage } from '@kazi/shared';
 import { useAuth } from '../../auth/AuthContext';
 import type { MoreStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 
-const LANGUAGES: AppLanguage[] = ['en', 'fr', 'pid'];
+const LANGUAGE_LABELS = {
+  en: 'moreScreen.english',
+  fr: 'moreScreen.french',
+  wes: 'moreScreen.pidgin',
+} as const;
 
 type ScreenProps = NativeStackScreenProps<MoreStackParamList, 'MoreHome'>;
 
@@ -45,11 +49,9 @@ const MENU_ITEMS: {
 
 export default function MoreScreen({ navigation }: ScreenProps) {
   const { t, i18n } = useTranslation();
-  const { user, logOut } = useAuth();
+  const { user, logOut, changeLanguage } = useAuth();
   const toast = useToast();
-  const current = (['en', 'fr', 'pid'] as const).includes(i18n.language as AppLanguage)
-    ? (i18n.language as AppLanguage)
-    : 'en';
+  const current = isAppLanguage(i18n.language) ? i18n.language : 'en';
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
@@ -109,14 +111,14 @@ export default function MoreScreen({ navigation }: ScreenProps) {
         <Card padded={false}>
           <Text style={styles.sectionLabel}>{t('moreScreen.language')}</Text>
           <View style={styles.languageRow}>
-            {LANGUAGES.map(language => {
+            {APP_LANGUAGES.map(language => {
               const active = current === language;
               return (
                 <Pressable
                   key={language}
                   accessibilityRole="button"
                   accessibilityState={{ selected: active }}
-                  onPress={() => setAppLanguage(language)}
+                  onPress={() => changeLanguage(language)}
                   style={[
                     styles.languageButton,
                     active ? styles.languageActive : styles.languageInactive,
@@ -128,13 +130,7 @@ export default function MoreScreen({ navigation }: ScreenProps) {
                       { color: active ? colors.primaryDark : colors.textSecondary },
                     ]}
                   >
-                    {t(
-                      language === 'en'
-                        ? 'moreScreen.english'
-                        : language === 'fr'
-                        ? 'moreScreen.french'
-                        : 'moreScreen.pidgin',
-                    )}
+                    {t(LANGUAGE_LABELS[language])}
                   </Text>
                 </Pressable>
               );

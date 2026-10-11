@@ -35,6 +35,25 @@ jest.mock('react-native-safe-area-context', () => {
 const Tab = createBottomTabNavigator<Record<string, object | undefined>>();
 const navigationRef = createNavigationContainerRef<Record<string, object | undefined>>();
 
+const mountedRenderers: ReactTestRenderer.ReactTestRenderer[] = [];
+
+function createRenderer(element: React.ReactElement): ReactTestRenderer.ReactTestRenderer {
+  let renderer: ReactTestRenderer.ReactTestRenderer | undefined;
+  act(() => {
+    renderer = ReactTestRenderer.create(element);
+  });
+  mountedRenderers.push(renderer!);
+  return renderer!;
+}
+
+afterEach(() => {
+  act(() => {
+    for (const renderer of mountedRenderers.splice(0)) {
+      renderer.unmount();
+    }
+  });
+});
+
 function AddMoneyRoute(props: object) {
   const { navigation, route } = props as { navigation: object; route: object };
   return <AddMoneyScreen navigation={navigation as never} route={route as never} />;
@@ -53,11 +72,7 @@ function Harness() {
 }
 
 function renderScreen() {
-  let renderer: ReactTestRenderer.ReactTestRenderer | undefined;
-  act(() => {
-    renderer = ReactTestRenderer.create(<Harness />);
-  });
-  return { renderer: renderer! };
+  return { renderer: createRenderer(<Harness />) };
 }
 
 async function flush(): Promise<void> {

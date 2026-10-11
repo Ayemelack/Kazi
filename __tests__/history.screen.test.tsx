@@ -36,6 +36,16 @@ jest.mock('react-native-safe-area-context', () => {
 
 const Stack = createNativeStackNavigator<HistoryStackParamList>();
 
+const mountedRenderers: ReactTestRenderer.ReactTestRenderer[] = [];
+
+afterEach(() => {
+  act(() => {
+    for (const renderer of mountedRenderers.splice(0)) {
+      renderer.unmount();
+    }
+  });
+});
+
 function shift(date: string, days: number): string {
   const [year = 0, month = 1, day = 1] = date.split('-').map(Number);
   const value = new Date(year, month - 1, day);
@@ -91,6 +101,7 @@ async function renderHistory(): Promise<ReactTestRenderer.ReactTestRenderer> {
       </ToastProvider>,
     );
   });
+  mountedRenderers.push(renderer!);
   await flush();
   return renderer!;
 }

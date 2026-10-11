@@ -2,6 +2,7 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useRef,
   useState,
   type ReactNode,
@@ -75,6 +76,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       timer.current = setTimeout(hide, 3200);
     },
     [hide, opacity, translateY],
+  );
+
+  // Cancel the pending hide timer when the provider unmounts so it cannot fire
+  // after teardown, which would touch stale refs and crash the test runner.
+  useEffect(
+    () => () => {
+      if (timer.current) {
+        clearTimeout(timer.current);
+        timer.current = null;
+      }
+    },
+    [],
   );
 
   const Icon = toast ? ICONS[toast.type] : Info;

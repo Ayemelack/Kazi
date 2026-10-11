@@ -362,8 +362,16 @@ differs by < 20 ms at p50 over 100 tries. [ ] Health checks stay < 20 ms during 
 ### KZ-22
 **Explain disabled Save buttons** — show field errors after a field is touched (on blur) rather
 than only after Save, so a disabled button always has a visible reason. In
-`AddMoneyScreen.tsx` pass errors through `t()`. Acceptance: [ ] every form shows why Save is
-disabled; [ ] no raw translation key can render (test).
+`AddMoneyScreen.tsx` pass errors through `t()`. Acceptance: [x] every form shows why Save is
+disabled; [x] no raw translation key can render (test).
+**Done (2026-10-11):** `src/forms/useFormErrors.ts` shows a field's error once it is touched (blur,
+or a picked date / star) or after a Save attempt, and Save is disabled only while an error is
+visible, so an untouched form keeps Save enabled and pressing it reveals every reason. Applied to
+all 12 forms (Login, Signup, ForgotPassword, ResetPassword, BusinessProfile, MyBusiness, Feedback,
+DebtForm, AddMoney, TransactionForm, ProductForm, StockMovementDialog); Feedback gained a visible
+"choose a rating" reason. A `VALIDATION_ERROR` from the API about one of the form's fields shows
+under that field (KZ-12). `__tests__/forms.errors.test.tsx` checks every form in en, fr and
+Pidgin.
 
 ### KZ-23
 **Stock rules** — implement decision D5 (recommended: allow the sale, let stock go negative, flag

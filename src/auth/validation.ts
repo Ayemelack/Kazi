@@ -103,6 +103,13 @@ export function validatePassword(value: string): string | null {
   return null;
 }
 
+export function validateConfirmPassword(password: string, confirm: string): string | null {
+  if (confirm.length === 0) {
+    return 'auth.errors.required';
+  }
+  return confirm === password ? null : 'auth.errors.passwordMismatch';
+}
+
 export interface PasswordStrength {
   score: 0 | 1 | 2 | 3 | 4;
   label: string;

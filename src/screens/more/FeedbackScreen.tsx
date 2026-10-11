@@ -11,11 +11,13 @@ import TextField from '../../components/ui/TextField';
 import Button from '../../components/ui/Button';
 import { useToast } from '../../components/ui/Toast';
 import { submitFeedback } from '../../feedback/api';
-import { errorMessage } from '../../errors/messages';
+import { useFormErrors } from '../../forms/useFormErrors';
 import type { MoreStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 
 type ScreenProps = NativeStackScreenProps<MoreStackParamList, 'Feedback'>;
+
+const FIELDS = ['rating'] as const;
 
 function FeedbackScreen({ navigation }: ScreenProps) {
   const { t } = useTranslation();
@@ -24,14 +26,13 @@ function FeedbackScreen({ navigation }: ScreenProps) {
   const [liked, setLiked] = useState('');
   const [disliked, setDisliked] = useState('');
   const [suggestion, setSuggestion] = useState('');
-  const [formError, setFormError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  const canSubmit = rating >= 1 && rating <= 5;
+  const form = useFormErrors(FIELDS, {
+    rating: rating >= 1 && rating <= 5 ? null : 'feedback.ratingRequired',
+  });
 
   const submit = async () => {
-    if (submitting) return;
-    setFormError(null);
+    if (submitting || !form.attempt()) return;
     setSubmitting(true);
     try {
       await submitFeedback({
@@ -43,7 +44,7 @@ function FeedbackScreen({ navigation }: ScreenProps) {
       toast.show('success', t('feedback.thanks'));
       navigation.goBack();
     } catch (err) {
-      setFormError(err);
+      form.fail(err);
     } finally {
       setSubmitting(false);
     }
@@ -72,7 +73,10 @@ function FeedbackScreen({ navigation }: ScreenProps) {
                   testID={`feedback-star-${level}`}
                   accessibilityRole="button"
                   accessibilityState={{ selected: active }}
-                  onPress={() => setRating(level)}
+                  onPress={() => {
+                    setRating(level);
+                    form.touch('rating');
+                  }}
                   hitSlop={4}
                   style={styles.starButton}
                 >
@@ -85,6 +89,11 @@ function FeedbackScreen({ navigation }: ScreenProps) {
               );
             })}
           </View>
+          {form.fieldError('rating') ? (
+            <Text testID="feedback-rating-error" style={styles.ratingError}>
+              {form.fieldError('rating')}
+            </Text>
+          ) : null}
         </Card>
 
         <TextField
@@ -111,13 +120,13 @@ function FeedbackScreen({ navigation }: ScreenProps) {
           multiline
           maxLength={FEEDBACK_TEXT_MAX}
         />
-        {formError ? <Text style={styles.formError}>{errorMessage(formError, t)}</Text> : null}
+        {form.formError ? <Text style={styles.formError}>{form.formError}</Text> : null}
         <Button
           testID="feedback-submit"
           label={t('feedback.send')}
           icon={Send}
           loading={submitting}
-          disabled={!canSubmit}
+          disabled={form.blocked}
           onPress={submit}
         />
       </View>
@@ -162,6 +171,12 @@ const styles = StyleSheet.create({
   },
   starButton: {
     padding: spacing.xs,
+  },
+  ratingError: {
+    ...typography.caption,
+    color: colors.error,
+    textAlign: 'center',
+    marginTop: spacing.xs,
   },
   formError: {
     ...typography.body,

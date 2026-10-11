@@ -102,6 +102,8 @@ Rules:
 - All user-visible text goes through i18next (`src/i18n/locales/{en,fr,pid}.ts`); the parity test
   keeps the three locales in sync.
 - Validation lives in `<domain>/validation.ts` and returns **translation keys**, never text.
+- Forms show errors through `useFormErrors` (`src/forms/`, KZ-22): a field's error appears once the
+  field is touched or after a Save attempt, and Save is disabled only while an error is visible.
 - Request errors reach the user only through `errorMessage()` in `src/errors/messages.ts`
   (§5.4); `err.message` is never rendered (guarded by `__tests__/source.guards.test.js`).
 

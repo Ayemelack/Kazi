@@ -19,11 +19,13 @@ import {
   validateTransactionDate,
 } from '../../transactions/validation';
 import { formatMoney } from '@kazi/shared';
-import { errorMessage } from '../../errors/messages';
+import { useFormErrors } from '../../forms/useFormErrors';
 import type { HistoryStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 
 type ScreenProps = NativeStackScreenProps<HistoryStackParamList, 'AddMoney'>;
+
+const FIELDS = ['amount', 'date'] as const;
 
 export default function AddMoneyScreen({ navigation }: ScreenProps) {
   const { t } = useTranslation();
@@ -32,11 +34,12 @@ export default function AddMoneyScreen({ navigation }: ScreenProps) {
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(todayAsDateString());
   const [description, setDescription] = useState('');
-  const [amountError, setAmountError] = useState<string | null>(null);
-  const [dateError, setDateError] = useState<string | null>(null);
-  const [formError, setFormError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
   const [totalCapital, setTotalCapital] = useState<number | null>(null);
+  const form = useFormErrors(FIELDS, {
+    amount: validateTransactionAmount(amount),
+    date: validateTransactionDate(date),
+  });
 
   useFocusEffect(
     useCallback(() => {
@@ -58,15 +61,7 @@ export default function AddMoneyScreen({ navigation }: ScreenProps) {
   );
 
   const save = async () => {
-    if (submitting) return;
-    const newAmountError = validateTransactionAmount(amount);
-    const newDateError = validateTransactionDate(date);
-    setAmountError(newAmountError);
-    setDateError(newDateError);
-    if (newAmountError !== null || newDateError !== null) {
-      return;
-    }
-    setFormError(null);
+    if (submitting || !form.attempt()) return;
     setSubmitting(true);
     try {
       await createTransaction({
@@ -78,14 +73,11 @@ export default function AddMoneyScreen({ navigation }: ScreenProps) {
       toast.show('success', t('transactions.saved'));
       navigation.goBack();
     } catch (err) {
-      setFormError(err);
+      form.fail(err);
     } finally {
       setSubmitting(false);
     }
   };
-
-  const canSubmit =
-    validateTransactionAmount(amount) === null && validateTransactionDate(date) === null;
 
   return (
     <Screen scroll>
@@ -103,7 +95,8 @@ export default function AddMoneyScreen({ navigation }: ScreenProps) {
         value={amount}
         onChangeText={setAmount}
         keyboardType="decimal-pad"
-        error={amountError ? t(amountError) : undefined}
+        onBlur={() => form.touch('amount')}
+        error={form.fieldError('amount')}
         hint={moneyPreview(amount)}
         maxLength={MONEY_INPUT_MAX_LENGTH}
       />
@@ -111,8 +104,11 @@ export default function AddMoneyScreen({ navigation }: ScreenProps) {
         testID="add-money-date"
         label={t('transactions.date')}
         value={date}
-        onChange={setDate}
-        error={dateError ? t(dateError) : undefined}
+        onChange={value => {
+          setDate(value);
+          form.touch('date');
+        }}
+        error={form.fieldError('date')}
       />
       <TextField
         testID="add-money-description"
@@ -122,13 +118,13 @@ export default function AddMoneyScreen({ navigation }: ScreenProps) {
         multiline
         maxLength={TRANSACTION_DESCRIPTION_MAX}
       />
-      {formError ? <Text style={styles.formError}>{errorMessage(formError, t)}</Text> : null}
+      {form.formError ? <Text style={styles.formError}>{form.formError}</Text> : null}
       <Button
         testID="add-money-save"
         label={t('transactions.addMoneyButton')}
         icon={Banknote}
         loading={submitting}
-        disabled={!canSubmit}
+        disabled={form.blocked}
         onPress={save}
       />
     </Screen>

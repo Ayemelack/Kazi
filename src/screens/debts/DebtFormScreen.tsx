@@ -12,17 +12,14 @@ import { useToast } from '../../components/ui/Toast';
 import { DEBT_NOTE_MAX, parseMoneyInput } from '@kazi/shared';
 import { createDebt } from '../../offline/api';
 import { MONEY_INPUT_MAX_LENGTH, moneyPreview } from '../../money/input';
-import {
-  hasErrors,
-  todayInput,
-  validateDebt,
-  type DebtFieldErrors,
-} from '../../debts/validation';
-import { errorMessage } from '../../errors/messages';
+import { todayInput, validateDebt } from '../../debts/validation';
+import { useFormErrors } from '../../forms/useFormErrors';
 import type { HistoryStackParamList } from '../../navigation/RootNavigator';
 import { colors, spacing, typography } from '../../theme';
 
 type ScreenProps = NativeStackScreenProps<HistoryStackParamList, 'DebtForm'>;
+
+const FIELDS = ['name', 'amount', 'date', 'note'] as const;
 
 function DebtFormScreen({ navigation }: ScreenProps) {
   const { t } = useTranslation();
@@ -31,19 +28,11 @@ function DebtFormScreen({ navigation }: ScreenProps) {
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(todayInput());
   const [note, setNote] = useState('');
-  const [errors, setErrors] = useState<DebtFieldErrors>({});
-  const [formError, setFormError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
+  const form = useFormErrors(FIELDS, validateDebt({ name, amount, date, note }));
 
   const submit = async () => {
-    if (submitting) return;
-    const validationErrors = validateDebt({ name, amount, date, note });
-    if (hasErrors(validationErrors)) {
-      setErrors(validationErrors);
-      return;
-    }
-    setErrors({});
-    setFormError(null);
+    if (submitting || !form.attempt()) return;
     setSubmitting(true);
     try {
       await createDebt({
@@ -55,13 +44,11 @@ function DebtFormScreen({ navigation }: ScreenProps) {
       toast.show('success', t('debts.created'));
       navigation.goBack();
     } catch (err) {
-      setFormError(err);
+      form.fail(err);
     } finally {
       setSubmitting(false);
     }
   };
-
-  const canSubmit = !hasErrors(validateDebt({ name, amount, date, note }));
 
   return (
     <Screen>
@@ -73,7 +60,8 @@ function DebtFormScreen({ navigation }: ScreenProps) {
           leftIcon={User}
           value={name}
           onChangeText={setName}
-          error={errors.name ? t(errors.name) : undefined}
+          onBlur={() => form.touch('name')}
+          error={form.fieldError('name')}
           autoCapitalize="words"
           placeholder={t('debts.namePlaceholder')}
         />
@@ -83,7 +71,8 @@ function DebtFormScreen({ navigation }: ScreenProps) {
           keyboardType="decimal-pad"
           value={amount}
           onChangeText={setAmount}
-          error={errors.amount ? t(errors.amount) : undefined}
+          onBlur={() => form.touch('amount')}
+          error={form.fieldError('amount')}
           hint={moneyPreview(amount)}
           maxLength={MONEY_INPUT_MAX_LENGTH}
           placeholder="0"
@@ -92,8 +81,11 @@ function DebtFormScreen({ navigation }: ScreenProps) {
           testID="debt-date"
           label={t('debts.dateLabel')}
           value={date}
-          onChange={setDate}
-          error={errors.date ? t(errors.date) : undefined}
+          onChange={value => {
+            setDate(value);
+            form.touch('date');
+          }}
+          error={form.fieldError('date')}
         />
         <TextField
           testID="debt-note"
@@ -101,17 +93,18 @@ function DebtFormScreen({ navigation }: ScreenProps) {
           leftIcon={NotebookPen}
           value={note}
           onChangeText={setNote}
-          error={errors.note ? t(errors.note) : undefined}
+          onBlur={() => form.touch('note')}
+          error={form.fieldError('note')}
           multiline
           maxLength={DEBT_NOTE_MAX}
         />
-        {formError ? <Text style={styles.formError}>{errorMessage(formError, t)}</Text> : null}
+        {form.formError ? <Text style={styles.formError}>{form.formError}</Text> : null}
         <Button
           testID="debt-submit"
           label={t('debts.saveButton')}
           icon={Plus}
           loading={submitting}
-          disabled={!canSubmit}
+          disabled={form.blocked}
           onPress={submit}
         />
       </View>

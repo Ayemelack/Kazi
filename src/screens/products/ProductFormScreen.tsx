@@ -32,22 +32,20 @@ import {
   parseMoneyInput,
 } from '@kazi/shared';
 import { MONEY_INPUT_MAX_LENGTH, moneyPreview } from '../../money/input';
-import {
-  hasItemErrors,
-  parseWholeNumber,
-  validateItemForm,
-  type ItemFormErrors,
-} from '../../items/validation';
+import { parseWholeNumber, validateItemForm } from '../../items/validation';
 import { pickImage } from '../../items/image';
 import type { Item, ItemType, StockDirection } from '../../items/types';
 import type { ProductsStackParamList } from '../../navigation/RootNavigator';
 import { LocalError, errorMessage } from '../../errors/messages';
+import { useFormErrors } from '../../forms/useFormErrors';
 import { colors, radius, spacing, typography } from '../../theme';
 import StockMovementDialog from './StockMovementDialog';
 
 type ScreenProps = NativeStackScreenProps<ProductsStackParamList, 'ProductForm'>;
 
 const TYPES: ItemType[] = ['product', 'service'];
+
+const FIELDS = ['name', 'price', 'lowStockThreshold'] as const;
 
 export default function ProductFormScreen({ navigation, route }: ScreenProps) {
   const { t } = useTranslation();
@@ -66,11 +64,14 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
   const [trackStock, setTrackStock] = useState(false);
   const [lowStockThreshold, setLowStockThreshold] = useState('');
   const [currentItem, setCurrentItem] = useState<Item | null>(null);
-  const [errors, setErrors] = useState<ItemFormErrors>({});
-  const [formError, setFormError] = useState<unknown>(null);
   const [stockDialog, setStockDialog] = useState<StockDirection | null>(null);
   const [stockBusy, setStockBusy] = useState(false);
   const [stockError, setStockError] = useState<unknown>(null);
+  const form = useFormErrors(
+    FIELDS,
+    validateItemForm({ name, type, price, notes, trackStock, lowStockThreshold }),
+  );
+  const failForm = form.fail;
 
   useEffect(() => {
     if (itemId === undefined) {
@@ -93,7 +94,7 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
         setLowStockThreshold(String(item.lowStockThreshold));
       } catch (err) {
         if (!cancelled) {
-          setFormError(err);
+          failForm(err);
         }
       } finally {
         if (!cancelled) {
@@ -104,24 +105,10 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
     return () => {
       cancelled = true;
     };
-  }, [itemId, t]);
+  }, [itemId, failForm]);
 
   const save = async () => {
-    if (submitting) return;
-    const validationErrors = validateItemForm({
-      name,
-      type,
-      price,
-      notes,
-      trackStock,
-      lowStockThreshold,
-    });
-    if (hasItemErrors(validationErrors)) {
-      setErrors(validationErrors);
-      return;
-    }
-    setErrors({});
-    setFormError(null);
+    if (submitting || !form.attempt()) return;
     setSubmitting(true);
     try {
       const parsedPrice = parseMoneyInput(price) ?? 0;
@@ -146,15 +133,11 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
       }
       navigation.goBack();
     } catch (err) {
-      setFormError(err);
+      form.fail(err);
     } finally {
       setSubmitting(false);
     }
   };
-
-  const canSubmit = !hasItemErrors(
-    validateItemForm({ name, type, price, notes, trackStock, lowStockThreshold }),
-  );
 
   const confirmDelete = async () => {
     if (deleting) return;
@@ -167,7 +150,7 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
       toast.show('success', t('products.itemDeleted'));
       navigation.goBack();
     } catch (err) {
-      setFormError(err);
+      form.fail(err);
       setConfirmingDelete(false);
     } finally {
       setDeleting(false);
@@ -200,7 +183,7 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
     if (result.status === 'selected') {
       setImage(result.image);
     } else if (result.status === 'error') {
-      setFormError(new LocalError(result.messageKey));
+      form.fail(new LocalError(result.messageKey));
     }
   };
 
@@ -224,7 +207,8 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
         label={t('products.name')}
         value={name}
         onChangeText={setName}
-        error={errors.name ? t(errors.name) : undefined}
+        onBlur={() => form.touch('name')}
+        error={form.fieldError('name')}
         autoCapitalize="words"
         maxLength={ITEM_NAME_MAX}
       />
@@ -266,7 +250,8 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
         value={price}
         onChangeText={setPrice}
         keyboardType="decimal-pad"
-        error={errors.price ? t(errors.price) : undefined}
+        onBlur={() => form.touch('price')}
+        error={form.fieldError('price')}
         hint={moneyPreview(price) ?? t('products.priceHint')}
         maxLength={MONEY_INPUT_MAX_LENGTH}
       />
@@ -339,9 +324,8 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
             value={lowStockThreshold}
             onChangeText={setLowStockThreshold}
             keyboardType="number-pad"
-            error={
-              errors.lowStockThreshold ? t(errors.lowStockThreshold) : undefined
-            }
+            onBlur={() => form.touch('lowStockThreshold')}
+            error={form.fieldError('lowStockThreshold')}
             hint={t('products.lowStockAlertHint')}
             maxLength={String(LOW_STOCK_THRESHOLD_MAX).length}
           />
@@ -371,12 +355,12 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
           ) : null}
         </View>
       ) : null}
-      {formError ? <Text style={styles.formError}>{errorMessage(formError, t)}</Text> : null}
+      {form.formError ? <Text style={styles.formError}>{form.formError}</Text> : null}
       <Button
         testID="item-save"
         label={t('common.save')}
         loading={submitting}
-        disabled={!canSubmit}
+        disabled={form.blocked}
         onPress={save}
         style={styles.saveButton}
       />

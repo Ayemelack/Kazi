@@ -7,13 +7,11 @@ import TextField from '../../components/ui/TextField';
 import Button from '../../components/ui/Button';
 import { useToast } from '../../components/ui/Toast';
 import { useAuth } from '../../auth/AuthContext';
-import {
-  hasErrors,
-  validateProfile,
-  type AuthFieldErrors,
-} from '../../auth/validation';
-import { errorMessage } from '../../errors/messages';
+import { validateProfile } from '../../auth/validation';
+import { useFormErrors } from '../../forms/useFormErrors';
 import { colors, spacing, typography } from '../../theme';
+
+const FIELDS = ['companyName', 'businessType'] as const;
 
 function BusinessProfileScreen() {
   const { t } = useTranslation();
@@ -21,32 +19,20 @@ function BusinessProfileScreen() {
   const toast = useToast();
   const [companyName, setCompanyName] = useState('');
   const [businessType, setBusinessType] = useState('');
-  const [errors, setErrors] = useState<AuthFieldErrors>({});
-  const [formError, setFormError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
+  const form = useFormErrors(FIELDS, validateProfile({ companyName, businessType }));
 
   const submit = async () => {
-    if (submitting) return;
-    const validationErrors = validateProfile({ companyName, businessType });
-    if (hasErrors(validationErrors)) {
-      setErrors(validationErrors);
-      return;
-    }
-    setErrors({});
-    setFormError(null);
+    if (submitting || !form.attempt()) return;
     setSubmitting(true);
     try {
       await completeBusinessProfile({ companyName: companyName.trim(), businessType: businessType.trim() });
       toast.show('success', t('business.saved'));
     } catch (err) {
-      setFormError(err);
+      form.fail(err);
       setSubmitting(false);
     }
   };
-
-  const canSubmit = !hasErrors(
-    validateProfile({ companyName, businessType }),
-  );
 
   return (
     <AuthLayout
@@ -59,7 +45,8 @@ function BusinessProfileScreen() {
         leftIcon={Building2}
         value={companyName}
         onChangeText={setCompanyName}
-        error={errors.companyName ? t(errors.companyName) : undefined}
+        onBlur={() => form.touch('companyName')}
+        error={form.fieldError('companyName')}
         autoCapitalize="words"
         placeholder={t('business.companyNamePlaceholder')}
       />
@@ -69,18 +56,19 @@ function BusinessProfileScreen() {
         leftIcon={Store}
         value={businessType}
         onChangeText={setBusinessType}
-        error={errors.businessType ? t(errors.businessType) : undefined}
+        onBlur={() => form.touch('businessType')}
+        error={form.fieldError('businessType')}
         autoCapitalize="words"
         placeholder={t('business.businessTypePlaceholder')}
         hint={t('business.businessTypeHint')}
       />
-      {formError ? <Text style={styles.formError}>{errorMessage(formError, t)}</Text> : null}
+      {form.formError ? <Text style={styles.formError}>{form.formError}</Text> : null}
       <Text style={styles.privacyNote}>{t('business.privacyNote')}</Text>
       <Button
         testID="business-submit"
         label={t('business.continue')}
         loading={submitting}
-        disabled={!canSubmit}
+        disabled={form.blocked}
         onPress={submit}
         style={styles.button}
       />

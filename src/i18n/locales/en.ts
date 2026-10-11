@@ -284,6 +284,7 @@ const en = {
     suggestion: 'Any suggestions?',
     send: 'Send feedback',
     thanks: 'Thank you! Your feedback helps.',
+    ratingRequired: 'Choose a rating from 1 to 5 stars.',
   },
   support: {
     title: 'Contact support',

@@ -9,12 +9,12 @@ import Button from '../../components/ui/Button';
 import { useToast } from '../../components/ui/Toast';
 import { useAuth } from '../../auth/AuthContext';
 import {
-  hasErrors,
   passwordStrength,
+  validateConfirmPassword,
   validateResetPassword,
-  type AuthFieldErrors,
 } from '../../auth/validation';
-import { LocalError, errorMessage, type ErrorKeyOverrides } from '../../errors/messages';
+import { LocalError, type ErrorKeyOverrides } from '../../errors/messages';
+import { useFormErrors } from '../../forms/useFormErrors';
 import type { AuthStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 
@@ -26,6 +26,8 @@ const RESET_CODE_MESSAGES: ErrorKeyOverrides = {
   TOKEN_EXPIRED: 'auth.errors.tokenExpired',
 };
 
+const FIELDS = ['password', 'confirmPassword'] as const;
+
 function ResetPasswordScreen({ navigation, route }: ScreenProps) {
   const { t } = useTranslation();
   const { resetPassword } = useAuth();
@@ -33,45 +35,36 @@ function ResetPasswordScreen({ navigation, route }: ScreenProps) {
   const token = route.params?.token?.trim() ?? '';
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [errors, setErrors] = useState<AuthFieldErrors>({});
-  const [formError, setFormError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const strength = useMemo(() => passwordStrength(password), [password]);
 
+  const errors = validateResetPassword({ password });
+  const confirmError = validateConfirmPassword(password, confirmPassword);
+  if (confirmError) {
+    errors.confirmPassword = confirmError;
+  }
+  const form = useFormErrors(FIELDS, errors, RESET_CODE_MESSAGES);
+
   const submit = async () => {
     if (submitting) return;
+    const valid = form.attempt();
     if (token.length === 0) {
-      setFormError(new LocalError('auth.resetSessionEnded'));
+      form.fail(new LocalError('auth.resetSessionEnded'));
       return;
     }
-    const validationErrors = validateResetPassword({ password });
-    if (confirmPassword !== password) {
-      validationErrors.confirmPassword = 'auth.errors.passwordMismatch';
-    }
-    if (hasErrors(validationErrors)) {
-      setErrors(validationErrors);
-      return;
-    }
-    setErrors({});
-    setFormError(null);
+    if (!valid) return;
     setSubmitting(true);
     try {
       await resetPassword({ token, password });
       toast.show('success', t('auth.passwordResetSuccess'));
       navigation.navigate('Login');
     } catch (err) {
-      setFormError(err);
+      form.fail(err);
     } finally {
       setSubmitting(false);
     }
   };
-
-  const liveErrors = validateResetPassword({ password });
-  if (confirmPassword.length > 0 && confirmPassword !== password) {
-    liveErrors.confirmPassword = 'auth.errors.passwordMismatch';
-  }
-  const canSubmit = !hasErrors(liveErrors) && confirmPassword.length > 0;
 
   return (
     <AuthLayout
@@ -88,7 +81,8 @@ function ResetPasswordScreen({ navigation, route }: ScreenProps) {
         secure
         value={password}
         onChangeText={setPassword}
-        error={errors.password ? t(errors.password) : undefined}
+        onBlur={() => form.touch('password')}
+        error={form.fieldError('password')}
         hint={t('auth.passwordHint')}
       />
       {password.length > 1 ? (
@@ -118,16 +112,15 @@ function ResetPasswordScreen({ navigation, route }: ScreenProps) {
         secure
         value={confirmPassword}
         onChangeText={setConfirmPassword}
-        error={errors.confirmPassword ? t(errors.confirmPassword) : undefined}
+        onBlur={() => form.touch('confirmPassword')}
+        error={form.fieldError('confirmPassword')}
       />
-      {formError ? (
-        <Text style={styles.formError}>{errorMessage(formError, t, RESET_CODE_MESSAGES)}</Text>
-      ) : null}
+      {form.formError ? <Text style={styles.formError}>{form.formError}</Text> : null}
       <Button
         testID="reset-submit"
         label={t('auth.resetPasswordButton')}
         loading={submitting}
-        disabled={!canSubmit}
+        disabled={form.blocked}
         onPress={submit}
         style={styles.button}
       />

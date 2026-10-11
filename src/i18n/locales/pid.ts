@@ -294,6 +294,7 @@ const pid: TranslationSchema = {
     suggestion: 'You get any idea?',
     send: 'Send feedback',
     thanks: 'Thank you! Your feedback dey help.',
+    ratingRequired: 'Choose how many stars, from 1 reach 5.',
   },
   support: {
     title: 'Contact support',

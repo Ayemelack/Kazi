@@ -9,16 +9,14 @@ import TextField from '../../components/ui/TextField';
 import Button from '../../components/ui/Button';
 import { useToast } from '../../components/ui/Toast';
 import { useAuth } from '../../auth/AuthContext';
-import {
-  hasErrors,
-  validateAccountProfile,
-  type AuthFieldErrors,
-} from '../../auth/validation';
-import { errorMessage } from '../../errors/messages';
+import { validateAccountProfile } from '../../auth/validation';
+import { useFormErrors } from '../../forms/useFormErrors';
 import type { MoreStackParamList } from '../../navigation/RootNavigator';
 import { colors, spacing, typography } from '../../theme';
 
 type ScreenProps = NativeStackScreenProps<MoreStackParamList, 'MyBusiness'>;
+
+const FIELDS = ['companyName', 'businessType', 'firstName', 'lastName'] as const;
 
 function MyBusinessScreen({ navigation }: ScreenProps) {
   const { t } = useTranslation();
@@ -28,28 +26,14 @@ function MyBusinessScreen({ navigation }: ScreenProps) {
   const [businessType, setBusinessType] = useState(user?.businessType ?? '');
   const [firstName, setFirstName] = useState(user?.firstName ?? '');
   const [lastName, setLastName] = useState(user?.lastName ?? '');
-  const [formError, setFormError] = useState<unknown>(null);
-  const [errors, setErrors] = useState<AuthFieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
-
-  const canSubmit = !hasErrors(
+  const form = useFormErrors(
+    FIELDS,
     validateAccountProfile({ companyName, businessType, firstName, lastName }),
   );
 
   const save = async () => {
-    if (submitting) return;
-    const validationErrors = validateAccountProfile({
-      companyName,
-      businessType,
-      firstName,
-      lastName,
-    });
-    if (hasErrors(validationErrors)) {
-      setErrors(validationErrors);
-      return;
-    }
-    setErrors({});
-    setFormError(null);
+    if (submitting || !form.attempt()) return;
     setSubmitting(true);
     try {
       const nameChanged =
@@ -67,7 +51,7 @@ function MyBusinessScreen({ navigation }: ScreenProps) {
       toast.show('success', t('business.updated'));
       navigation.goBack();
     } catch (err) {
-      setFormError(err);
+      form.fail(err);
     } finally {
       setSubmitting(false);
     }
@@ -84,7 +68,8 @@ function MyBusinessScreen({ navigation }: ScreenProps) {
           value={companyName}
           onChangeText={setCompanyName}
           autoCapitalize="words"
-          error={errors.companyName ? t(errors.companyName) : undefined}
+          onBlur={() => form.touch('companyName')}
+          error={form.fieldError('companyName')}
         />
         <TextField
           testID="mybusiness-type"
@@ -93,7 +78,8 @@ function MyBusinessScreen({ navigation }: ScreenProps) {
           value={businessType}
           onChangeText={setBusinessType}
           autoCapitalize="words"
-          error={errors.businessType ? t(errors.businessType) : undefined}
+          onBlur={() => form.touch('businessType')}
+          error={form.fieldError('businessType')}
         />
         <View style={styles.divider} />
         <Text style={styles.sectionLabel}>{t('business.accountDetails')}</Text>
@@ -106,7 +92,8 @@ function MyBusinessScreen({ navigation }: ScreenProps) {
               value={firstName}
               onChangeText={setFirstName}
               autoCapitalize="words"
-              error={errors.firstName ? t(errors.firstName) : undefined}
+              onBlur={() => form.touch('firstName')}
+              error={form.fieldError('firstName')}
             />
           </View>
           <View style={styles.nameField}>
@@ -116,17 +103,18 @@ function MyBusinessScreen({ navigation }: ScreenProps) {
               value={lastName}
               onChangeText={setLastName}
               autoCapitalize="words"
-              error={errors.lastName ? t(errors.lastName) : undefined}
+              onBlur={() => form.touch('lastName')}
+              error={form.fieldError('lastName')}
             />
           </View>
         </View>
-        {formError ? <Text style={styles.formError}>{errorMessage(formError, t)}</Text> : null}
+        {form.formError ? <Text style={styles.formError}>{form.formError}</Text> : null}
         <Button
           testID="mybusiness-save"
           label={t('common.save')}
           icon={Save}
           loading={submitting}
-          disabled={!canSubmit}
+          disabled={form.blocked}
           onPress={save}
         />
       </View>

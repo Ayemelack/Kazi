@@ -13,20 +13,17 @@ import { useToast } from '../../components/ui/Toast';
 import { QUANTITY_MAX, TRANSACTION_DESCRIPTION_MAX, parseMoneyInput } from '@kazi/shared';
 import { createTransaction, listItems } from '../../offline/api';
 import { MONEY_INPUT_MAX_LENGTH, moneyPreview } from '../../money/input';
-import {
-  hasTransactionErrors,
-  todayAsDateString,
-  validateTransactionForm,
-  type TransactionFormErrors,
-} from '../../transactions/validation';
+import { todayAsDateString, validateTransactionForm } from '../../transactions/validation';
 import type { TransactionType } from '../../transactions/types';
 import type { Item } from '../../items/types';
-import { errorMessage } from '../../errors/messages';
+import { useFormErrors } from '../../forms/useFormErrors';
 import type { HistoryStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 import ItemPickerDialog from './ItemPickerDialog';
 
 type ScreenProps = NativeStackScreenProps<HistoryStackParamList, 'TransactionForm'>;
+
+const FIELDS = ['amount', 'date', 'description', 'quantity'] as const;
 
 const TYPES: TransactionType[] = ['sale', 'purchase'];
 
@@ -60,16 +57,6 @@ export default function TransactionFormScreen({ navigation, route }: ScreenProps
   // whole form must also restart from independent defaults whenever the record
   // type changes: an amount typed for a sale must never appear in the expense
   // form, and vice versa.
-  useEffect(() => {
-    setType(route.params?.initialType ?? 'sale');
-    setAmount('');
-    setDescription('');
-    setDate(todayAsDateString());
-    setSelectedItem(null);
-    setQuantity('');
-    setErrors({});
-    setFormError(null);
-  }, [route.params?.initialType]);
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(todayAsDateString());
   const [description, setDescription] = useState('');
@@ -77,9 +64,28 @@ export default function TransactionFormScreen({ navigation, route }: ScreenProps
   const [quantity, setQuantity] = useState('');
   const [items, setItems] = useState<Item[]>([]);
   const [pickingItem, setPickingItem] = useState(false);
-  const [errors, setErrors] = useState<TransactionFormErrors>({});
-  const [formError, setFormError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const quantityRequired = (selectedItem?.trackStock ?? false) && selectedItem !== null;
+  const form = useFormErrors(
+    FIELDS,
+    validateTransactionForm(
+      { type, amount, description, date, quantity },
+      quantityRequired,
+      selectedItem !== null,
+    ),
+  );
+  const resetForm = form.reset;
+
+  useEffect(() => {
+    setType(route.params?.initialType ?? 'sale');
+    setAmount('');
+    setDescription('');
+    setDate(todayAsDateString());
+    setSelectedItem(null);
+    setQuantity('');
+    resetForm();
+  }, [route.params?.initialType, resetForm]);
 
   useFocusEffect(
     useCallback(() => {
@@ -100,21 +106,8 @@ export default function TransactionFormScreen({ navigation, route }: ScreenProps
     }, []),
   );
 
-  const quantityRequired = (selectedItem?.trackStock ?? false) && selectedItem !== null;
-
   const save = async () => {
-    if (submitting) return;
-    const validationErrors = validateTransactionForm(
-      { type, amount, description, date, quantity },
-      quantityRequired,
-      selectedItem !== null,
-    );
-    if (hasTransactionErrors(validationErrors)) {
-      setErrors(validationErrors);
-      return;
-    }
-    setErrors({});
-    setFormError(null);
+    if (submitting || !form.attempt()) return;
     setSubmitting(true);
     try {
       const parsedQuantity = quantity.trim() === '' ? undefined : Number(quantity.trim());
@@ -129,19 +122,11 @@ export default function TransactionFormScreen({ navigation, route }: ScreenProps
       toast.show('success', t('transactions.saved'));
       navigation.goBack();
     } catch (err) {
-      setFormError(err);
+      form.fail(err);
     } finally {
       setSubmitting(false);
     }
   };
-
-  const canSubmit = !hasTransactionErrors(
-    validateTransactionForm(
-      { type, amount, description, date, quantity },
-      quantityRequired,
-      selectedItem !== null,
-    ),
-  );
 
   const isExpense = type === 'purchase';
 
@@ -193,7 +178,8 @@ export default function TransactionFormScreen({ navigation, route }: ScreenProps
         value={amount}
         onChangeText={setAmount}
         keyboardType="decimal-pad"
-        error={errors.amount ? t(errors.amount) : undefined}
+        onBlur={() => form.touch('amount')}
+        error={form.fieldError('amount')}
         hint={moneyPreview(amount)}
         maxLength={MONEY_INPUT_MAX_LENGTH}
       />
@@ -201,8 +187,11 @@ export default function TransactionFormScreen({ navigation, route }: ScreenProps
         testID="transaction-date"
         label={t('transactions.date')}
         value={date}
-        onChange={setDate}
-        error={errors.date ? t(errors.date) : undefined}
+        onChange={value => {
+          setDate(value);
+          form.touch('date');
+        }}
+        error={form.fieldError('date')}
       />
       {isExpense ? (
         <>
@@ -214,7 +203,8 @@ export default function TransactionFormScreen({ navigation, route }: ScreenProps
             onChangeText={setDescription}
             multiline
             maxLength={TRANSACTION_DESCRIPTION_MAX}
-            error={errors.description ? t(errors.description) : undefined}
+            onBlur={() => form.touch('description')}
+            error={form.fieldError('description')}
           />
           <View style={styles.presetWrap}>
             {EXPENSE_PRESETS.map(preset => {
@@ -261,7 +251,8 @@ export default function TransactionFormScreen({ navigation, route }: ScreenProps
           value={quantity}
           onChangeText={setQuantity}
           keyboardType="number-pad"
-          error={errors.quantity ? t(errors.quantity) : undefined}
+          onBlur={() => form.touch('quantity')}
+          error={form.fieldError('quantity')}
           hint={t('transactions.quantityHint')}
           maxLength={String(QUANTITY_MAX).length}
         />
@@ -283,12 +274,12 @@ export default function TransactionFormScreen({ navigation, route }: ScreenProps
           maxLength={TRANSACTION_DESCRIPTION_MAX}
         />
       ) : null}
-      {formError ? <Text style={styles.formError}>{errorMessage(formError, t)}</Text> : null}
+      {form.formError ? <Text style={styles.formError}>{form.formError}</Text> : null}
       <Button
         testID="transaction-save"
         label={t('common.save')}
         loading={submitting}
-        disabled={!canSubmit}
+        disabled={form.blocked}
         onPress={save}
       />
 
@@ -299,11 +290,6 @@ export default function TransactionFormScreen({ navigation, route }: ScreenProps
         onSelect={item => {
           setSelectedItem(item);
           setQuantity('');
-          setErrors(prev => {
-            const next = { ...prev };
-            delete next.quantity;
-            return next;
-          });
         }}
         onClose={() => setPickingItem(false)}
       />

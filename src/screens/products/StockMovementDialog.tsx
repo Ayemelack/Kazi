@@ -7,7 +7,10 @@ import TextField from '../../components/ui/TextField';
 import Button from '../../components/ui/Button';
 import { validateStockQuantity } from '../../items/validation';
 import type { StockDirection } from '../../items/types';
+import { useFormErrors } from '../../forms/useFormErrors';
 import { colors, radius, spacing, typography } from '../../theme';
+
+const FIELDS = ['quantity'] as const;
 
 interface Props {
   visible: boolean;
@@ -31,7 +34,8 @@ export default function StockMovementDialog({
   const { t } = useTranslation();
   const [quantity, setQuantity] = useState('');
   const [reason, setReason] = useState('');
-  const [quantityError, setQuantityError] = useState<string | null>(null);
+  const form = useFormErrors(FIELDS, { quantity: validateStockQuantity(quantity) });
+  const resetForm = form.reset;
 
   const isIn = direction === 'in';
   const Icon = isIn ? PackagePlus : PackageMinus;
@@ -40,22 +44,14 @@ export default function StockMovementDialog({
     if (visible) {
       setQuantity('');
       setReason('');
-      setQuantityError(null);
+      resetForm();
     }
-  }, [visible, direction]);
+  }, [visible, direction, resetForm]);
 
   const confirm = () => {
-    if (busy) return;
-    const errorKey = validateStockQuantity(quantity);
-    if (errorKey) {
-      setQuantityError(t(errorKey));
-      return;
-    }
-    setQuantityError(null);
+    if (busy || !form.attempt()) return;
     onConfirm(Number(quantity), reason.trim() || undefined);
   };
-
-  const quantityInvalid = validateStockQuantity(quantity) !== null;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
@@ -74,7 +70,8 @@ export default function StockMovementDialog({
             value={quantity}
             onChangeText={setQuantity}
             keyboardType="number-pad"
-            error={quantityError ?? undefined}
+            onBlur={() => form.touch('quantity')}
+            error={form.fieldError('quantity')}
             maxLength={String(QUANTITY_MAX).length}
           />
           <TextField
@@ -97,7 +94,7 @@ export default function StockMovementDialog({
               testID="stock-confirm"
               label={t(isIn ? 'products.addStock' : 'products.removeStock')}
               loading={busy}
-              disabled={quantityInvalid}
+              disabled={form.blocked}
               onPress={confirm}
               variant={isIn ? 'primary' : 'destructive'}
               style={styles.button}

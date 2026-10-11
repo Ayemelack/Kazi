@@ -286,6 +286,7 @@ const fr: TranslationSchema = {
     suggestion: 'Des suggestions ?',
     send: 'Envoyer votre avis',
     thanks: 'Merci ! Votre avis nous aide.',
+    ratingRequired: 'Choisissez une note de 1 à 5 étoiles.',
   },
   support: {
     title: 'Contacter l’assistance',

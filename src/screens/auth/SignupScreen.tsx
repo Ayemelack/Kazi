@@ -9,16 +9,17 @@ import TextField from '../../components/ui/TextField';
 import Button from '../../components/ui/Button';
 import { useAuth } from '../../auth/AuthContext';
 import {
-  hasErrors,
   passwordStrength,
+  validateConfirmPassword,
   validateSignup,
-  type AuthFieldErrors,
 } from '../../auth/validation';
-import { errorMessage } from '../../errors/messages';
+import { useFormErrors } from '../../forms/useFormErrors';
 import type { AuthStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 
 type ScreenProps = NativeStackScreenProps<AuthStackParamList, 'Signup'>;
+
+const FIELDS = ['firstName', 'lastName', 'email', 'password', 'confirmPassword'] as const;
 
 function SignupScreen({ navigation }: ScreenProps) {
   const { t } = useTranslation();
@@ -28,44 +29,37 @@ function SignupScreen({ navigation }: ScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [errors, setErrors] = useState<AuthFieldErrors>({});
-  const [formError, setFormError] = useState<unknown>(null);
+  const [emailInUse, setEmailInUse] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const strength = useMemo(() => passwordStrength(password), [password]);
 
-  const submit = async () => {
-    if (submitting) return;
-    const validationErrors = validateSignup({ firstName, lastName, email, password });
-    if (confirmPassword !== password) {
-      validationErrors.confirmPassword = 'auth.errors.passwordMismatch';
-    }
-    if (hasErrors(validationErrors)) {
-      setErrors(validationErrors);
-      return;
-    }
+  const errors = validateSignup({ firstName, lastName, email, password });
+  if (!errors.email && emailInUse !== null && email.trim().toLowerCase() === emailInUse) {
+    errors.email = 'errors.codes.EMAIL_IN_USE';
+  }
+  const confirmError = validateConfirmPassword(password, confirmPassword);
+  if (confirmError) {
+    errors.confirmPassword = confirmError;
+  }
+  const form = useFormErrors(FIELDS, errors);
 
-    setErrors({});
-    setFormError(null);
+  const submit = async () => {
+    if (submitting || !form.attempt()) return;
     setSubmitting(true);
     try {
       await signUp({ firstName, lastName, email, password });
     } catch (err) {
       if (err instanceof ApiError && err.code === 'EMAIL_IN_USE') {
-        setErrors({ email: 'errors.codes.EMAIL_IN_USE' });
+        // Shown under the email field until the address changes.
+        setEmailInUse(email.trim().toLowerCase());
       } else {
-        setFormError(err);
+        form.fail(err);
       }
     } finally {
       setSubmitting(false);
     }
   };
-
-  const liveErrors = validateSignup({ firstName, lastName, email, password });
-  if (confirmPassword.length > 0 && confirmPassword !== password) {
-    liveErrors.confirmPassword = 'auth.errors.passwordMismatch';
-  }
-  const canSubmit = !hasErrors(liveErrors) && confirmPassword.length > 0;
 
   return (
     <AuthLayout
@@ -80,7 +74,8 @@ function SignupScreen({ navigation }: ScreenProps) {
             leftIcon={User}
             value={firstName}
             onChangeText={setFirstName}
-            error={errors.firstName ? t(errors.firstName) : undefined}
+            onBlur={() => form.touch('firstName')}
+            error={form.fieldError('firstName')}
             autoCapitalize="words"
           />
         </View>
@@ -90,7 +85,8 @@ function SignupScreen({ navigation }: ScreenProps) {
             label={t('auth.lastName')}
             value={lastName}
             onChangeText={setLastName}
-            error={errors.lastName ? t(errors.lastName) : undefined}
+            onBlur={() => form.touch('lastName')}
+            error={form.fieldError('lastName')}
             autoCapitalize="words"
           />
         </View>
@@ -102,7 +98,8 @@ function SignupScreen({ navigation }: ScreenProps) {
         keyboardType="email-address"
         value={email}
         onChangeText={setEmail}
-        error={errors.email ? t(errors.email) : undefined}
+        onBlur={() => form.touch('email')}
+        error={form.fieldError('email')}
         autoCapitalize="none"
       />
       <TextField
@@ -112,7 +109,8 @@ function SignupScreen({ navigation }: ScreenProps) {
         secure
         value={password}
         onChangeText={setPassword}
-        error={errors.password ? t(errors.password) : undefined}
+        onBlur={() => form.touch('password')}
+        error={form.fieldError('password')}
         hint={t('auth.passwordHint')}
       />
       {password.length > 1 ? (
@@ -142,14 +140,15 @@ function SignupScreen({ navigation }: ScreenProps) {
         secure
         value={confirmPassword}
         onChangeText={setConfirmPassword}
-        error={errors.confirmPassword ? t(errors.confirmPassword) : undefined}
+        onBlur={() => form.touch('confirmPassword')}
+        error={form.fieldError('confirmPassword')}
       />
-      {formError ? <Text style={styles.formError}>{errorMessage(formError, t)}</Text> : null}
+      {form.formError ? <Text style={styles.formError}>{form.formError}</Text> : null}
       <Button
         testID="signup-submit"
         label={t('auth.signUpButton')}
         loading={submitting}
-        disabled={!canSubmit}
+        disabled={form.blocked}
         onPress={submit}
         style={styles.button}
       />

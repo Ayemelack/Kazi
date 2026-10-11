@@ -56,13 +56,14 @@ function Harness({ initialType = 'sale' }: { initialType?: 'sale' | 'purchase' }
   return (
     <ToastProvider>
       <NavigationContainer ref={navigationRef}>
+        {/* Home comes first so the screen's goBack() after saving has somewhere to go. */}
         <Tab.Navigator initialRouteName="Form" screenOptions={{ headerShown: false }}>
+          <Tab.Screen name="Home" component={HomeScreen} />
           <Tab.Screen
             name="Form"
             component={TransactionFormRoute}
             initialParams={{ initialType }}
           />
-          <Tab.Screen name="Home" component={HomeScreen} />
         </Tab.Navigator>
       </NavigationContainer>
     </ToastProvider>

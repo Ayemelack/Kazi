@@ -35,6 +35,10 @@ jest.mock('react-native-safe-area-context', () => {
 const Tab = createBottomTabNavigator<Record<string, object | undefined>>();
 const navigationRef = createNavigationContainerRef<Record<string, object | undefined>>();
 
+function HomeScreen() {
+  return <Text>Home</Text>;
+}
+
 function AddMoneyRoute(props: object) {
   const { navigation, route } = props as { navigation: object; route: object };
   return <AddMoneyScreen navigation={navigation as never} route={route as never} />;
@@ -44,7 +48,9 @@ function Harness() {
   return (
     <ToastProvider>
       <NavigationContainer ref={navigationRef}>
+        {/* Home comes first so the screen's goBack() after saving has somewhere to go. */}
         <Tab.Navigator initialRouteName="AddMoney" screenOptions={{ headerShown: false }}>
+          <Tab.Screen name="Home" component={HomeScreen} />
           <Tab.Screen name="AddMoney" component={AddMoneyRoute} />
         </Tab.Navigator>
       </NavigationContainer>

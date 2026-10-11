@@ -2,6 +2,7 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useRef,
   useState,
   type ReactNode,
@@ -75,6 +76,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       timer.current = setTimeout(hide, 3200);
     },
     [hide, opacity, translateY],
+  );
+
+  // Don't let a pending hide fire after the provider is gone.
+  useEffect(
+    () => () => {
+      if (timer.current) {
+        clearTimeout(timer.current);
+      }
+    },
+    [],
   );
 
   const Icon = toast ? ICONS[toast.type] : Info;

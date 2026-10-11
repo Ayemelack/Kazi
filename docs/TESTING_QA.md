@@ -85,18 +85,28 @@ A task in [PROJECT_TRACKER.md](PROJECT_TRACKER.md) is Done only when all of thes
 
 ---
 
-## 3. Fixing the flaky suites (KZ-30)
+## 3. Flaky suites on a cold cache (KZ-30, fixed in session 1)
 
 Observed: on a cold Jest cache, `App.test.tsx`, `addmoney.capital.test.tsx` and
-`transactionform.items.test.tsx` took ~60 s each and failed; alone they take ~6 s and pass.
-This points at transform time under parallel load hitting the 5 s per-test default.
+`transactionform.items.test.tsx` took ~60–800 s each and failed; alone and warm they take seconds.
 
-1. Set `testTimeout: 30000` in `jest.config.js` (or per screen suite).
-2. In CI run `jest --ci --maxWorkers=50%` and cache `node_modules/.cache` / Jest cache dir.
-3. Check which modules are transformed on first run (`--logHeapUsage`, `--detectOpenHandles`);
-   mock heavy native-UI modules the same way `lucide-react-native` is mocked.
-4. Remove the `GO_BACK was not handled` noise by rendering screens inside a navigator in tests,
-   so real navigation errors stay visible.
+Cause (measured with an instrumented Babel transformer): React Native's index requires most
+components lazily, and host-component refs pull in the renderer's public-instance / DOM modules.
+So the **first test** of each screen suite transformed ~70 modules inside its own timeout. Raising
+`testTimeout` to 30 s alone did not fix it on a loaded machine.
+
+What is in place:
+
+1. `jest/preloadReactNative.js` (`setupFilesAfterEnv`) loads those modules and renders a tiny host
+   tree once per test file — setup files are not timed. Add an export here if the app starts using
+   a new `react-native` component.
+2. `jest/unmountAfterEach.js` unmounts every `ReactTestRenderer.create` tree after each test, so
+   timers (toasts, tab transitions, animation loops, the connectivity poll) never fire after
+   teardown or keep a single-file run alive. `ToastProvider` clears its timer on unmount.
+3. `testTimeout: 30000` for headroom; Jest `roots` limited to `__tests__`, `src`, `__mocks__`.
+4. Screens that call `goBack()` are rendered with a first tab, so there is no
+   `GO_BACK was not handled` noise and real navigation errors stay visible.
+5. CI runs `jest --ci --maxWorkers=50%` with the transform cache restored by `actions/cache`.
 
 ---
 

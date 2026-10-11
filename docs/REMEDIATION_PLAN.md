@@ -384,8 +384,25 @@ bytes or equals the `.env.example` value. Acceptance: [ ] boot fails with a clea
 ### KZ-30
 **Flaky Jest suites** — set `testTimeout: 30000` for the screen suites, run CI with
 `--maxWorkers=50%`, and cache Babel transforms in CI. Find and remove whatever makes the first run
-slow (large transforms of `lucide-react-native` are the likely cause; the mock already exists).
-Acceptance: [ ] 10 consecutive cold CI runs pass.
+slow.
+
+_Root cause (measured in session 1 with an instrumented transformer):_ not `lucide-react-native`
+(already mocked). React Native's index requires most components lazily, and host-component refs pull
+in the renderer's public-instance / DOM modules, so on a cold cache the **first test** of each screen
+suite transformed ~70 modules inside its own timeout (28 s of a 30 s budget on a loaded machine;
+the other tests took < 3 s). The timeout alone was not enough: a cold `npm run check` with only
+`testTimeout: 30000` still failed the same 3 suites. Fix: `jest/preloadReactNative.js`
+(`setupFilesAfterEnv`, not timed) loads those modules and renders a tiny host tree once per test
+file; `jest/unmountAfterEach.js` unmounts every rendered tree after each test (stray toast, tab and
+animation timers used to fire after teardown and kept single-file runs from exiting); `ToastProvider`
+clears its timer on unmount; Jest `roots` limited to app folders (no haste crawl of `server/`,
+`shared/`, native folders); form-test harnesses get a first tab so `goBack()` is handled (no
+`GO_BACK` noise).
+
+Acceptance (restated in session 1: the owner's session prompt defines the proof as cold local runs;
+CI runs can't be observed until the branch is pushed):
+[x] 3 consecutive cold full runs pass locally, Jest cache cleared before each (see tracker log).
+CI keeps `--maxWorkers=50%` and a cached transform directory; watch the first CI runs after push.
 
 ### KZ-31
 **List virtualization** — Products, History and Debts render `ScrollView` + `map`. Use `FlatList`

@@ -14,11 +14,17 @@ import {
   validateResetPassword,
   type AuthFieldErrors,
 } from '../../auth/validation';
-import { apiErrorMessage } from '../../auth/errorMessage';
+import { LocalError, errorMessage, type ErrorKeyOverrides } from '../../errors/messages';
 import type { AuthStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 
 type ScreenProps = NativeStackScreenProps<AuthStackParamList, 'ResetPassword'>;
+
+// On this screen the token is the reset code, not the session.
+const RESET_CODE_MESSAGES: ErrorKeyOverrides = {
+  INVALID_TOKEN: 'auth.errors.tokenInvalid',
+  TOKEN_EXPIRED: 'auth.errors.tokenExpired',
+};
 
 function ResetPasswordScreen({ navigation, route }: ScreenProps) {
   const { t } = useTranslation();
@@ -28,7 +34,7 @@ function ResetPasswordScreen({ navigation, route }: ScreenProps) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errors, setErrors] = useState<AuthFieldErrors>({});
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const strength = useMemo(() => passwordStrength(password), [password]);
@@ -36,7 +42,7 @@ function ResetPasswordScreen({ navigation, route }: ScreenProps) {
   const submit = async () => {
     if (submitting) return;
     if (token.length === 0) {
-      setFormError(t('auth.resetSessionEnded'));
+      setFormError(new LocalError('auth.resetSessionEnded'));
       return;
     }
     const validationErrors = validateResetPassword({ password });
@@ -55,7 +61,7 @@ function ResetPasswordScreen({ navigation, route }: ScreenProps) {
       toast.show('success', t('auth.passwordResetSuccess'));
       navigation.navigate('Login');
     } catch (err) {
-      setFormError(apiErrorMessage(err, t));
+      setFormError(err);
     } finally {
       setSubmitting(false);
     }
@@ -114,7 +120,9 @@ function ResetPasswordScreen({ navigation, route }: ScreenProps) {
         onChangeText={setConfirmPassword}
         error={errors.confirmPassword ? t(errors.confirmPassword) : undefined}
       />
-      {formError ? <Text style={styles.formError}>{formError}</Text> : null}
+      {formError ? (
+        <Text style={styles.formError}>{errorMessage(formError, t, RESET_CODE_MESSAGES)}</Text>
+      ) : null}
       <Button
         testID="reset-submit"
         label={t('auth.resetPasswordButton')}

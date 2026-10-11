@@ -3,7 +3,10 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import '../src/i18n';
+import i18n from '../src/i18n';
+import en from '../src/i18n/locales/en';
+import fr from '../src/i18n/locales/fr';
+import { ApiError, NetworkError } from '../src/errors/ApiError';
 import HomeScreen from '../src/screens/home/HomeScreen';
 import { fetchSummary, listItems } from '../src/offline/api';
 import type { MoneySummary } from '../src/summary/api';
@@ -107,5 +110,38 @@ describe('HomeScreen money summary', () => {
     expect(text).toContain('-400\u202fFCFA');
     expect(text).not.toContain('+-400\u202fFCFA');
     expect(text).toContain('−500\u202fFCFA');
+  });
+});
+
+describe('HomeScreen load errors', () => {
+  afterEach(async () => {
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
+  });
+
+  it('says the server is unreachable (not offline) and re-translates on a language switch', async () => {
+    (fetchSummary as jest.Mock).mockRejectedValue(
+      new ApiError(0, 'The server could not be reached.', 'SERVER_UNREACHABLE'),
+    );
+    (listItems as jest.Mock).mockResolvedValue({ items: [] });
+
+    const renderer = await renderHome();
+    expect(screenText(renderer)).toContain(en.errors.serverUnreachable);
+    expect(screenText(renderer)).not.toContain(en.errors.offline);
+
+    await act(async () => {
+      await i18n.changeLanguage('fr');
+    });
+    expect(screenText(renderer)).toContain(fr.errors.serverUnreachable);
+    expect(screenText(renderer)).not.toContain(en.errors.serverUnreachable);
+  });
+
+  it('says offline only for a NetworkError', async () => {
+    (fetchSummary as jest.Mock).mockRejectedValue(new NetworkError());
+    (listItems as jest.Mock).mockResolvedValue({ items: [] });
+
+    const renderer = await renderHome();
+    expect(screenText(renderer)).toContain(en.errors.offline);
   });
 });

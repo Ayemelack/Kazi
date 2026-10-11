@@ -11,7 +11,7 @@ import TextField from '../../components/ui/TextField';
 import Button from '../../components/ui/Button';
 import { useToast } from '../../components/ui/Toast';
 import { submitFeedback } from '../../feedback/api';
-import { apiErrorMessage } from '../../auth/errorMessage';
+import { errorMessage } from '../../errors/messages';
 import type { MoreStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 
@@ -24,7 +24,7 @@ function FeedbackScreen({ navigation }: ScreenProps) {
   const [liked, setLiked] = useState('');
   const [disliked, setDisliked] = useState('');
   const [suggestion, setSuggestion] = useState('');
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const canSubmit = rating >= 1 && rating <= 5;
@@ -43,7 +43,7 @@ function FeedbackScreen({ navigation }: ScreenProps) {
       toast.show('success', t('feedback.thanks'));
       navigation.goBack();
     } catch (err) {
-      setFormError(apiErrorMessage(err, t));
+      setFormError(err);
     } finally {
       setSubmitting(false);
     }
@@ -111,7 +111,7 @@ function FeedbackScreen({ navigation }: ScreenProps) {
           multiline
           maxLength={FEEDBACK_TEXT_MAX}
         />
-        {formError ? <Text style={styles.formError}>{formError}</Text> : null}
+        {formError ? <Text style={styles.formError}>{errorMessage(formError, t)}</Text> : null}
         <Button
           testID="feedback-submit"
           label={t('feedback.send')}

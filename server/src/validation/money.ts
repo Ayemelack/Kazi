@@ -21,22 +21,33 @@ function wholeMoneySchema({ min, label, minMessage }: WholeMoneyOptions) {
     .refine(
       (value): value is number | string =>
         typeof value === 'number' || typeof value === 'string',
-      { message: invalid },
+      value => ({
+        message: invalid,
+        params: { rule: value === undefined || value === null ? 'required' : 'format' },
+      }),
     )
     .transform((value, ctx) => {
       const text = typeof value === 'string' ? value.trim() : '';
       const numeric = typeof value === 'number' ? value : DIGITS.test(text) ? Number(text) : NaN;
 
       if (!Number.isSafeInteger(numeric)) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: invalid });
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: invalid, params: { rule: 'format' } });
         return z.NEVER;
       }
       if (numeric < min) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: minMessage });
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: minMessage,
+          params: { rule: 'tooSmall' },
+        });
         return z.NEVER;
       }
       if (numeric > MONEY_MAX) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `${label} is too large.` });
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `${label} is too large.`,
+          params: { rule: 'tooLarge' },
+        });
         return z.NEVER;
       }
       return numeric;

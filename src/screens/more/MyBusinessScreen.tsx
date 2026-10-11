@@ -14,7 +14,7 @@ import {
   validateAccountProfile,
   type AuthFieldErrors,
 } from '../../auth/validation';
-import { apiErrorMessage } from '../../auth/errorMessage';
+import { errorMessage } from '../../errors/messages';
 import type { MoreStackParamList } from '../../navigation/RootNavigator';
 import { colors, spacing, typography } from '../../theme';
 
@@ -28,7 +28,7 @@ function MyBusinessScreen({ navigation }: ScreenProps) {
   const [businessType, setBusinessType] = useState(user?.businessType ?? '');
   const [firstName, setFirstName] = useState(user?.firstName ?? '');
   const [lastName, setLastName] = useState(user?.lastName ?? '');
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<unknown>(null);
   const [errors, setErrors] = useState<AuthFieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -67,7 +67,7 @@ function MyBusinessScreen({ navigation }: ScreenProps) {
       toast.show('success', t('business.updated'));
       navigation.goBack();
     } catch (err) {
-      setFormError(apiErrorMessage(err, t));
+      setFormError(err);
     } finally {
       setSubmitting(false);
     }
@@ -120,7 +120,7 @@ function MyBusinessScreen({ navigation }: ScreenProps) {
             />
           </View>
         </View>
-        {formError ? <Text style={styles.formError}>{formError}</Text> : null}
+        {formError ? <Text style={styles.formError}>{errorMessage(formError, t)}</Text> : null}
         <Button
           testID="mybusiness-save"
           label={t('common.save')}

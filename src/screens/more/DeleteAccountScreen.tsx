@@ -9,7 +9,7 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { useAuth } from '../../auth/AuthContext';
-import { apiErrorMessage } from '../../auth/errorMessage';
+import { errorMessage } from '../../errors/messages';
 import type { MoreStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 
@@ -19,7 +19,7 @@ function DeleteAccountScreen({ navigation }: ScreenProps) {
   const { t } = useTranslation();
   const { deleteAccount } = useAuth();
   const [confirming, setConfirming] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<unknown>(null);
   const [deleting, setDeleting] = useState(false);
 
   const handleDelete = async () => {
@@ -29,7 +29,7 @@ function DeleteAccountScreen({ navigation }: ScreenProps) {
     try {
       await deleteAccount();
     } catch (err) {
-      setFormError(apiErrorMessage(err, t));
+      setFormError(err);
       setConfirming(false);
     } finally {
       setDeleting(false);
@@ -55,7 +55,7 @@ function DeleteAccountScreen({ navigation }: ScreenProps) {
             ))}
           </View>
         </Card>
-        {formError ? <Text style={styles.formError}>{formError}</Text> : null}
+        {formError ? <Text style={styles.formError}>{errorMessage(formError, t)}</Text> : null}
         <Button
           testID="delete-account-open"
           label={t('deleteAccount.button')}

@@ -14,7 +14,7 @@ import {
   validateSignup,
   type AuthFieldErrors,
 } from '../../auth/validation';
-import { apiErrorMessage } from '../../auth/errorMessage';
+import { errorMessage } from '../../errors/messages';
 import type { AuthStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 
@@ -29,7 +29,7 @@ function SignupScreen({ navigation }: ScreenProps) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errors, setErrors] = useState<AuthFieldErrors>({});
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const strength = useMemo(() => passwordStrength(password), [password]);
@@ -52,9 +52,9 @@ function SignupScreen({ navigation }: ScreenProps) {
       await signUp({ firstName, lastName, email, password });
     } catch (err) {
       if (err instanceof ApiError && err.code === 'EMAIL_IN_USE') {
-        setErrors({ email: t('auth.errors.emailInUse') });
+        setErrors({ email: 'errors.codes.EMAIL_IN_USE' });
       } else {
-        setFormError(apiErrorMessage(err, t));
+        setFormError(err);
       }
     } finally {
       setSubmitting(false);
@@ -144,7 +144,7 @@ function SignupScreen({ navigation }: ScreenProps) {
         onChangeText={setConfirmPassword}
         error={errors.confirmPassword ? t(errors.confirmPassword) : undefined}
       />
-      {formError ? <Text style={styles.formError}>{formError}</Text> : null}
+      {formError ? <Text style={styles.formError}>{errorMessage(formError, t)}</Text> : null}
       <Button
         testID="signup-submit"
         label={t('auth.signUpButton')}

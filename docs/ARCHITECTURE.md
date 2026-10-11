@@ -102,6 +102,8 @@ Rules:
 - All user-visible text goes through i18next (`src/i18n/locales/{en,fr,pid}.ts`); the parity test
   keeps the three locales in sync.
 - Validation lives in `<domain>/validation.ts` and returns **translation keys**, never text.
+- Request errors reach the user only through `errorMessage()` in `src/errors/messages.ts`
+  (§5.4); `err.message` is never rendered (guarded by `__tests__/source.guards.test.js`).
 
 ### 4.2 App-wide state
 
@@ -183,12 +185,24 @@ Each domain folder has the same three files:
 
 ### 5.4 Error contract
 
-Every error is `{ "error": { "code": "<CODE>", "message": "<English text>" } }`.
+Every error is `{ "error": { "code": "<CODE>", "message": "<English text>", "field"?, "rule"? } }`
+(type `ApiErrorBody` in `shared/src/errors.ts`).
 
-- `code` is stable and is what the app must use.
-- `message` is for logs and developers.
-- **Target (KZ-12):** the app translates every code; validation errors also carry `field` so the
-  app can show them inline.
+- `code` is one of `API_ERROR_CODES` in `@kazi/shared`; `server/src/errors.ts` types `AppError`
+  with it, so an unknown code does not compile. It is what the app uses.
+- `message` is for logs and developers. The app never shows it.
+- A `VALIDATION_ERROR` also carries `rule` (one of `VALIDATION_RULES`: `required`, `invalid`,
+  `format`, `tooShort`, `tooLong`, `tooSmall`, `tooLarge`, `tooEarly`, `tooLate`, `notAllowed`)
+  and, when the failure is about one request field, `field` (one of `VALIDATION_FIELDS`). Both come
+  from the first zod issue (`issueDetail()`); a refinement names its rule with
+  `params: { rule }`, and errors thrown by services pass `{ field, rule }` to `AppError`.
+- App (KZ-12): `src/errors/messages.ts` is the only place that turns an error into text:
+  `errors.codes.<CODE>`, or `errors.validation.<rule>` with the label `errors.fields.<field>`;
+  `NetworkError` → `errors.offline`; `SERVER_UNREACHABLE` (app-side code) →
+  `errors.serverUnreachable`; anything else → `errors.generic`. A screen may override a code's
+  wording (the reset screen words `INVALID_TOKEN` as a bad reset code). Screens keep the error
+  object in state and translate it while rendering, so a language switch re-translates it.
+  Tests require a key for every code, rule and field in all three locales.
 
 ### 5.5 Idempotency
 
@@ -320,7 +334,8 @@ Rules for new migrations:
 - Locales: `en`, `fr`, Pidgin. **Target (KZ-24):** rename the Pidgin code from `pid` (which is the
   ISO code for Piaroa) to a private-use tag such as `x-pidgin-cm` or `en-CM`, and keep the
   user's choice on the server.
-- No user-facing English text may come from the server (KZ-12).
+- No user-facing English text may come from the server: errors are translated by code (KZ-12,
+  §5.4).
 
 ### 7.4 Validation parity
 

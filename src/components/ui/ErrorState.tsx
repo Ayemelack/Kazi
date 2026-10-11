@@ -18,7 +18,7 @@ function ErrorState({ message, onRetry }: ErrorStateProps) {
         <AlertCircle size={28} color={colors.error} strokeWidth={2} />
       </View>
       <Text style={styles.message}>
-        {message ?? t('common.error.generic')}
+        {message ?? t('errors.generic')}
       </Text>
       {onRetry ? (
         <Button label={t('common.retry')} onPress={onRetry} style={styles.action} />

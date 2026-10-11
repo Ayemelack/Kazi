@@ -9,6 +9,7 @@ import AppHeader from '../../components/ui/AppHeader';
 import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
 import ErrorState from '../../components/ui/ErrorState';
+import { errorMessage } from '../../errors/messages';
 import LoadingView from '../../components/ui/LoadingView';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { useToast } from '../../components/ui/Toast';
@@ -27,7 +28,7 @@ export default function DebtsScreen({ navigation }: ScreenProps) {
   const [debts, setDebts] = useState<Debt[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const [deleting, setDeleting] = useState<Debt | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [payTarget, setPayTarget] = useState<Debt | null>(null);
@@ -45,13 +46,13 @@ export default function DebtsScreen({ navigation }: ScreenProps) {
         const result = await listDebts();
         setDebts(result.debts);
       } catch (err) {
-        setError(err instanceof Error ? err.message : t('common.error.generic'));
+        setError(err);
       } finally {
         setLoading(false);
         setRefreshing(false);
       }
     },
-    [t],
+    [],
   );
 
   useFocusEffect(
@@ -73,7 +74,7 @@ export default function DebtsScreen({ navigation }: ScreenProps) {
       setPayTarget(null);
       toast.show('success', t('debts.markedPaid'));
     } catch (err) {
-      toast.show('error', err instanceof Error ? err.message : t('common.error.generic'));
+      toast.show('error', errorMessage(err, t));
       setPayTarget(null);
     } finally {
       setPayBusy(false);
@@ -92,7 +93,7 @@ export default function DebtsScreen({ navigation }: ScreenProps) {
       setDeleting(null);
       toast.show('success', t('debts.deleted'));
     } catch (err) {
-      toast.show('error', err instanceof Error ? err.message : t('common.error.generic'));
+      toast.show('error', errorMessage(err, t));
       setDeleting(null);
     } finally {
       setDeleteBusy(false);
@@ -113,7 +114,7 @@ export default function DebtsScreen({ navigation }: ScreenProps) {
       {loading ? (
         <LoadingView />
       ) : error ? (
-        <ErrorState message={error} onRetry={() => load('initial')} />
+        <ErrorState message={errorMessage(error, t)} onRetry={() => load('initial')} />
       ) : debts.length === 0 ? (
         <EmptyState
           icon={UserX}

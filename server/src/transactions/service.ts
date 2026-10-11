@@ -104,7 +104,10 @@ export function createTransaction(
   const { type, amount, description, date, itemId, quantity } = input;
 
   if (quantity !== undefined && itemId === undefined) {
-    throw new AppError(400, 'VALIDATION_ERROR', 'Quantity requires a selected item.');
+    throw new AppError(400, 'VALIDATION_ERROR', 'Quantity requires a selected item.', {
+      field: 'itemId',
+      rule: 'required',
+    });
   }
 
   if (type === 'capital' && itemId !== undefined) {
@@ -112,6 +115,7 @@ export function createTransaction(
       400,
       'VALIDATION_ERROR',
       'Adding money does not link to an item.',
+      { field: 'itemId', rule: 'notAllowed' },
     );
   }
 

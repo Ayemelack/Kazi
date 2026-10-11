@@ -12,7 +12,7 @@ import {
   validateForgotPassword,
   type AuthFieldErrors,
 } from '../../auth/validation';
-import { apiErrorMessage } from '../../auth/errorMessage';
+import { LocalError, errorMessage } from '../../errors/messages';
 import type { AuthStackParamList } from '../../navigation/RootNavigator';
 import { colors, spacing, typography } from '../../theme';
 
@@ -25,7 +25,7 @@ function ForgotPasswordScreen({ navigation }: ScreenProps) {
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [errors, setErrors] = useState<AuthFieldErrors>({});
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async () => {
@@ -41,12 +41,12 @@ function ForgotPasswordScreen({ navigation }: ScreenProps) {
     try {
       const result = await requestPasswordReset({ firstName, lastName, email });
       if (!result.resetToken) {
-        setFormError(t('auth.resetVerificationFailed'));
+        setFormError(new LocalError('auth.resetVerificationFailed'));
         return;
       }
       navigation.navigate('ResetPassword', { token: result.resetToken });
     } catch (err) {
-      setFormError(apiErrorMessage(err, t));
+      setFormError(err);
     } finally {
       setSubmitting(false);
     }
@@ -87,7 +87,7 @@ function ForgotPasswordScreen({ navigation }: ScreenProps) {
         error={errors.email ? t(errors.email) : undefined}
         autoCapitalize="none"
       />
-      {formError ? <Text style={styles.formError}>{formError}</Text> : null}
+      {formError ? <Text style={styles.formError}>{errorMessage(formError, t)}</Text> : null}
       <Button
         testID="forgot-submit"
         label={t('auth.forgotPasswordButton')}

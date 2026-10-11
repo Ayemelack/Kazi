@@ -19,6 +19,7 @@ import {
   validateTransactionDate,
 } from '../../transactions/validation';
 import { formatMoney } from '@kazi/shared';
+import { errorMessage } from '../../errors/messages';
 import type { HistoryStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 
@@ -33,7 +34,7 @@ export default function AddMoneyScreen({ navigation }: ScreenProps) {
   const [description, setDescription] = useState('');
   const [amountError, setAmountError] = useState<string | null>(null);
   const [dateError, setDateError] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
   const [totalCapital, setTotalCapital] = useState<number | null>(null);
 
@@ -77,7 +78,7 @@ export default function AddMoneyScreen({ navigation }: ScreenProps) {
       toast.show('success', t('transactions.saved'));
       navigation.goBack();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : t('common.error.generic'));
+      setFormError(err);
     } finally {
       setSubmitting(false);
     }
@@ -121,7 +122,7 @@ export default function AddMoneyScreen({ navigation }: ScreenProps) {
         multiline
         maxLength={TRANSACTION_DESCRIPTION_MAX}
       />
-      {formError ? <Text style={styles.formError}>{formError}</Text> : null}
+      {formError ? <Text style={styles.formError}>{errorMessage(formError, t)}</Text> : null}
       <Button
         testID="add-money-save"
         label={t('transactions.addMoneyButton')}

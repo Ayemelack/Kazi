@@ -18,6 +18,7 @@ import {
   validateDebt,
   type DebtFieldErrors,
 } from '../../debts/validation';
+import { errorMessage } from '../../errors/messages';
 import type { HistoryStackParamList } from '../../navigation/RootNavigator';
 import { colors, spacing, typography } from '../../theme';
 
@@ -31,7 +32,7 @@ function DebtFormScreen({ navigation }: ScreenProps) {
   const [date, setDate] = useState(todayInput());
   const [note, setNote] = useState('');
   const [errors, setErrors] = useState<DebtFieldErrors>({});
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async () => {
@@ -54,7 +55,7 @@ function DebtFormScreen({ navigation }: ScreenProps) {
       toast.show('success', t('debts.created'));
       navigation.goBack();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : t('common.error.generic'));
+      setFormError(err);
     } finally {
       setSubmitting(false);
     }
@@ -104,7 +105,7 @@ function DebtFormScreen({ navigation }: ScreenProps) {
           multiline
           maxLength={DEBT_NOTE_MAX}
         />
-        {formError ? <Text style={styles.formError}>{formError}</Text> : null}
+        {formError ? <Text style={styles.formError}>{errorMessage(formError, t)}</Text> : null}
         <Button
           testID="debt-submit"
           label={t('debts.saveButton')}

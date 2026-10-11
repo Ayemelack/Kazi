@@ -2,7 +2,7 @@ import { env } from '../config/env';
 import { getToken } from '../storage/secure.storage';
 import { ApiError, NetworkError } from '../errors/ApiError';
 import { isOnline } from '../offline/connectivity';
-import i18n from '../i18n';
+import { isValidationRule } from '@kazi/shared';
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -44,11 +44,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     if (isAbortError(err)) {
       // The request timed out. The device is online (otherwise we would have
       // failed faster); the server took too long or is unresponsive.
-      throw new ApiError(
-        0,
-        i18n.t('common.error.serverUnreachable'),
-        'SERVER_UNREACHABLE',
-      );
+      throw new ApiError(0, 'The server did not answer in time.', 'SERVER_UNREACHABLE');
     }
     if (!isOnline()) {
       throw new NetworkError();
@@ -56,35 +52,37 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     // The device has an internet connection, but the backend could not be
     // reached (wrong host, server down, firewall, etc.). This is NOT the same
     // as being offline, so report a server error instead of a connectivity one.
-    throw new ApiError(
-      0,
-      i18n.t('common.error.serverUnreachable'),
-      'SERVER_UNREACHABLE',
-    );
+    throw new ApiError(0, 'The server could not be reached.', 'SERVER_UNREACHABLE');
   } finally {
     clearTimeout(timeout);
   }
 
   if (!response.ok) {
-    let message = i18n.t('common.error.generic');
+    // The body's message is kept for logs only; users see text chosen by
+    // `code` in src/errors/messages.ts (KZ-12).
+    let message = `HTTP ${response.status}`;
     let code: string | undefined;
+    let field: string | undefined;
+    let rule: unknown;
     try {
       const data = (await response.json()) as {
-        message?: string;
-        code?: string;
-        error?: { message?: string; code?: string };
+        error?: { message?: unknown; code?: unknown; field?: unknown; rule?: unknown };
       };
       const errorBody = data.error;
       if (typeof errorBody?.message === 'string' && errorBody.message.length > 0) {
         message = errorBody.message;
-      } else if (typeof data.message === 'string' && data.message.length > 0) {
-        message = data.message;
       }
-      code = errorBody?.code ?? data.code;
+      code = typeof errorBody?.code === 'string' ? errorBody.code : undefined;
+      field = typeof errorBody?.field === 'string' ? errorBody.field : undefined;
+      rule = errorBody?.rule;
     } catch {
-      // Non-JSON error body; the generic message remains.
+      // Non-JSON error body (a proxy page, for example): no code, so the
+      // generic message is shown.
     }
-    throw new ApiError(response.status, message, code);
+    throw new ApiError(response.status, message, code, {
+      field,
+      rule: isValidationRule(rule) ? rule : undefined,
+    });
   }
 
   if (response.status === 204) {

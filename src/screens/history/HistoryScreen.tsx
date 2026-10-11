@@ -28,6 +28,7 @@ import Card from '../../components/ui/Card';
 import DatePickerField from '../../components/ui/DatePickerField';
 import EmptyState from '../../components/ui/EmptyState';
 import ErrorState from '../../components/ui/ErrorState';
+import { errorMessage } from '../../errors/messages';
 import LoadingView from '../../components/ui/LoadingView';
 import { useToast } from '../../components/ui/Toast';
 import { listActivity } from '../../offline/api';
@@ -74,7 +75,7 @@ export default function HistoryScreen({ navigation }: ScreenProps) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
   // A date range under "Older" replaces the period filter: the server always
@@ -118,11 +119,10 @@ export default function HistoryScreen({ navigation }: ScreenProps) {
         if (!isCurrent()) {
           return;
         }
-        const message = err instanceof Error ? err.message : t('common.error.generic');
         if (mode === 'more') {
-          toast.show('error', message);
+          toast.show('error', errorMessage(err, t));
         } else {
-          setError(message);
+          setError(err);
         }
       } finally {
         if (isCurrent()) {
@@ -226,7 +226,7 @@ export default function HistoryScreen({ navigation }: ScreenProps) {
       {loading ? (
         <LoadingView />
       ) : error ? (
-        <ErrorState message={error} onRetry={() => load('initial')} />
+        <ErrorState message={errorMessage(error, t)} onRetry={() => load('initial')} />
       ) : events.length === 0 ? (
         <View style={styles.emptyWrap}>
           {filters}

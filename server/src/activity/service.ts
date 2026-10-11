@@ -153,6 +153,7 @@ export function listActivity(
       400,
       'VALIDATION_ERROR',
       'startDate must not be after endDate.',
+      { field: 'startDate', rule: 'tooLate' },
     );
   }
 

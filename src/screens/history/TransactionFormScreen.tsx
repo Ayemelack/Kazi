@@ -21,6 +21,7 @@ import {
 } from '../../transactions/validation';
 import type { TransactionType } from '../../transactions/types';
 import type { Item } from '../../items/types';
+import { errorMessage } from '../../errors/messages';
 import type { HistoryStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 import ItemPickerDialog from './ItemPickerDialog';
@@ -77,7 +78,7 @@ export default function TransactionFormScreen({ navigation, route }: ScreenProps
   const [items, setItems] = useState<Item[]>([]);
   const [pickingItem, setPickingItem] = useState(false);
   const [errors, setErrors] = useState<TransactionFormErrors>({});
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useFocusEffect(
@@ -128,7 +129,7 @@ export default function TransactionFormScreen({ navigation, route }: ScreenProps
       toast.show('success', t('transactions.saved'));
       navigation.goBack();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : t('common.error.generic'));
+      setFormError(err);
     } finally {
       setSubmitting(false);
     }
@@ -282,7 +283,7 @@ export default function TransactionFormScreen({ navigation, route }: ScreenProps
           maxLength={TRANSACTION_DESCRIPTION_MAX}
         />
       ) : null}
-      {formError ? <Text style={styles.formError}>{formError}</Text> : null}
+      {formError ? <Text style={styles.formError}>{errorMessage(formError, t)}</Text> : null}
       <Button
         testID="transaction-save"
         label={t('common.save')}

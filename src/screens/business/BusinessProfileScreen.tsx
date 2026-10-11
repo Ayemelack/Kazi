@@ -12,7 +12,7 @@ import {
   validateProfile,
   type AuthFieldErrors,
 } from '../../auth/validation';
-import { apiErrorMessage } from '../../auth/errorMessage';
+import { errorMessage } from '../../errors/messages';
 import { colors, spacing, typography } from '../../theme';
 
 function BusinessProfileScreen() {
@@ -22,7 +22,7 @@ function BusinessProfileScreen() {
   const [companyName, setCompanyName] = useState('');
   const [businessType, setBusinessType] = useState('');
   const [errors, setErrors] = useState<AuthFieldErrors>({});
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async () => {
@@ -39,7 +39,7 @@ function BusinessProfileScreen() {
       await completeBusinessProfile({ companyName: companyName.trim(), businessType: businessType.trim() });
       toast.show('success', t('business.saved'));
     } catch (err) {
-      setFormError(apiErrorMessage(err, t));
+      setFormError(err);
       setSubmitting(false);
     }
   };
@@ -74,7 +74,7 @@ function BusinessProfileScreen() {
         placeholder={t('business.businessTypePlaceholder')}
         hint={t('business.businessTypeHint')}
       />
-      {formError ? <Text style={styles.formError}>{formError}</Text> : null}
+      {formError ? <Text style={styles.formError}>{errorMessage(formError, t)}</Text> : null}
       <Text style={styles.privacyNote}>{t('business.privacyNote')}</Text>
       <Button
         testID="business-submit"

@@ -9,6 +9,7 @@ import AppHeader from '../../components/ui/AppHeader';
 import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
 import ErrorState from '../../components/ui/ErrorState';
+import { errorMessage } from '../../errors/messages';
 import LoadingView from '../../components/ui/LoadingView';
 import { listItems } from '../../offline/api';
 import { formatMoney } from '@kazi/shared';
@@ -28,7 +29,7 @@ export default function ProductsScreen({ navigation }: ScreenProps) {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
 
   const load = useCallback(
     async (mode: 'initial' | 'refresh') => {
@@ -42,13 +43,13 @@ export default function ProductsScreen({ navigation }: ScreenProps) {
         const result = await listItems();
         setItems(result.items);
       } catch (err) {
-        setError(err instanceof Error ? err.message : t('common.error.generic'));
+        setError(err);
       } finally {
         setLoading(false);
         setRefreshing(false);
       }
     },
-    [t],
+    [],
   );
 
   useFocusEffect(
@@ -71,7 +72,7 @@ export default function ProductsScreen({ navigation }: ScreenProps) {
       {loading ? (
         <LoadingView />
       ) : error ? (
-        <ErrorState message={error} onRetry={() => load('initial')} />
+        <ErrorState message={errorMessage(error, t)} onRetry={() => load('initial')} />
       ) : items.length === 0 ? (
         <EmptyState
           icon={Package}

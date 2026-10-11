@@ -248,8 +248,12 @@ Rules for every fix:
   one place (`src/errors/messages.ts`) and every screen uses it. Validation errors return
   `{ code: 'VALIDATION_ERROR', field, rule }` so forms show the error under the right field.
   Unknown codes fall back to a translated generic message, never to server text.
-- **Acceptance:** [ ] `grep -rn "err.message" src/screens` returns nothing. [ ] Test: every code in
+- **Acceptance:** [x] `grep -rn "err.message" src/screens` returns nothing. [x] Test: every code in
   `server/src/errors.ts` has a key in all three locales.
+- **Done (2026-10-11):** the code list is `API_ERROR_CODES` in `shared/src/errors.ts`, which the
+  server's `ErrorCode` type is, so "every code in `server/src/errors.ts`" means every shared code.
+  Validation errors carry `rule` (shared `VALIDATION_RULES`) and `field` (shared
+  `VALIDATION_FIELDS`); every locale has a message per rule and a label per field.
 
 ### KZ-13
 **Sessions, logout and expiry**

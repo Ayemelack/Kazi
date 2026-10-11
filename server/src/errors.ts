@@ -1,33 +1,91 @@
 import type { NextFunction, Request, Response } from 'express';
-import { ZodError } from 'zod';
+import { ZodError, type ZodIssue } from 'zod';
+import {
+  isValidationRule,
+  type ApiErrorBody,
+  type ApiErrorCode,
+  type ValidationRule,
+} from '@kazi/shared';
 import { log } from './log.js';
 
-export type ErrorCode =
-  | 'VALIDATION_ERROR'
-  | 'EMAIL_IN_USE'
-  | 'INVALID_CREDENTIALS'
-  | 'NOT_FOUND'
-  | 'INVALID_TOKEN'
-  | 'TOKEN_EXPIRED'
-  | 'UNAUTHORIZED'
-  | 'INSUFFICIENT_STOCK'
-  | 'ALREADY_PAID'
-  | 'PASSWORD_NOT_ALLOWED'
-  | 'TOO_MANY_REQUESTS'
-  | 'PUSH_NOT_CONFIGURED'
-  | 'IDEMPOTENCY_CONFLICT'
-  | 'INTERNAL';
+// The list of codes lives in @kazi/shared (KZ-12) so the app translates
+// exactly the codes the API can send; an unknown code does not compile.
+export type ErrorCode = ApiErrorCode;
+
+export interface ValidationDetail {
+  field?: string;
+  rule: ValidationRule;
+}
 
 export class AppError extends Error {
   readonly code: ErrorCode;
   readonly status: number;
+  readonly detail?: ValidationDetail;
 
-  constructor(status: number, code: ErrorCode, message: string) {
+  constructor(status: number, code: ErrorCode, message: string, detail?: ValidationDetail) {
     super(message);
     this.name = 'AppError';
     this.code = code;
     this.status = status;
+    this.detail = detail;
   }
+}
+
+// Turns zod's first issue into the field and rule the app translates. A
+// refinement can name its rule with `params: { rule }`.
+export function issueDetail(issue: ZodIssue): ValidationDetail {
+  const head = issue.path[0];
+  const field = typeof head === 'string' ? head : undefined;
+  return { field, rule: issueRule(issue) };
+}
+
+function issueRule(issue: ZodIssue): ValidationRule {
+  switch (issue.code) {
+    case 'invalid_type':
+      return issue.received === 'undefined' || issue.received === 'null'
+        ? 'required'
+        : 'invalid';
+    case 'too_small':
+      if (issue.type === 'string') {
+        return issue.minimum === 1 ? 'required' : 'tooShort';
+      }
+      if (issue.type === 'array' || issue.type === 'set') {
+        return 'tooShort';
+      }
+      return issue.type === 'date' ? 'tooEarly' : 'tooSmall';
+    case 'too_big':
+      if (issue.type === 'string' || issue.type === 'array' || issue.type === 'set') {
+        return 'tooLong';
+      }
+      return issue.type === 'date' ? 'tooLate' : 'tooLarge';
+    case 'invalid_string':
+    case 'invalid_date':
+      return 'format';
+    case 'invalid_enum_value':
+    case 'invalid_literal':
+      return 'notAllowed';
+    case 'custom': {
+      const rule: unknown = issue.params?.rule;
+      return isValidationRule(rule) ? rule : 'invalid';
+    }
+    default:
+      return 'invalid';
+  }
+}
+
+function errorBody(
+  code: ErrorCode,
+  message: string,
+  detail?: ValidationDetail,
+): { error: ApiErrorBody } {
+  const body: ApiErrorBody = { code, message };
+  if (detail?.field !== undefined) {
+    body.field = detail.field;
+  }
+  if (detail) {
+    body.rule = detail.rule;
+  }
+  return { error: body };
 }
 
 // body-parser (express.json) rejects unreadable or oversized bodies before any
@@ -54,35 +112,39 @@ export function errorHandler(
   _next: NextFunction,
 ): void {
   if (err instanceof AppError) {
-    res.status(err.status).json({ error: { code: err.code, message: err.message } });
+    res.status(err.status).json(errorBody(err.code, err.message, err.detail));
     return;
   }
 
   if (err instanceof ZodError) {
     const issue = err.issues[0];
-    const message = issue
-      ? `${issue.path.join('.') || 'body'}: ${issue.message}`
-      : 'Invalid request body.';
-    res.status(400).json({ error: { code: 'VALIDATION_ERROR', message } });
+    if (!issue) {
+      res
+        .status(400)
+        .json(errorBody('VALIDATION_ERROR', 'Invalid request body.', { rule: 'invalid' }));
+      return;
+    }
+    const message = `${issue.path.join('.') || 'body'}: ${issue.message}`;
+    res.status(400).json(errorBody('VALIDATION_ERROR', message, issueDetail(issue)));
     return;
   }
 
   const parseStatus = bodyParseFailureStatus(err);
   if (parseStatus !== null) {
-    res.status(parseStatus).json({
-      error: {
-        code: 'VALIDATION_ERROR',
-        message:
-          parseStatus === 413
-            ? 'The request body is too large.'
-            : 'The request body must be valid JSON.',
-      },
-    });
+    res
+      .status(parseStatus)
+      .json(
+        parseStatus === 413
+          ? errorBody('VALIDATION_ERROR', 'The request body is too large.', {
+              rule: 'tooLarge',
+            })
+          : errorBody('VALIDATION_ERROR', 'The request body must be valid JSON.', {
+              rule: 'format',
+            }),
+      );
     return;
   }
 
   log.error('Unhandled error', err);
-  res.status(500).json({
-    error: { code: 'INTERNAL', message: 'Something went wrong on the server.' },
-  });
+  res.status(500).json(errorBody('INTERNAL', 'Something went wrong on the server.'));
 }

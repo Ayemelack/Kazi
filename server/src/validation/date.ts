@@ -15,8 +15,14 @@ export { localDateString, shiftDate } from '@kazi/shared';
 export const businessDateSchema = z
   .string()
   .regex(BUSINESS_DATE_PATTERN, 'Date must be in YYYY-MM-DD format.')
-  .refine(isCalendarDate, 'Enter a real date.')
-  .refine(value => value >= BUSINESS_DATE_MIN, 'Date is too far in the past.')
-  .refine(value => value <= businessDateMax(), 'Date cannot be more than a year ahead.');
+  .refine(isCalendarDate, { message: 'Enter a real date.', params: { rule: 'format' } })
+  .refine(value => value >= BUSINESS_DATE_MIN, {
+    message: 'Date is too far in the past.',
+    params: { rule: 'tooEarly' },
+  })
+  .refine(value => value <= businessDateMax(), {
+    message: 'Date cannot be more than a year ahead.',
+    params: { rule: 'tooLate' },
+  });
 
 export type BusinessDateInput = z.infer<typeof businessDateSchema>;

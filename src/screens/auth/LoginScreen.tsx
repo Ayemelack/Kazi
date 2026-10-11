@@ -12,7 +12,7 @@ import {
   validateLogin,
   type AuthFieldErrors,
 } from '../../auth/validation';
-import { apiErrorMessage } from '../../auth/errorMessage';
+import { errorMessage } from '../../errors/messages';
 import type { AuthStackParamList } from '../../navigation/RootNavigator';
 import { colors, spacing, typography } from '../../theme';
 
@@ -24,7 +24,7 @@ function LoginScreen({ navigation }: ScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<AuthFieldErrors>({});
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async () => {
@@ -40,7 +40,7 @@ function LoginScreen({ navigation }: ScreenProps) {
     try {
       await logIn({ email, password });
     } catch (err) {
-      setFormError(apiErrorMessage(err, t));
+      setFormError(err);
     } finally {
       setSubmitting(false);
     }
@@ -79,7 +79,7 @@ function LoginScreen({ navigation }: ScreenProps) {
       >
         <Text style={styles.link}>{t('auth.forgotPassword')}</Text>
       </Pressable>
-      {formError ? <Text style={styles.formError}>{formError}</Text> : null}
+      {formError ? <Text style={styles.formError}>{errorMessage(formError, t)}</Text> : null}
       <Button
         testID="login-submit"
         label={t('auth.signInButton')}

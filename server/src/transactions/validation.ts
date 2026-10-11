@@ -67,6 +67,7 @@ export const createTransactionSchema = z
         code: z.ZodIssueCode.custom,
         path: ['description'],
         message: 'Describe what the money was spent on.',
+        params: { rule: 'required' },
       });
     }
   });

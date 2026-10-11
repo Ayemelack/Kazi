@@ -35,4 +35,12 @@ describe('source guards', () => {
     const files = new Set(matchingLines(SRC, /http:\/\//).map(hit => hit.split(':')[0]));
     expect([...files]).toEqual(['config/env.ts']);
   });
+
+  it('never shows an error object\'s own text on a screen (KZ-12)', () => {
+    // Screens render errors through src/errors/messages.ts, which picks the
+    // user's language by code; err.message is English server text.
+    const screens = path.join(SRC, 'screens');
+    expect(matchingLines(screens, /\berr(or)?\.message\b/)).toEqual([]);
+    expect(matchingLines(SRC, /\bapiErrorMessage\b/)).toEqual([]);
+  });
 });

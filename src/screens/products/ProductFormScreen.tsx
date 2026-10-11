@@ -41,7 +41,7 @@ import {
 import { pickImage } from '../../items/image';
 import type { Item, ItemType, StockDirection } from '../../items/types';
 import type { ProductsStackParamList } from '../../navigation/RootNavigator';
-import { apiErrorMessage } from '../../auth/errorMessage';
+import { LocalError, errorMessage } from '../../errors/messages';
 import { colors, radius, spacing, typography } from '../../theme';
 import StockMovementDialog from './StockMovementDialog';
 
@@ -67,10 +67,10 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
   const [lowStockThreshold, setLowStockThreshold] = useState('');
   const [currentItem, setCurrentItem] = useState<Item | null>(null);
   const [errors, setErrors] = useState<ItemFormErrors>({});
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<unknown>(null);
   const [stockDialog, setStockDialog] = useState<StockDirection | null>(null);
   const [stockBusy, setStockBusy] = useState(false);
-  const [stockError, setStockError] = useState<string | null>(null);
+  const [stockError, setStockError] = useState<unknown>(null);
 
   useEffect(() => {
     if (itemId === undefined) {
@@ -93,7 +93,7 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
         setLowStockThreshold(String(item.lowStockThreshold));
       } catch (err) {
         if (!cancelled) {
-          setFormError(err instanceof Error ? err.message : t('common.error.generic'));
+          setFormError(err);
         }
       } finally {
         if (!cancelled) {
@@ -146,7 +146,7 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
       }
       navigation.goBack();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : t('common.error.generic'));
+      setFormError(err);
     } finally {
       setSubmitting(false);
     }
@@ -167,7 +167,7 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
       toast.show('success', t('products.itemDeleted'));
       navigation.goBack();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : t('common.error.generic'));
+      setFormError(err);
       setConfirmingDelete(false);
     } finally {
       setDeleting(false);
@@ -189,7 +189,7 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
       setStockDialog(null);
       toast.show('success', t(isIn ? 'products.stockAdded' : 'products.stockRemoved'));
     } catch (err) {
-      setStockError(apiErrorMessage(err, t));
+      setStockError(err);
     } finally {
       setStockBusy(false);
     }
@@ -200,7 +200,7 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
     if (result.status === 'selected') {
       setImage(result.image);
     } else if (result.status === 'error') {
-      setFormError(result.message);
+      setFormError(new LocalError(result.messageKey));
     }
   };
 
@@ -371,7 +371,7 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
           ) : null}
         </View>
       ) : null}
-      {formError ? <Text style={styles.formError}>{formError}</Text> : null}
+      {formError ? <Text style={styles.formError}>{errorMessage(formError, t)}</Text> : null}
       <Button
         testID="item-save"
         label={t('common.save')}
@@ -408,7 +408,7 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
         direction={stockDialog ?? 'in'}
         itemName={name.trim()}
         busy={stockBusy}
-        error={stockError}
+        error={stockError ? errorMessage(stockError, t) : null}
         onCancel={() => setStockDialog(null)}
         onConfirm={applyStockMovement}
       />

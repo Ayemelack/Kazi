@@ -1,10 +1,9 @@
 import { launchImageLibrary, type ImageLibraryOptions } from 'react-native-image-picker';
-import i18n from '../i18n';
 
 export type PickImageResult =
   | { status: 'cancelled' }
   | { status: 'selected'; image: string }
-  | { status: 'error'; message: string };
+  | { status: 'error'; messageKey: string };
 
 const PICKER_OPTIONS: ImageLibraryOptions = {
   mediaType: 'photo',
@@ -21,7 +20,7 @@ export async function pickImage(): Promise<PickImageResult> {
     return { status: 'cancelled' };
   }
   if (response.errorCode) {
-    return { status: 'error', message: i18n.t('products.imageError') };
+    return { status: 'error', messageKey: 'products.imageError' };
   }
   const asset = response.assets?.[0];
   const base64 = asset?.base64;

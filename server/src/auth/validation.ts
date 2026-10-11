@@ -43,10 +43,10 @@ const passwordSchema = z
   .min(PASSWORD_MIN, `Password must be at least ${PASSWORD_MIN} characters.`)
   .regex(/[a-zA-Z]/, 'Password must contain at least one letter.')
   .regex(/[0-9]/, 'Password must contain at least one number.')
-  .refine(
-    value => utf8ByteLength(value) <= PASSWORD_MAX_BYTES,
-    `Password is too long (max ${PASSWORD_MAX_BYTES} bytes).`,
-  );
+  .refine(value => utf8ByteLength(value) <= PASSWORD_MAX_BYTES, {
+    message: `Password is too long (max ${PASSWORD_MAX_BYTES} bytes).`,
+    params: { rule: 'tooLong' },
+  });
 
 export const businessTypeSchema = z
   .string()

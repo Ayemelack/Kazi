@@ -18,6 +18,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { fetchSummary, listItems } from '../../offline/api';
 import type { MoneySummary } from '../../summary/api';
 import { formatMoney } from '@kazi/shared';
+import { errorMessage } from '../../errors/messages';
 import type { MainTabParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 
@@ -78,10 +79,10 @@ export default function HomeScreen() {
   const [hasAnyActivity, setHasAnyActivity] = useState(false);
   const [lowStockCount, setLowStockCount] = useState(0);
   const [checked, setChecked] = useState(false);
-  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadError, setLoadError] = useState<unknown>(null);
 
   const load = useCallback(async () => {
-    setLoadFailed(false);
+    setLoadError(null);
     try {
       const [summaryResult, itemsResult] = await Promise.all([fetchSummary(), listItems()]);
       setSummary(summaryResult.summary);
@@ -91,9 +92,9 @@ export default function HomeScreen() {
       setLowStockCount(
         itemsResult.items.filter(item => item.trackStock && item.lowStock).length,
       );
-    } catch {
+    } catch (err) {
       setLowStockCount(0);
-      setLoadFailed(true);
+      setLoadError(err);
     } finally {
       setChecked(true);
     }
@@ -126,13 +127,13 @@ export default function HomeScreen() {
           {t(greetingKey, { name: firstName || t('home.businessOwner') })}
         </Text>
 
-        {checked && loadFailed ? (
+        {checked && loadError ? (
           <Pressable
             accessibilityRole="button"
             onPress={load}
             style={styles.retryRow}
           >
-            <Text style={styles.retryText}>{t('common.error.offline')}</Text>
+            <Text style={styles.retryText}>{errorMessage(loadError, t)}</Text>
             <Text style={styles.retryCta}>{t('common.retry')}</Text>
           </Pressable>
         ) : null}
@@ -164,12 +165,12 @@ export default function HomeScreen() {
               </View>
               <Text style={styles.todayLabel}>{t('home.today')}</Text>
             </View>
-          ) : !checked && !loadFailed ? (
+          ) : !checked && !loadError ? (
             <Text style={styles.loadingText}>{t('common.loading')}</Text>
           ) : null}
         </Card>
 
-        {checked && !hasAnyActivity && !loadFailed ? (
+        {checked && !hasAnyActivity && !loadError ? (
           <Text style={styles.welcomeMessage}>{t('home.firstHint')}</Text>
         ) : null}
 

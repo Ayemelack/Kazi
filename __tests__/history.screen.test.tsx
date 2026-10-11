@@ -144,9 +144,9 @@ describe('HistoryScreen', () => {
       .findAllByType(Text)
       .map(node => [node.props.children].flat(Infinity).join(''))
       .join('|');
-    expect(text).toContain('+2 000 FCFA');
-    expect(text).toContain('−500 FCFA');
-    expect(text).toContain('+1 800 FCFA');
+    expect(text).toContain('+2\u202f000\u202fFCFA');
+    expect(text).toContain('−500\u202fFCFA');
+    expect(text).toContain('+1\u202f800\u202fFCFA');
   });
 
   it('asks for the next page with the number of events already shown', async () => {

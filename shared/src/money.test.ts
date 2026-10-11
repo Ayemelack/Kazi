@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { MONEY_MAX, MONEY_SEPARATOR, formatMoney, parseMoneyInput } from './index.js';
 
-const NBSP = ' ';
-const NNBSP = ' ';
+const NBSP = '\u00a0';
+const NNBSP = '\u202f';
 
 // Every example from REMEDIATION_PLAN.md KZ-04, plus the edge cases the rules
 // imply. FCFA has no minor unit, so "," and "." can only be thousands

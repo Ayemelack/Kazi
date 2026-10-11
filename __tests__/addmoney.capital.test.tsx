@@ -118,7 +118,7 @@ describe('AddMoneyScreen capital persistence and display', () => {
           ? node.props.children.join('')
           : node.props.children,
       );
-    expect(texts.some(text => typeof text === 'string' && text.includes('11 000 000 FCFA'))).toBe(true);
+    expect(texts.some(text => typeof text === 'string' && text.includes('11\u202f000\u202f000\u202fFCFA'))).toBe(true);
   });
 
   it('starts the amount field empty even when capital already exists', async () => {
@@ -153,7 +153,7 @@ describe('AddMoneyScreen capital persistence and display', () => {
       const field = renderer.root.findAll(
         node => node.props.hint !== undefined && node.props.testID === 'add-money-amount',
       )[0];
-      expect(field?.props.hint).toBe('= 1 000 FCFA');
+      expect(field?.props.hint).toBe('= 1\u202f000\u202fFCFA');
 
       await save(renderer);
       expect((createTransaction as jest.Mock).mock.calls[0][0]).toMatchObject({

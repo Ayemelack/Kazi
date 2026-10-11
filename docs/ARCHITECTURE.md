@@ -235,11 +235,11 @@ erDiagram
 | Table | Key columns | Notes |
 |---|---|---|
 | `users` | email (unique, lower-case), password_hash, token_version, company_name, business_type, language | |
-| `items` | type (product/service), price, stock, track_stock, low_stock_threshold, image | **Target (KZ-14):** image moves to its own table |
+| `items` | type (product/service), price (INTEGER FCFA ≥ 0), stock, track_stock, low_stock_threshold, image | **Target (KZ-14):** image moves to its own table |
 | `stock_movements` | direction, quantity, new_quantity, reason | Audit trail of stock |
-| `transactions` | type (sale/purchase/capital), amount > 0, item_id, quantity, date (YYYY-MM-DD) | |
-| `debts` | name, amount > 0, date, status (open/paid), paid_at | |
-| `activity` | type, title, amount, quantity, event_date, ref_type, ref_id | History feed |
+| `transactions` | type (sale/purchase/capital), amount (INTEGER FCFA > 0), item_id, quantity, date (YYYY-MM-DD) | |
+| `debts` | name, amount (INTEGER FCFA > 0), date, status (open/paid), paid_at | |
+| `activity` | type, title, amount (INTEGER FCFA or NULL), quantity, event_date, ref_type, ref_id | History feed |
 | `client_ops` | (user_id, client_op_id) PK, op_type, response | Idempotency ledger |
 | `password_resets` | token (SHA-256), expires_at, used | |
 | `password_fingerprints` | HMAC of password | **Target (KZ-05):** remove |
@@ -269,11 +269,21 @@ baselines a database created before `schema_migrations` existed, without data lo
 an identical `sqlite_master` (tested). It also restores `idx_transactions_user_type_date`, which the
 old rebuild dropped (KZ-26).
 
+`0002_integer_money` (KZ-25) rebuilds `items`, `transactions`, `debts` and `activity` so every
+money column is `INTEGER` with `CHECK (typeof(x) = 'integer' …)` (INTEGER affinity alone would
+still store 12.5 as a REAL). Old values are rounded half away from zero; a positive amount below
+0.5 becomes 1 so `amount > 0` still holds. It logs one warning with the number of rounded rows per
+table, never the values.
+
 Rules for new migrations:
 
 - Never edit a migration that has shipped; add a new file with the next number.
-- SQLite can't change a column type or CHECK in place: create the new table, copy, drop, rename,
-  then recreate **every** index; preserve `sqlite_sequence` when ids must not be reused.
+- SQLite can't change a column type or CHECK in place: rename the old table aside, create the new
+  one under its real name (so `sqlite_master` keeps an unquoted name), copy, drop the old one, then
+  recreate **every** index; preserve `sqlite_sequence` when ids must not be reused. If other tables
+  reference the rebuilt one, do the rename with `PRAGMA legacy_alter_table = ON`, or SQLite
+  rewrites their `REFERENCES` to the copy that is about to be dropped. `rebuild()` in
+  `0002_integer_money.ts` does all of this.
 - Test each migration on a fresh database and on a database with the previous schema and data
   (`server/src/db/migrations.test.ts`; `legacyFixtures.ts` holds the frozen pre-framework code).
 
@@ -297,7 +307,11 @@ Rules for new migrations:
   separators in groups of three, anything else rejected. The parsed value is shown under the field
   as the user types (`= 1 000 FCFA`). The API accepts only a JSON integer or a digit string
   (`moneyAmountSchema`, `priceSchema`), at most `MONEY_MAX`.
-- **Target (KZ-25):** `INTEGER` columns in SQLite, one formatter (`1 000 FCFA`).
+- **Storage (KZ-25, done):** `INTEGER` money columns with integer CHECKs (§6.1, migration 0002).
+- **Display (KZ-25, done):** one formatter, `formatMoney` from `@kazi/shared`: `1 000 FCFA` with
+  the narrow no-break space (U+202F) between groups and before `FCFA`, so an amount never wraps.
+  The app uses it for every amount and price; the admin dashboard loads the same built module from
+  `/shared/index.js` (served from `node_modules/@kazi/shared/dist`).
 
 ### 7.3 Internationalisation
 
@@ -358,7 +372,7 @@ response: no second sale, no second stock movement (after KZ-11).
 | A3 | Idempotency ledger for writes | Accepted | Makes retries on flaky mobile networks safe |
 | A4 | Activity log written in the same transaction as the source record | Accepted | History can never disagree with the source tables |
 | A5 | Separate read-only admin process | Accepted | App users can never reach admin data; admin cannot write |
-| A6 | Whole-number FCFA everywhere | Proposed (KZ-04, KZ-25) | Removes the decimal-separator ambiguity that corrupts amounts |
+| A6 | Whole-number FCFA everywhere | Accepted (2026-10-11, KZ-04, KZ-25) | Removes the decimal-separator ambiguity that corrupts amounts |
 | A7 | Short-lived access token + refresh token | Proposed (KZ-13, D4) | Real logout and revocation |
 | A8 | Images stored and served separately from item JSON | Proposed (KZ-14) | Keeps list payloads small on 3G |
 | A9 | Error codes, not messages, drive the UI | Proposed (KZ-12) | Correct language for every user |

@@ -14,7 +14,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { useToast } from '../../components/ui/Toast';
 import { deleteDebt, listDebts, payDebt } from '../../offline/api';
 import type { Debt } from '../../debts/types';
-import { formatMoney } from '../../money/format';
+import { formatMoney } from '@kazi/shared';
 import { dateToDateString, todayAsDateString } from '../../transactions/validation';
 import type { HistoryStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';

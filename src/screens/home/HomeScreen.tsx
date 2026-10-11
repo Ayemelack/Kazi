@@ -17,7 +17,7 @@ import Card from '../../components/ui/Card';
 import { useAuth } from '../../auth/AuthContext';
 import { fetchSummary, listItems } from '../../offline/api';
 import type { MoneySummary } from '../../summary/api';
-import { formatMoney } from '../../money/format';
+import { formatMoney } from '@kazi/shared';
 import type { MainTabParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 

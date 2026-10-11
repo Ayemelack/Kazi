@@ -9,7 +9,7 @@ export const MONEY_MAX = 1_000_000_000_000;
  * (U+202F), French typography's thousands separator. Being no-break, an amount
  * never wraps across two lines.
  */
-export const MONEY_SEPARATOR = ' ';
+export const MONEY_SEPARATOR = '\u202f';
 
 // Every kind of space a keyboard or a paste can produce: ASCII space, tab,
 // no-break space (U+00A0), narrow no-break space (U+202F) and the rest of \s.

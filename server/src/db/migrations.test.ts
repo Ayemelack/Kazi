@@ -11,6 +11,9 @@ import { LEGACY_SCHEMA_SQL, legacyMigrate } from './legacyFixtures.js';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kazi-migrations-'));
 const opened: Database.Database[] = [];
+// Every migration in this build, and a version no real migration uses yet.
+const ALL_VERSIONS = MIGRATIONS.map(m => m.version);
+const NEXT_VERSION = MIGRATIONS.at(-1)!.version + 1;
 
 after(() => {
   for (const db of opened) {
@@ -81,7 +84,7 @@ test('fresh database: baseline applied once, full schema, foreign keys on and cl
 
   assert.deepEqual(
     appliedMigrations(db).map(m => [m.version, m.name]),
-    [[1, 'baseline']],
+    MIGRATIONS.map(m => [m.version, m.name]),
   );
 
   const tables = schemaOf(db)
@@ -127,7 +130,7 @@ test('pre-capital database upgrades without data loss and matches a fresh schema
   assert.deepEqual(schemaOf(db), freshSchema());
   assert.deepEqual(
     appliedMigrations(db).map(m => m.version),
-    [1],
+    ALL_VERSIONS,
   );
 
   // Rows survive the transactions rebuild unchanged.
@@ -211,7 +214,7 @@ test('database created by the pre-framework boot code is baselined to an identic
   assert.deepEqual(schemaOf(db), freshSchema());
   assert.deepEqual(
     appliedMigrations(db).map(m => m.version),
-    [1],
+    ALL_VERSIONS,
   );
   assert.deepEqual(db.prepare('SELECT type, amount FROM transactions').all(), [
     { type: 'capital', amount: 5000 },
@@ -236,7 +239,7 @@ test('opening the same database twice is a no-op', () => {
 test('a failing migration rolls back and is not recorded', () => {
   const db = open(':memory:');
   const failing: Migration = {
-    version: 2,
+    version: NEXT_VERSION,
     name: 'failing',
     up(conn) {
       conn.exec('CREATE TABLE half_done (id INTEGER PRIMARY KEY)');
@@ -252,7 +255,7 @@ test('a failing migration rolls back and is not recorded', () => {
   );
   assert.deepEqual(
     appliedMigrations(db).map(m => m.version),
-    [1],
+    ALL_VERSIONS,
   );
   assert.equal(db.pragma('foreign_keys', { simple: true }), 1);
 });
@@ -260,7 +263,7 @@ test('a failing migration rolls back and is not recorded', () => {
 test('a migration that leaves a foreign key violation rolls back', () => {
   const db = open(':memory:');
   const orphaning: Migration = {
-    version: 2,
+    version: NEXT_VERSION,
     name: 'orphaning',
     up(conn) {
       conn
@@ -274,7 +277,7 @@ test('a migration that leaves a foreign key violation rolls back', () => {
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM debts').get() as { n: number }).n, 0);
   assert.deepEqual(
     appliedMigrations(db).map(m => m.version),
-    [1],
+    ALL_VERSIONS,
   );
 });
 

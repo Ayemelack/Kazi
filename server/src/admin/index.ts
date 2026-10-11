@@ -19,6 +19,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const COOKIE_NAME = 'kazi_admin_session';
 const PUBLIC_DIR = path.join(__dirname, 'public');
+// The built @kazi/shared package (pure ES modules, no secrets), served so the
+// dashboard formats money with the app's own formatMoney (KZ-25).
+const SHARED_DIR = path.dirname(fileURLToPath(import.meta.resolve('@kazi/shared')));
 
 type TlsMode = 'auto' | 'on' | 'off';
 
@@ -232,6 +235,7 @@ function buildApp(
   app.use(express.json({ limit: '64kb' }));
 
   app.use(express.static(PUBLIC_DIR, { index: 'index.html', etag: false }));
+  app.use('/shared', express.static(SHARED_DIR, { index: false, etag: false }));
 
   const requireAdmin = (req: Request, res: Response, next: NextFunction): void => {
     const cookies = parseCookies(req.headers.cookie);

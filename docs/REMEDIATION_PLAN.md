@@ -359,8 +359,12 @@ login; [ ] dates format correctly in all three languages.
 ### KZ-25
 **Integer money storage and one formatter** — migration: `amount`/`price` columns to `INTEGER`
 (round existing values; log any row that had a fraction). One formatter for money and prices
-(`1 000 FCFA`); delete `src/items/format.ts`. Acceptance: [ ] all amounts in DB are integers;
-[ ] prices and money render the same way.
+(`1 000 FCFA`); delete `src/items/format.ts` and `src/money/format.ts`. Done as
+`server/src/db/migrations/0002_integer_money.ts` (INTEGER + `typeof(x) = 'integer'` CHECKs on
+`items.price`, `transactions.amount`, `debts.amount`, `activity.amount`; `ROUND()`, positive
+amounts never below 1; logs the count of rounded rows, not the values) and `formatMoney` in
+`@kazi/shared`, also used by the admin dashboard. Acceptance: [x] all amounts in DB are integers;
+[x] prices and money render the same way.
 
 ### KZ-26
 **Restore the dropped index** — `migrateTransactionsTable` must recreate

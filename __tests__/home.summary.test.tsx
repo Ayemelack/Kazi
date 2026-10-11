@@ -88,11 +88,11 @@ describe('HomeScreen money summary', () => {
     const renderer = await renderHome();
     const text = screenText(renderer);
 
-    expect(text).toContain('+600 FCFA');
+    expect(text).toContain('+600\u202fFCFA');
     // The received figure must only ever appear once, under "Money I
     // received". Showing it again under "Money I made" was the bug that made
     // every expense look like it never happened.
-    expect(text.split('+1 000 FCFA')).toHaveLength(2);
+    expect(text.split('+1\u202f000\u202fFCFA')).toHaveLength(2);
     expect(fetchSummary).toHaveBeenCalledTimes(1);
   });
 
@@ -104,8 +104,8 @@ describe('HomeScreen money summary', () => {
     const renderer = await renderHome();
     const text = screenText(renderer);
 
-    expect(text).toContain('-400 FCFA');
-    expect(text).not.toContain('+-400 FCFA');
-    expect(text).toContain('−500 FCFA');
+    expect(text).toContain('-400\u202fFCFA');
+    expect(text).not.toContain('+-400\u202fFCFA');
+    expect(text).toContain('−500\u202fFCFA');
   });
 });

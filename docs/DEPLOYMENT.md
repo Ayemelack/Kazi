@@ -146,7 +146,13 @@ template `debug.keystore`).
 3. **Back up the database** (`§5`) before every deploy — pending numbered migrations
    (`server/src/db/migrations`, see [ARCHITECTURE.md](ARCHITECTURE.md) §6.1) run on boot, each in
    its own transaction; a failed migration stops the boot and leaves the database at the last good
-   version.
+   version. The first deploy after session 2 runs `2_integer_money` (KZ-25), which rebuilds four
+   tables to whole-FCFA `INTEGER` money; if it logs `rounded N fractional money value(s)`, keep
+   the pre-deploy backup — it is the only copy of the original fractions. A previous build still
+   starts on the new schema (it skips migrations newer than itself), but any fractional amount it
+   accepts would now fail the integer CHECK with a 500, so roll back with the backup.
+   The admin dashboard also serves `server/node_modules/@kazi/shared/dist` at `/shared/` (its
+   money formatter), so `shared/` must be built wherever the admin runs.
 4. `systemctl restart kazi-api`; check `curl -fsS https://api.<domain>/health` and `/ready` (KZ-34).
 5. Watch logs for 10 minutes (error rate, p95 latency).
 

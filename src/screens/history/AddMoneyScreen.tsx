@@ -18,7 +18,7 @@ import {
   validateTransactionAmount,
   validateTransactionDate,
 } from '../../transactions/validation';
-import { formatMoney } from '../../money/format';
+import { formatMoney } from '@kazi/shared';
 import type { HistoryStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 

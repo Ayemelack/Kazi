@@ -1,5 +1,9 @@
 'use strict';
 
+// The same formatter as the app (KZ-25), served from the built @kazi/shared
+// package so the dashboard and the phone show money identically.
+import { formatMoney } from '/shared/index.js';
+
 (function () {
   var REFRESH_MS = 15000;
 
@@ -26,6 +30,10 @@
   function num(value) {
     var n = Number(value || 0);
     return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  }
+
+  function money(value) {
+    return formatMoney(Number(value || 0));
   }
 
   function formatDateTime(value) {
@@ -134,10 +142,10 @@
     container.appendChild(statCard('Transactions', num(stats.transactions), num(stats.sales) + ' sales · ' + num(stats.purchases) + ' expenses'));
     container.appendChild(statCard('Open debts', num(stats.openDebts), num(stats.paidDebts) + ' settled'));
     container.appendChild(statCard('Feedback', num(stats.feedbackCount), 'avg ' + Number(stats.avgRating || 0).toFixed(1) + ' / 5'));
-    container.appendChild(statCard('Money in', num(stats.totalReceived), 'from sales'));
-    container.appendChild(statCard('Money out', num(stats.totalSpent), 'purchases'));
-    container.appendChild(statCard('Capital added', num(stats.totalCapital), 'owner injections'));
-    container.appendChild(statCard('Net flow', num(net), 'in minus out', true));
+    container.appendChild(statCard('Money in', money(stats.totalReceived), 'from sales'));
+    container.appendChild(statCard('Money out', money(stats.totalSpent), 'purchases'));
+    container.appendChild(statCard('Capital added', money(stats.totalCapital), 'owner injections'));
+    container.appendChild(statCard('Net flow', money(net), 'in minus out', true));
   }
 
   function renderChart(containerId, axisId, points, accent) {
@@ -154,7 +162,7 @@
       bar.className = 'bar' + (accent ? ' accent' : '');
       var pct = point.value > 0 ? Math.max((point.value / max) * 100, 4) : 1.5;
       bar.style.height = pct + '%';
-      bar.title = point.day + ': ' + num(point.value) + (point.volume ? ' (' + num(point.volume) + ')' : '');
+      bar.title = point.day + ': ' + num(point.value) + (point.volume ? ' (' + money(point.volume) + ')' : '');
       wrap.appendChild(bar);
       container.appendChild(wrap);
     });
@@ -261,7 +269,7 @@
       html += '<td><span class="' + tagClass(item.type) + '">' + esc(item.type) + '</span></td>';
       html += '<td>' + esc(item.title) + (item.quantity ? ' <span class="muted">×' + esc(item.quantity) + '</span>' : '') + '</td>';
       html += '<td>' + esc(item.userName) + (item.companyName ? ' <span class="muted">· ' + esc(item.companyName) + '</span>' : '') + '</td>';
-      html += '<td class="nums">' + (item.amount === null || item.amount === undefined ? '—' : num(item.amount)) + '</td>';
+      html += '<td class="nums">' + (item.amount === null || item.amount === undefined ? '—' : money(item.amount)) + '</td>';
       html += '</tr>';
     });
     html += '</tbody></table>';

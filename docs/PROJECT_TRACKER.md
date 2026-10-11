@@ -7,7 +7,7 @@ respect are in [SECURITY.md](SECURITY.md) and [PERFORMANCE.md](PERFORMANCE.md). 
 executed in 15 agent sessions; their prompts, the standing rules and the owner decisions are in
 **[prompt.md](prompt.md)** (see [Execution plan](#execution-plan)).
 
-**Last updated:** 2026-10-11 · **Overall progress:** 4 / 38 tasks done (11%)
+**Last updated:** 2026-10-11 · **Overall progress:** 5 / 38 tasks done (13%)
 
 ---
 
@@ -39,11 +39,12 @@ A task is only **Done** when it meets the Definition of Done in [TESTING_QA.md](
 
 | Phase | Goal | Tasks | Done | Progress |
 |---|---|---|---|---|
+| 2026-10-11 | KZ-25 | Migration `0002_integer_money`: rebuilds `items`, `transactions`, `debts`, `activity` with `INTEGER` money columns and `typeof(x) = 'integer'` CHECKs (plus `price >= 0`, `amount > 0`; activity amount nullable); copies with `ROUND()` (half away from zero; a positive amount under 0.5 becomes 1 so `amount > 0` holds); recreates every index and trigger from its own SQL, keeps FKs and `sqlite_sequence`; renames with `legacy_alter_table = ON` (without it SQLite rewrote `stock_movements`/`transactions` REFERENCES to the dropped `items_legacy` — measured); logs one warning with per-table counts of rounded rows, never values. `src/items/format.ts`, `src/money/format.ts` and their test deleted; Home, History, AddMoney, Debts and Products (prices) all use `formatMoney` from `@kazi/shared`. Admin dashboard: `app.js` is now an ES module importing `formatMoney` from `/shared/index.js` (the built package, served read-only) for Money in/out, Capital, Net flow, chart volume and activity amounts; counts still use `num()`. Migration tests no longer hardcode "baseline is last". Intended test change: screen tests now expect U+202F; NNBSP literals written as `\u202f` escapes (the KZ-04 commit had invisible U+202F characters in tests and `MONEY_SEPARATOR`; same value) | New `0002_integer_money.test.ts` (3): fresh DB (INTEGER types; 12.5, 0, -1 rejected by CHECK), DB with fractions (7 rounded, counts-only warning, rows/indexes/FKs/sequence kept, CASCADE and SET NULL still act, no `_legacy` left), upgraded schema == fresh. With `legacy_alter_table` forced OFF, 2 of 3 fail. Root `npm run check` exit 0: shared 65/65, app tsc + eslint clean, Jest 13 suites 123/123, server 180/180 + build. Manual: real file DB applied `1_baseline`, `2_integer_money`; admin (`ADMIN_TLS=off`) served `/`, `/app.js`, `/shared/index.js`, `/shared/money.js` 200 `application/javascript`, `/shared/nope.js` 404, `<script type="module">`; `/api/stats` totals 1234567 / 1000 formatted by the served module as `1 234 567 FCFA` / `1 000 FCFA` | this commit |
 | **P0** | Production blockers — the app cannot ship without these | 9 | 1 | 11% |
 | **P1** | Correctness, security and data integrity | 10 | 0 | 0% |
-| **P2** | Hardening and performance | 16 | 2 | 13% |
+| **P2** | Hardening and performance | 16 | 3 | 19% |
 | **P3** | Documentation, hygiene and CI | 3 | 1 | 33% |
-| **Total** | | **38** | **4** | **11%** |
+| **Total** | | **38** | **5** | **13%** |
 
 Work the phases in order. Inside a phase, tasks can run in parallel unless the board says otherwise.
 
@@ -133,7 +134,7 @@ resume prompt at the end of that file.
 | KZ-22 | Disabled Save buttons give no reason; AddMoney would show raw keys | Low | App / UX | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-22) |
 | KZ-23 | Stock rules: oversell policy, starting stock on create | Low | API / App | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-23) |
 | KZ-24 | Pidgin language code is wrong (`pid`); language never saved on server | Low | App / API | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-24) |
-| KZ-25 | Money stored as REAL with fractions; inconsistent number formatting | Low | API / App | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-25) |
+| KZ-25 | Money stored as REAL with fractions; inconsistent number formatting | Low | API / App | ✅ Done | [→](REMEDIATION_PLAN.md#kz-25) |
 | KZ-26 | Legacy migration drops `idx_transactions_user_type_date` | Low | API / DB | ✅ Done | [→](REMEDIATION_PLAN.md#kz-26) |
 | KZ-27 | Admin: malformed cookie causes a 500 | Low | Admin | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-27) |
 | KZ-28 | History "Older" with only a From date includes recent days | Low | App | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-28) |

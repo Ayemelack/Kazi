@@ -4,7 +4,7 @@ import { validateItemPrice } from '../src/items/validation';
 import { validateDebtAmount } from '../src/debts/validation';
 import { moneyPreview } from '../src/money/input';
 
-const NNBSP = ' ';
+const NNBSP = '\u202f';
 
 // KZ-04: every money field in the app reads text the same way. The examples
 // are the ones in REMEDIATION_PLAN.md; the full parser table lives in

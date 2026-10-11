@@ -11,7 +11,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import ErrorState from '../../components/ui/ErrorState';
 import LoadingView from '../../components/ui/LoadingView';
 import { listItems } from '../../offline/api';
-import { formatPrice } from '../../items/format';
+import { formatMoney } from '@kazi/shared';
 import type { Item, ItemType } from '../../items/types';
 import type { ProductsStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
@@ -170,7 +170,7 @@ function ItemRow({
             </View>
           ) : null}
         </View>
-        <Text style={styles.itemPrice}>{formatPrice(item.price)}</Text>
+        <Text style={styles.itemPrice}>{formatMoney(item.price)}</Text>
         <ChevronRight size={20} color={colors.textMuted} />
       </View>
     </Card>

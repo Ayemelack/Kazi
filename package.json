@@ -7,7 +7,12 @@
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest"
+    "test": "jest",
+    "typecheck": "tsc --noEmit",
+    "check:shared": "npm --prefix shared run check",
+    "check:app": "npm run typecheck && npm run lint && npm test",
+    "check:server": "npm --prefix server run check",
+    "check": "npm run check:shared && npm run check:app && npm run check:server"
   },
   "dependencies": {
     "@kazi/shared": "file:./shared",

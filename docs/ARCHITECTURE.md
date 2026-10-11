@@ -108,7 +108,7 @@ Rules:
 | Provider | Holds | Notes |
 |---|---|---|
 | `AuthProvider` | `status`, `user`, auth actions | Token in Keychain (`WHEN_UNLOCKED_THIS_DEVICE_ONLY`), profile cached in AsyncStorage |
-| `OfflineProvider` | `online` flag + offline pill | **Target (KZ-01):** event-driven NetInfo instead of a 30-second plain-HTTP poll |
+| `OfflineProvider` | `online` flag + offline pill | Event-driven via NetInfo (KZ-01): Android uses the OS's validated-internet signal; iOS checks `https://connectivitycheck.gstatic.com/generate_204` only while the app is active. No timer. Unknown reachability counts as online |
 | `ToastProvider` | Transient messages | |
 
 Screen data is loaded on focus (`useFocusEffect`) and kept in local component state. There is no

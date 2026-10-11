@@ -32,9 +32,16 @@ Rules for every fix:
   `jest.setup.js` (NetInfo mock).
 - **Acceptance:**
   - [ ] Release APK on a real phone: no offline pill while online; pill appears within 3 s of
-        airplane mode and disappears within 3 s of reconnecting.
-  - [ ] With the API stopped and the phone online, the app says "server unreachable", not "offline".
-  - [ ] No plain-HTTP URL remains in `src/` (`grep -rn "http://" src` returns only dev-host code).
+        airplane mode and disappears within 3 s of reconnecting. _(Needs a physical device:
+        device QA script, [TESTING_QA.md](TESTING_QA.md) §4.)_
+  - [x] With the API stopped and the phone online, the app says "server unreachable", not "offline".
+        _(Unit-tested in `__tests__/connectivity.test.ts`; confirm on a device in the QA script.)_
+  - [x] No plain-HTTP URL remains in `src/` (`grep -rn "http://" src` returns only dev-host code;
+        guarded by `__tests__/source.guards.test.js`).
+- **Done (2026-10-11):** `@react-native-community/netinfo` 12.0.1 (TurboModule spec, so New
+  Architecture). Android decides reachability from the OS's validated-internet signal; iOS checks
+  `https://connectivitycheck.gstatic.com/generate_204` (expects 204) only while the app is active.
+  Unknown reachability counts as online so a slow first check never shows the pill.
 
 ### KZ-02
 **iOS Firebase setup / startup crash**

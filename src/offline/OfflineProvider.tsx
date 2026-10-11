@@ -14,8 +14,7 @@ import { OfflinePill } from '../components/ui/OfflinePill';
 // engine. This provider is left in charge of the single always-visible
 // connectivity indicator: it watches the device's actual internet status and
 // shows the pill only when the phone genuinely has no network connection.
-
-const CONNECTIVITY_POLL_MS = 30_000;
+// Changes arrive as events from the device (KZ-01); nothing polls.
 
 interface OfflineStatus {
   online: boolean;
@@ -38,48 +37,33 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     ready: true,
   });
 
-  // Poll the device's internet status so the state stays accurate even when
-  // the app never leaves the foreground and no request is made.
+  // React to connectivity changes from the device network monitor, starting
+  // from its current answer.
   useEffect(() => {
     let cancelled = false;
-    const tick = () => {
-      probeConnectivity()
-        .then(() => {
-          if (!cancelled) {
-            timer = setTimeout(tick, CONNECTIVITY_POLL_MS);
-          }
-        })
-        .catch(() => {
-          if (!cancelled) {
-            timer = setTimeout(tick, CONNECTIVITY_POLL_MS);
-          }
-        });
-    };
-    let timer: ReturnType<typeof setTimeout> = setTimeout(tick, 1_000);
-    return () => {
-      cancelled = true;
-      if (timer) {
-        clearTimeout(timer);
-      }
-    };
-  }, []);
-
-  // Re-check the device network when the app comes back to the foreground.
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', next => {
-      if (next === 'active') {
-        probeConnectivity().catch(() => {});
-      }
-    });
-    return () => subscription.remove();
-  }, []);
-
-  // React to connectivity changes from the device network monitor.
-  useEffect(() => {
     const unsubscribe = subscribeConnectivity(online => {
       setStatus({ online, ready: true });
     });
-    return unsubscribe;
+    probeConnectivity().then(online => {
+      if (!cancelled) {
+        setStatus({ online, ready: true });
+      }
+    });
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, []);
+
+  // Re-check the device network when the app comes back to the foreground;
+  // reachability checks pause while it is in the background.
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', next => {
+      if (next === 'active') {
+        probeConnectivity();
+      }
+    });
+    return () => subscription.remove();
   }, []);
 
   const value = useMemo<OfflineStatus>(() => status, [status]);

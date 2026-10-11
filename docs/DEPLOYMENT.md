@@ -189,8 +189,10 @@ whenever possible so rollback doesn't need a data restore.
 1. Firebase and APNs configured (KZ-02); Push and Background Modes capabilities on.
 2. Remove the empty `NSLocationWhenInUseUsageDescription` from `Info.plist`; keep
    `PrivacyInfo.xcprivacy` accurate.
-3. Archive in Xcode (Release), upload to App Store Connect, TestFlight QA, submit.
-4. App Privacy answers must match the Play data-safety form.
+3. `cd ios && bundle exec pod install` after every native dependency change (for example
+   `@react-native-community/netinfo`, added in KZ-01); Android autolinks it at build time.
+4. Archive in Xcode (Release), upload to App Store Connect, TestFlight QA, submit.
+5. App Privacy answers must match the Play data-safety form.
 
 ---
 

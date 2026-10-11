@@ -45,7 +45,7 @@ Sustained throughput target: 200 requests/s mixed read/write without breaching p
 | Hotspot | Effect | Task |
 |---|---|---|
 | `GET /items` embeds every photo (up to 2 MB each); Home and the sale form load it on every focus | Megabytes per screen visit on 3G | KZ-14 |
-| Connectivity probe every 30 s over plain HTTP | Battery and data drain; broken in release | KZ-01 |
+| ~~Connectivity probe every 30 s over plain HTTP~~ | Fixed (KZ-01): NetInfo events; no timer; iOS reachability checks pause in the background | KZ-01 ✅ |
 | bcrypt `hashSync` / `compareSync` on the request thread | Every login blocks all other requests ~70–100 ms | KZ-21 |
 | `/summary` runs 5 separate queries | Avoidable round trips into SQLite | KZ-32 |
 | `db.prepare()` on every call | Re-parses SQL on hot paths | KZ-32 |

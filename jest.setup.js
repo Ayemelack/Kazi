@@ -58,6 +58,27 @@ jest.mock('@react-native-firebase/messaging', () => ({
   setBackgroundMessageHandler: jest.fn(),
 }));
 
+// NetInfo (KZ-01): online by default. Tests drive changes by calling the
+// listener passed to addEventListener, or by stubbing refresh().
+jest.mock('@react-native-community/netinfo', () => {
+  const online = {
+    type: 'wifi',
+    isConnected: true,
+    isInternetReachable: true,
+    details: null,
+  };
+  return {
+    __esModule: true,
+    default: {
+      configure: jest.fn(),
+      fetch: jest.fn(async () => online),
+      refresh: jest.fn(async () => online),
+      addEventListener: jest.fn(() => jest.fn()),
+      useNetInfo: jest.fn(() => online),
+    },
+  };
+});
+
 jest.mock('react-native-image-picker', () => ({
   launchImageLibrary: jest.fn(async () => ({
     didCancel: true,

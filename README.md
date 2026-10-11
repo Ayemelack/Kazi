@@ -62,7 +62,7 @@ Kazi/
     money/        FCFA formatter + balance math
     navigation/   root stack, tabs, auth flow, param lists
     notifications/ push-token registration API
-    offline/      online API facade + connectivity probe (no local queue)
+    offline/      online API facade + NetInfo connectivity (no local queue)
     screens/      auth · home · products · history · debts · business · more
     storage/      Keychain (secure) + AsyncStorage (preferences)
     summary/      money summary API

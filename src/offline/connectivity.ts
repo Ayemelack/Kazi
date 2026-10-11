@@ -6,34 +6,27 @@
 // "server unreachable" error when the device is online but the API cannot be
 // reached. That separation is what keeps a dead backend from being reported
 // as a missing internet connection.
+//
+// KZ-01: the answer comes from NetInfo, which listens to the operating
+// system's network events instead of polling. On Android the OS's own
+// "validated internet" signal decides reachability; where the OS gives no such
+// signal (iOS), NetInfo checks the HTTPS URL below. Plain HTTP must never be
+// used: release builds block cleartext traffic, so an HTTP check always fails.
 
-const PROBE_TIMEOUT_MS = 6_000;
+import NetInfo, { type NetInfoState } from '@react-native-community/netinfo';
+import { AppState } from 'react-native';
 
-// A tiny, reliable, always-204 endpoint used by Android itself for its own
-// connectivity checks. If this responds, the device has an internet path.
-const PUBLIC_CHECK_URL = 'http://clients3.google.com/generate_204';
+// Google's always-204 endpoint, the one Android uses for its own checks.
+export const REACHABILITY_URL = 'https://connectivitycheck.gstatic.com/generate_204';
 
 let online = true;
-let probing = false;
+let started = false;
 const listeners = new Set<(value: boolean) => void>();
 
-async function probe(): Promise<boolean> {
-  if (typeof fetch !== 'function') {
-    return true;
-  }
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
-  try {
-    const response = await fetch(PUBLIC_CHECK_URL, {
-      method: 'HEAD',
-      signal: controller.signal,
-    });
-    return response.ok;
-  } catch {
-    return false;
-  } finally {
-    clearTimeout(timer);
-  }
+// `null` means "not known yet" (for example while the first reachability check
+// runs). Unknown is treated as online so a slow check never shows the pill.
+function toOnline(state: NetInfoState): boolean {
+  return state.isConnected !== false && state.isInternetReachable !== false;
 }
 
 function emit(next: boolean): void {
@@ -50,29 +43,44 @@ function emit(next: boolean): void {
   });
 }
 
+function start(): void {
+  if (started) {
+    return;
+  }
+  started = true;
+  NetInfo.configure({
+    reachabilityUrl: REACHABILITY_URL,
+    reachabilityTest: async response => response.status === 204,
+    // Only check while the app is on screen, so the radio is not woken in the
+    // background.
+    reachabilityShouldRun: () => AppState.currentState === 'active',
+    shouldFetchWiFiSSID: false,
+  });
+  NetInfo.addEventListener(state => emit(toOnline(state)));
+}
+
 export function isOnline(): boolean {
+  start();
   return online;
 }
 
 export function subscribeConnectivity(listener: (value: boolean) => void): () => void {
+  start();
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
   };
 }
 
-// Cheap opportunistic probe from the app or a sync attempt. Deduplicates if
-// another probe is in-flight and intentionally never blocks the caller.
+// Asks NetInfo to re-read the network state now (for example when the app
+// returns to the foreground). Never throws; on failure the last known state
+// stays.
 export async function probeConnectivity(): Promise<boolean> {
-  if (probing) {
-    return online;
-  }
-  probing = true;
+  start();
   try {
-    const next = await probe();
-    emit(next);
-    return next;
-  } finally {
-    probing = false;
+    emit(toOnline(await NetInfo.refresh()));
+  } catch {
+    // Keep the last known state.
   }
+  return online;
 }

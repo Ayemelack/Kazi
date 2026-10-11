@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { PackageMinus, PackagePlus } from 'lucide-react-native';
+import { QUANTITY_MAX, STOCK_REASON_MAX } from '@kazi/shared';
 import TextField from '../../components/ui/TextField';
 import Button from '../../components/ui/Button';
 import { validateStockQuantity } from '../../items/validation';
@@ -74,14 +75,14 @@ export default function StockMovementDialog({
             onChangeText={setQuantity}
             keyboardType="number-pad"
             error={quantityError ?? undefined}
-            maxLength={10}
+            maxLength={String(QUANTITY_MAX).length}
           />
           <TextField
             testID="stock-reason"
             label={t('products.reason')}
             value={reason}
             onChangeText={setReason}
-            maxLength={200}
+            maxLength={STOCK_REASON_MAX}
           />
           {error ? <Text style={styles.formError}>{error}</Text> : null}
           <View style={styles.buttonRow}>

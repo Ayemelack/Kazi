@@ -3,6 +3,14 @@
 Contracts shared by the Kazi app (React Native, repository root) and the API (`server/`): constants,
 validation limits, parsers and types that both sides must agree on. One source, imported by both.
 
+Contents:
+
+- `money.ts` — `parseMoneyInput` (whole-FCFA input parser), `formatMoney` (`1 000 FCFA`, narrow
+  no-break spaces), `MONEY_MAX` (KZ-04, KZ-25).
+- `limits.ts` — every length, quantity, password and paging limit both sides enforce, and
+  `utf8ByteLength` for the 72-byte password limit (KZ-16).
+- `date.ts` — the business-date window (2000-01-01 to today + 365 days) and date helpers (KZ-16).
+
 Rules:
 
 - Pure TypeScript. No runtime dependencies, no Node or React Native APIs (`tsconfig.json` has no

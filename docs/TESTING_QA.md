@@ -34,7 +34,7 @@ minification).
 | Unit (app) | Jest | Validation, parsers, formatters, helpers | Every push |
 | Component (app) | Jest + react-test-renderer | Screens with mocked API | Every push |
 | API integration | `node --test` + in-memory SQLite | Routes end to end, isolation, idempotency | Every push |
-| Contract | Jest + server source | Validation limits and error codes match across app and API (KZ-12, KZ-16) | Every push |
+| Contract | Jest + node:test | Both sides import limits from `@kazi/shared` and boundary-test each one (KZ-16); error codes match across app and API (KZ-12) | Every push |
 | Release build | Gradle `bundleRelease` / Xcode archive | Builds, R8 keep rules, config present | `main` and release branches |
 | Load / performance | autocannon or k6 + seed script | Budgets in [PERFORMANCE.md](PERFORMANCE.md) | Before each release |
 | Device QA | Manual script below | Real phones, release build | Before each release |
@@ -77,7 +77,7 @@ A task in [PROJECT_TRACKER.md](PROJECT_TRACKER.md) is Done only when all of thes
 | KZ-13 | Refresh rotation, reuse detection, logout revocation, expired session → login screen |
 | KZ-14 | `/items` has no image data; image route ETag/304; Home makes no `/items` call |
 | KZ-15 | Magic-byte checks: JPEG/PNG/WebP accepted, GIF/HTML/SVG rejected; decoded size limit |
-| KZ-16 | Limits parity test |
+| KZ-16 | Boundary test per shared limit on each side (`__tests__/limits.boundary.test.ts`, `server/src/validation/limits.test.ts`); multi-byte password test; no literal `maxLength` in `src/` |
 | KZ-17 | Offline start without cached profile shows retry screen |
 | KZ-18 | Build output contains `dist/admin/public/index.html` |
 | KZ-19 | CI audit step |

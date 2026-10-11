@@ -34,7 +34,7 @@ import { listActivity } from '../../offline/api';
 import type { ActivitySummary, ActivityType, HistoryPeriod } from '../../activity/types';
 import type { LocalActivity } from '../../offline/types';
 import { todayAsDateString } from '../../transactions/validation';
-import { formatMoney } from '@kazi/shared';
+import { HISTORY_PAGE_SIZE, formatMoney } from '@kazi/shared';
 import type { HistoryStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 
@@ -53,7 +53,7 @@ const PERIOD_LABEL_KEY: Record<PeriodOption, string> = {
   older: 'history.periods.older',
 };
 
-const PAGE_SIZE = 30;
+const PAGE_SIZE = HISTORY_PAGE_SIZE;
 
 const RECORD_OPTIONS: { key: RecordOption; labelKey: string; icon: React.ReactNode }[] = [
   { key: 'sale', labelKey: 'history.recordSale', icon: <ArrowUpRight size={20} color={colors.success} /> },

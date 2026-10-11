@@ -10,7 +10,7 @@ import DatePickerField from '../../components/ui/DatePickerField';
 import TextField from '../../components/ui/TextField';
 import Button from '../../components/ui/Button';
 import { useToast } from '../../components/ui/Toast';
-import { parseMoneyInput } from '@kazi/shared';
+import { QUANTITY_MAX, TRANSACTION_DESCRIPTION_MAX, parseMoneyInput } from '@kazi/shared';
 import { createTransaction, listItems } from '../../offline/api';
 import { MONEY_INPUT_MAX_LENGTH, moneyPreview } from '../../money/input';
 import {
@@ -212,7 +212,7 @@ export default function TransactionFormScreen({ navigation, route }: ScreenProps
             value={description}
             onChangeText={setDescription}
             multiline
-            maxLength={200}
+            maxLength={TRANSACTION_DESCRIPTION_MAX}
             error={errors.description ? t(errors.description) : undefined}
           />
           <View style={styles.presetWrap}>
@@ -262,7 +262,7 @@ export default function TransactionFormScreen({ navigation, route }: ScreenProps
           keyboardType="number-pad"
           error={errors.quantity ? t(errors.quantity) : undefined}
           hint={t('transactions.quantityHint')}
-          maxLength={10}
+          maxLength={String(QUANTITY_MAX).length}
         />
       ) : null}
       {stockEffectCount !== null ? (
@@ -279,7 +279,7 @@ export default function TransactionFormScreen({ navigation, route }: ScreenProps
           value={description}
           onChangeText={setDescription}
           multiline
-          maxLength={200}
+          maxLength={TRANSACTION_DESCRIPTION_MAX}
         />
       ) : null}
       {formError ? <Text style={styles.formError}>{formError}</Text> : null}

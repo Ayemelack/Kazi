@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import {
+  CLIENT_OP_ID_MAX,
+  CLIENT_OP_ID_MIN,
+  DEBT_NAME_MAX,
+  DEBT_NOTE_MAX,
+} from '@kazi/shared';
 import { businessDateSchema } from '../validation/date.js';
 import { moneyAmountSchema } from '../validation/money.js';
 import { strictNumber } from '../validation/number.js';
@@ -7,14 +13,14 @@ export const debtNameSchema = z
   .string()
   .trim()
   .min(1, "The person's name is required.")
-  .max(100, 'Name must be at most 100 characters.');
+  .max(DEBT_NAME_MAX, `Name must be at most ${DEBT_NAME_MAX} characters.`);
 
 export const debtAmountSchema = moneyAmountSchema;
 
 export const debtNoteSchema = z
   .string()
   .trim()
-  .max(200, 'Note must be at most 200 characters.')
+  .max(DEBT_NOTE_MAX, `Note must be at most ${DEBT_NOTE_MAX} characters.`)
   .optional()
   .transform(value => (value === '' ? undefined : value));
 
@@ -33,8 +39,8 @@ export const createDebtSchema = z.object({
   clientOpId: z
     .string()
     .trim()
-    .min(8, 'Client operation id is too short.')
-    .max(64, 'Client operation id is too long.')
+    .min(CLIENT_OP_ID_MIN, 'Client operation id is too short.')
+    .max(CLIENT_OP_ID_MAX, 'Client operation id is too long.')
     .optional(),
 });
 
@@ -48,8 +54,8 @@ export const payDebtSchema = z.object({
   clientOpId: z
     .string()
     .trim()
-    .min(8, 'Client operation id is too short.')
-    .max(64, 'Client operation id is too long.')
+    .min(CLIENT_OP_ID_MIN, 'Client operation id is too short.')
+    .max(CLIENT_OP_ID_MAX, 'Client operation id is too long.')
     .optional(),
 });
 

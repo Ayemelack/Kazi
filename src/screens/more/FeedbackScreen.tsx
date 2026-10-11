@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { FEEDBACK_TEXT_MAX } from '@kazi/shared';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Heart, Send, Star } from 'lucide-react-native';
 import Screen from '../../components/ui/Screen';
@@ -92,7 +93,7 @@ function FeedbackScreen({ navigation }: ScreenProps) {
           value={liked}
           onChangeText={setLiked}
           multiline
-          maxLength={1000}
+          maxLength={FEEDBACK_TEXT_MAX}
         />
         <TextField
           testID="feedback-disliked"
@@ -100,7 +101,7 @@ function FeedbackScreen({ navigation }: ScreenProps) {
           value={disliked}
           onChangeText={setDisliked}
           multiline
-          maxLength={1000}
+          maxLength={FEEDBACK_TEXT_MAX}
         />
         <TextField
           testID="feedback-suggestion"
@@ -108,7 +109,7 @@ function FeedbackScreen({ navigation }: ScreenProps) {
           value={suggestion}
           onChangeText={setSuggestion}
           multiline
-          maxLength={1000}
+          maxLength={FEEDBACK_TEXT_MAX}
         />
         {formError ? <Text style={styles.formError}>{formError}</Text> : null}
         <Button

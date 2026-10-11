@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import {
+  ACTIVITY_OFFSET_MAX,
+  ACTIVITY_PAGE_DEFAULT,
+  ACTIVITY_PAGE_MAX,
+} from '@kazi/shared';
 import { businessDateSchema } from '../validation/date.js';
 import { strictNumber } from '../validation/number.js';
 
@@ -17,10 +22,12 @@ export const activityQuerySchema = z.object({
   // in the owner's timezone is never bucketed into the wrong business day by
   // the server's clock.
   asOf: optionalDateSchema,
-  limit: strictNumber(z.coerce.number().int().min(1).max(200)).optional().default(50),
+  limit: strictNumber(z.coerce.number().int().min(1).max(ACTIVITY_PAGE_MAX))
+    .optional()
+    .default(ACTIVITY_PAGE_DEFAULT),
   // Bounded because SQLite rejects an OFFSET it cannot store as an integer,
   // which would surface as a 500 instead of a validation error.
-  offset: strictNumber(z.coerce.number().int().min(0).max(1_000_000))
+  offset: strictNumber(z.coerce.number().int().min(0).max(ACTIVITY_OFFSET_MAX))
     .optional()
     .default(0),
 });

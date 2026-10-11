@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import {
+  CLIENT_OP_ID_MAX,
+  CLIENT_OP_ID_MIN,
+  QUANTITY_MAX,
+  TRANSACTION_DESCRIPTION_MAX,
+} from '@kazi/shared';
 import { businessDateSchema } from '../validation/date.js';
 import { moneyAmountSchema } from '../validation/money.js';
 import { strictNumber } from '../validation/number.js';
@@ -12,7 +18,10 @@ export const transactionDateSchema = businessDateSchema;
 export const transactionDescriptionSchema = z
   .string()
   .trim()
-  .max(200, 'Description must be at most 200 characters.')
+  .max(
+    TRANSACTION_DESCRIPTION_MAX,
+    `Description must be at most ${TRANSACTION_DESCRIPTION_MAX} characters.`,
+  )
   .optional()
   .transform(value => (value === '' ? undefined : value));
 
@@ -25,14 +34,14 @@ export const transactionQuantitySchema = strictNumber(
     .number()
     .int()
     .positive('Quantity must be at least 1.')
-    .max(1e9, 'Quantity is too large.'),
+    .max(QUANTITY_MAX, 'Quantity is too large.'),
 ).optional();
 
 export const clientOpIdSchema = z
   .string()
   .trim()
-  .min(8, 'Client operation id is too short.')
-  .max(64, 'Client operation id is too long.')
+  .min(CLIENT_OP_ID_MIN, 'Client operation id is too short.')
+  .max(CLIENT_OP_ID_MAX, 'Client operation id is too long.')
   .optional();
 
 export const createTransactionSchema = z

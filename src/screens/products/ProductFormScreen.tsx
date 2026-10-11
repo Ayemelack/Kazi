@@ -25,7 +25,12 @@ import {
   stockOut,
   updateItem,
 } from '../../offline/api';
-import { parseMoneyInput } from '@kazi/shared';
+import {
+  ITEM_NAME_MAX,
+  ITEM_NOTES_MAX,
+  LOW_STOCK_THRESHOLD_MAX,
+  parseMoneyInput,
+} from '@kazi/shared';
 import { MONEY_INPUT_MAX_LENGTH, moneyPreview } from '../../money/input';
 import {
   hasItemErrors,
@@ -221,7 +226,7 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
         onChangeText={setName}
         error={errors.name ? t(errors.name) : undefined}
         autoCapitalize="words"
-        maxLength={100}
+        maxLength={ITEM_NAME_MAX}
       />
       <Text style={styles.fieldLabel}>{t('products.typeLabel')}</Text>
       <View style={styles.typeRow}>
@@ -271,7 +276,7 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
         value={notes}
         onChangeText={setNotes}
         multiline
-        maxLength={500}
+        maxLength={ITEM_NOTES_MAX}
       />
       <Pressable
         testID="item-photo"
@@ -338,7 +343,7 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
               errors.lowStockThreshold ? t(errors.lowStockThreshold) : undefined
             }
             hint={t('products.lowStockAlertHint')}
-            maxLength={10}
+            maxLength={String(LOW_STOCK_THRESHOLD_MAX).length}
           />
           {itemId !== undefined ? (
             <View style={styles.stockActions}>

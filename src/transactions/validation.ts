@@ -1,4 +1,10 @@
-import { MONEY_MAX, parseMoneyInput } from '@kazi/shared';
+import {
+  MONEY_MAX,
+  QUANTITY_MAX,
+  isCalendarDate,
+  isWithinBusinessDateWindow,
+  parseMoneyInput,
+} from '@kazi/shared';
 import type { TransactionType } from './types';
 
 export interface TransactionFormInput {
@@ -11,8 +17,6 @@ export interface TransactionFormInput {
 
 export type TransactionFormField = 'amount' | 'date' | 'quantity' | 'description';
 export type TransactionFormErrors = Partial<Record<TransactionFormField, string>>;
-
-const QUANTITY_MAX = 1e9;
 
 // Whole FCFA only: "1,000", "1.000" and "1 000" are all one thousand, while
 // "1,5" or "12.34" are rejected instead of being saved as 1 or 12 (KZ-04).
@@ -34,13 +38,14 @@ export function validateTransactionAmount(value: string): string | null {
   return null;
 }
 
+// Same window as the API and the date picker: 2000-01-01 up to a year ahead.
 export function validateTransactionDate(value: string): string | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+  const trimmed = value.trim();
+  if (!isCalendarDate(trimmed)) {
     return 'transactions.errors.dateInvalid';
   }
-  const date = new Date(`${value.trim()}T00:00:00`);
-  if (Number.isNaN(date.getTime())) {
-    return 'transactions.errors.dateInvalid';
+  if (!isWithinBusinessDateWindow(trimmed)) {
+    return 'transactions.errors.dateOutOfRange';
   }
   return null;
 }

@@ -9,7 +9,7 @@ import DatePickerField from '../../components/ui/DatePickerField';
 import TextField from '../../components/ui/TextField';
 import Button from '../../components/ui/Button';
 import { useToast } from '../../components/ui/Toast';
-import { parseMoneyInput } from '@kazi/shared';
+import { DEBT_NOTE_MAX, parseMoneyInput } from '@kazi/shared';
 import { createDebt } from '../../offline/api';
 import { MONEY_INPUT_MAX_LENGTH, moneyPreview } from '../../money/input';
 import {
@@ -102,7 +102,7 @@ function DebtFormScreen({ navigation }: ScreenProps) {
           onChangeText={setNote}
           error={errors.note ? t(errors.note) : undefined}
           multiline
-          maxLength={200}
+          maxLength={DEBT_NOTE_MAX}
         />
         {formError ? <Text style={styles.formError}>{formError}</Text> : null}
         <Button

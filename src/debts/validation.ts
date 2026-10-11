@@ -1,4 +1,11 @@
-import { MONEY_MAX, parseMoneyInput } from '@kazi/shared';
+import {
+  DEBT_NAME_MAX,
+  DEBT_NOTE_MAX,
+  MONEY_MAX,
+  isCalendarDate,
+  isWithinBusinessDateWindow,
+  parseMoneyInput,
+} from '@kazi/shared';
 
 export type DebtField = 'name' | 'amount' | 'note' | 'date';
 export type DebtFieldErrors = Partial<Record<DebtField, string>>;
@@ -10,8 +17,6 @@ export interface DebtFormInput {
   note?: string;
   date: string;
 }
-
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 function toDateInput(date: Date): string {
   return [
@@ -30,7 +35,7 @@ export function validateDebtName(value: string): string | null {
   if (trimmed.length === 0) {
     return 'debts.errors.nameRequired';
   }
-  if (trimmed.length > 100) {
+  if (trimmed.length > DEBT_NAME_MAX) {
     return 'debts.errors.nameMax';
   }
   return null;
@@ -56,9 +61,13 @@ export function validateDebtAmount(value: string): string | null {
   return null;
 }
 
+// Same window as the API and the date picker: 2000-01-01 up to a year ahead.
 export function validateDebtDate(value: string): string | null {
-  if (!DATE_PATTERN.test(value)) {
+  if (!isCalendarDate(value)) {
     return 'debts.errors.dateInvalid';
+  }
+  if (!isWithinBusinessDateWindow(value)) {
+    return 'debts.errors.dateOutOfRange';
   }
   return null;
 }
@@ -77,7 +86,7 @@ export function validateDebt(input: DebtFormInput): DebtFieldErrors {
   if (dateError) {
     errors.date = dateError;
   }
-  if (input.note && input.note.trim().length > 200) {
+  if (input.note && input.note.trim().length > DEBT_NOTE_MAX) {
     errors.note = 'debts.errors.noteMax';
   }
   return errors;

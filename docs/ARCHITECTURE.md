@@ -298,6 +298,8 @@ Rules for new migrations:
 - Any endpoint that answers "today", "yesterday" or "this week" takes `asOf` from the phone.
   `/activity` does; **Target (KZ-10):** `/summary` will too.
 - Instants (`created_at`, `paid_at`) are UTC.
+- The accepted window is `BUSINESS_DATE_MIN` (2000-01-01) to today + 365 days (`@kazi/shared`
+  `date.ts`); the API, the app's validators and the date picker all use it (KZ-16).
 
 ### 7.2 Money
 
@@ -323,7 +325,11 @@ Rules for new migrations:
 ### 7.4 Validation parity
 
 The API is the authority; the app mirrors its limits so users see errors before submitting.
-**Target (KZ-16):** limits live in one constants file per side, and a test fails if they differ.
+Since KZ-16 there is one copy: `shared/src/limits.ts` (lengths, quantity and threshold max,
+password 8 characters min / 72 UTF-8 bytes max, page sizes, client-op-id length), `MONEY_MAX` and
+the business-date window. Server zod schemas and app validators both import it, and the app's
+`maxLength` props name the same constants. Each side boundary-tests every limit, so a validator
+that stops using the shared constant fails a test.
 
 ---
 

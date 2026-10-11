@@ -2,6 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { CalendarDays, ChevronLeft, ChevronRight, X } from 'lucide-react-native';
+import {
+  BUSINESS_DATE_MIN,
+  businessDateMax,
+  isCalendarDate,
+  isWithinBusinessDateWindow,
+  localDateString,
+} from '@kazi/shared';
 import Button from './Button';
 import { colors, radius, spacing, typography, zIndex } from '../../theme';
 
@@ -18,26 +25,27 @@ interface DateParts {
   day: number;
 }
 
-const MIN_YEAR = 1000;
-const MAX_YEAR = 9999;
+interface MonthView {
+  year: number;
+  month: number;
+}
 
+// The picker offers exactly the business-date window the app validators and
+// the API accept (KZ-16): BUSINESS_DATE_MIN up to a year after today.
+export function pickerBounds(today: string = localDateString()): { min: string; max: string } {
+  return { min: BUSINESS_DATE_MIN, max: businessDateMax(today) };
+}
+
+function monthKey(view: MonthView): string {
+  return `${view.year}-${String(view.month + 1).padStart(2, '0')}`;
+}
+
+// A real date inside the window opens the picker on that day; anything else
+// opens it on today.
 function parseDate(value: string): DateParts {
-  const [year, month, day] = value.split('-').map(Number);
-  if (
-    Number.isInteger(year) &&
-    year >= 1 &&
-    year <= 9999 &&
-    Number.isInteger(month) &&
-    month >= 1 &&
-    month <= 12 &&
-    Number.isInteger(day) &&
-    day >= 1 &&
-    day <= 31
-  ) {
-    const d = new Date(year, month - 1, day);
-    if (d.getFullYear() === year && d.getMonth() === month - 1 && d.getDate() === day) {
-      return { year, month: month - 1, day };
-    }
+  if (isCalendarDate(value) && isWithinBusinessDateWindow(value)) {
+    const [year, month, day] = value.split('-').map(Number) as [number, number, number];
+    return { year, month: month - 1, day };
   }
   const now = new Date();
   return { year: now.getFullYear(), month: now.getMonth(), day: now.getDate() };
@@ -72,10 +80,12 @@ function buildGrid(year: number, month: number): (number | null)[] {
   return cells;
 }
 
-function shiftMonth(
-  prev: { year: number; month: number },
+// Moves the visible month, but never outside the months of the window.
+export function shiftMonth(
+  prev: MonthView,
   delta: number,
-): { year: number; month: number } {
+  bounds: { min: string; max: string },
+): MonthView {
   let month = prev.month + delta;
   let year = prev.year;
   if (month < 0) {
@@ -86,8 +96,12 @@ function shiftMonth(
     month = 0;
     year += 1;
   }
-  year = Math.max(MIN_YEAR, Math.min(MAX_YEAR, year));
-  return { year, month };
+  const next = { year, month };
+  const key = monthKey(next);
+  if (key < bounds.min.slice(0, 7) || key > bounds.max.slice(0, 7)) {
+    return prev;
+  }
+  return next;
 }
 
 export default function DatePickerModal({ visible, value, onSelect, onClose }: DatePickerModalProps) {
@@ -104,6 +118,9 @@ export default function DatePickerModal({ visible, value, onSelect, onClose }: D
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth(), day: now.getDate() };
   });
+  const [bounds] = useState(() => pickerBounds(toDateString(today)));
+  const canGoBack = shiftMonth(view, -1, bounds) !== view;
+  const canGoForward = shiftMonth(view, 1, bounds) !== view;
 
   useEffect(() => {
     if (visible) {
@@ -147,19 +164,29 @@ export default function DatePickerModal({ visible, value, onSelect, onClose }: D
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t('datePicker.previousMonth')}
-              onPress={() => setView(p => shiftMonth(p, -1))}
+              accessibilityState={{ disabled: !canGoBack }}
+              disabled={!canGoBack}
+              onPress={() => setView(p => shiftMonth(p, -1, bounds))}
               style={styles.navButton}
             >
-              <ChevronLeft size={22} color={colors.textPrimary} />
+              <ChevronLeft
+                size={22}
+                color={canGoBack ? colors.textPrimary : colors.textMuted}
+              />
             </Pressable>
             <Text style={styles.monthLabel}>{monthLabel}</Text>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t('datePicker.nextMonth')}
-              onPress={() => setView(p => shiftMonth(p, 1))}
+              accessibilityState={{ disabled: !canGoForward }}
+              disabled={!canGoForward}
+              onPress={() => setView(p => shiftMonth(p, 1, bounds))}
               style={styles.navButton}
             >
-              <ChevronRight size={22} color={colors.textPrimary} />
+              <ChevronRight
+                size={22}
+                color={canGoForward ? colors.textPrimary : colors.textMuted}
+              />
             </Pressable>
           </View>
 
@@ -184,14 +211,18 @@ export default function DatePickerModal({ visible, value, onSelect, onClose }: D
                 draft.month === view.month &&
                 draft.year === view.year &&
                 draft.day === day;
+              const dateString = toDateString({ year: view.year, month: view.month, day });
+              const outOfRange = dateString < bounds.min || dateString > bounds.max;
 
               return (
                 <Pressable
                   key={day}
+                  testID={`date-picker-day-${dateString}`}
                   accessibilityRole="button"
-                  accessibilityState={{ selected: isSelected }}
+                  accessibilityState={{ selected: isSelected, disabled: outOfRange }}
+                  disabled={outOfRange}
                   onPress={() => setDraft({ year: view.year, month: view.month, day })}
-                  style={styles.cell}
+                  style={[styles.cell, outOfRange && styles.dayOutOfRange]}
                 >
                   <View
                     style={[
@@ -296,6 +327,9 @@ const styles = StyleSheet.create({
   },
   navButton: {
     padding: spacing.xs,
+  },
+  dayOutOfRange: {
+    opacity: 0.3,
   },
   monthLabel: {
     ...typography.label,

@@ -10,7 +10,7 @@ import DatePickerField from '../../components/ui/DatePickerField';
 import TextField from '../../components/ui/TextField';
 import Button from '../../components/ui/Button';
 import { useToast } from '../../components/ui/Toast';
-import { parseMoneyInput } from '@kazi/shared';
+import { TRANSACTION_DESCRIPTION_MAX, parseMoneyInput } from '@kazi/shared';
 import { createTransaction, fetchSummary } from '../../offline/api';
 import { MONEY_INPUT_MAX_LENGTH, moneyPreview } from '../../money/input';
 import {
@@ -119,7 +119,7 @@ export default function AddMoneyScreen({ navigation }: ScreenProps) {
         value={description}
         onChangeText={setDescription}
         multiline
-        maxLength={200}
+        maxLength={TRANSACTION_DESCRIPTION_MAX}
       />
       {formError ? <Text style={styles.formError}>{formError}</Text> : null}
       <Button

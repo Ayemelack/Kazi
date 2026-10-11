@@ -1,3 +1,13 @@
+import {
+  BUSINESS_TYPE_MAX,
+  COMPANY_NAME_MAX,
+  COMPANY_NAME_MIN,
+  EMAIL_MAX,
+  PASSWORD_MAX_BYTES,
+  PASSWORD_MIN,
+  PERSON_NAME_MAX,
+  utf8ByteLength,
+} from '@kazi/shared';
 import type {
   ForgotPasswordInput,
   LogInInput,
@@ -27,7 +37,7 @@ export function validateName(value: string): string | null {
   if (trimmed.length === 0) {
     return 'auth.errors.required';
   }
-  if (trimmed.length > 50) {
+  if (trimmed.length > PERSON_NAME_MAX) {
     return 'auth.errors.nameMax';
   }
   if (!NAME_PATTERN.test(trimmed)) {
@@ -41,18 +51,22 @@ export function validateCompanyName(value: string): string | null {
   if (trimmed.length === 0) {
     return 'auth.errors.required';
   }
-  if (trimmed.length < 2) {
+  if (trimmed.length < COMPANY_NAME_MIN) {
     return 'auth.errors.companyNameMin';
   }
-  if (trimmed.length > 100) {
+  if (trimmed.length > COMPANY_NAME_MAX) {
     return 'auth.errors.companyNameMax';
   }
   return null;
 }
 
 export function validateBusinessType(value: string): string | null {
-  if (value.trim().length === 0) {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
     return 'auth.errors.required';
+  }
+  if (trimmed.length > BUSINESS_TYPE_MAX) {
+    return 'auth.errors.businessTypeMax';
   }
   return null;
 }
@@ -62,7 +76,7 @@ export function validateEmail(value: string): string | null {
   if (trimmed.length === 0) {
     return 'auth.errors.required';
   }
-  if (!EMAIL_PATTERN.test(trimmed) || trimmed.length > 254) {
+  if (!EMAIL_PATTERN.test(trimmed) || trimmed.length > EMAIL_MAX) {
     return 'auth.errors.emailInvalid';
   }
   return null;
@@ -72,8 +86,13 @@ export function validatePassword(value: string): string | null {
   if (value.length === 0) {
     return 'auth.errors.required';
   }
-  if (value.length < 8) {
+  if (value.length < PASSWORD_MIN) {
     return 'auth.errors.passwordMin';
+  }
+  // bcrypt ignores everything after 72 bytes, so this counts UTF-8 bytes, as
+  // the API does: 72 ASCII characters fit, but only 36 accented ones.
+  if (utf8ByteLength(value) > PASSWORD_MAX_BYTES) {
+    return 'auth.errors.passwordMax';
   }
   if (/[a-zA-Z]/.test(value) === false) {
     return 'auth.errors.passwordLetter';
@@ -91,7 +110,7 @@ export interface PasswordStrength {
 
 export function passwordStrength(value: string): PasswordStrength {
   const checks = [
-    value.length >= 8,
+    value.length >= PASSWORD_MIN,
     /[a-zA-Z]/.test(value),
     /[0-9]/.test(value),
     /(?=[A-Z])|(?=[^a-zA-Z0-9])/.test(value),

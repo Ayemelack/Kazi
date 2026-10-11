@@ -287,10 +287,20 @@ Rules for every fix:
 - **Problem:** the app doesn't enforce password max length (server counts bytes for bcrypt's 72),
   business-type max 60, or the date window (2000-01-01 to one year ahead); the date picker allows
   years 1000–9999.
-- **Fix:** `src/config/limits.ts` and `server/src/validation/limits.ts` hold every limit; a Jest
-  test reads the server file and fails on any difference. Password max is checked as UTF-8 bytes on
-  both sides. Date picker min/max come from the limits.
-- **Acceptance:** [ ] Parity test passes and fails when a limit is changed on one side only.
+- **Fix (revised 2026-10-11, session 2):** one file, `shared/src/limits.ts` (plus the date window
+  in `shared/src/date.ts` and `MONEY_MAX` in `shared/src/money.ts`), imported by the server's zod
+  schemas and the app's validators alike — so there is no second copy that could differ, and the
+  originally planned parity test (comparing two constants files) has nothing to compare. Instead,
+  each side has a boundary test per limit (`server/src/validation/limits.test.ts`,
+  `__tests__/limits.boundary.test.ts`): the value at the shared constant passes and one past it
+  fails, so a validator that stops using the constant, or a literal that drifts from it, fails its
+  side's test. Fields limited only by a `TextInput` `maxLength` are covered by a test that fails on
+  any literal `maxLength={<number>}` in `src/`. Password max is checked as UTF-8 bytes on both
+  sides (tested with 2- and 4-byte characters). The date picker's min/max come from the shared
+  window and the app validators reject dates outside it.
+- **Acceptance:** [x] Every limit both sides enforce comes from `@kazi/shared`; a boundary test
+  per limit on each side fails when a validator stops using the shared constant (shown: the
+  pre-change password validators fail 3 tests on each side).
 
 ### KZ-17
 **Offline start with no cached profile**

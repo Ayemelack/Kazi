@@ -3,3 +3,5 @@
 // both the app (Hermes) and the API (Node) import it.
 export { CURRENCY_CODE } from './currency.js';
 export { MONEY_MAX, MONEY_SEPARATOR, formatMoney, parseMoneyInput } from './money.js';
+export * from './limits.js';
+export * from './date.js';

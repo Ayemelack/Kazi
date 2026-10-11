@@ -1,12 +1,14 @@
 import { z } from 'zod';
-
-const EMAIL_MAX = 254;
-const NAME_MIN = 1;
-const NAME_MAX = 50;
-const COMPANY_NAME_MIN = 2;
-const COMPANY_NAME_MAX = 100;
-const PASSWORD_MIN = 8;
-const PASSWORD_MAX = 72;
+import {
+  BUSINESS_TYPE_MAX,
+  COMPANY_NAME_MAX,
+  COMPANY_NAME_MIN,
+  EMAIL_MAX,
+  PASSWORD_MAX_BYTES,
+  PASSWORD_MIN,
+  PERSON_NAME_MAX,
+  utf8ByteLength,
+} from '@kazi/shared';
 
 // Letters (including accented letters used in French), spaces, hyphens and
 // apostrophes. Digits and symbols are rejected so names cannot hide numbers.
@@ -22,8 +24,8 @@ const trimmedString = (min: number, max: number) =>
 const nameSchema = z
   .string()
   .trim()
-  .min(NAME_MIN, 'Name is required.')
-  .max(NAME_MAX, `Name must be at most ${NAME_MAX} characters.`)
+  .min(1, 'Name is required.')
+  .max(PERSON_NAME_MAX, `Name must be at most ${PERSON_NAME_MAX} characters.`)
   .regex(NAME_PATTERN, 'Names can only contain letters, spaces, hyphens and apostrophes.');
 
 const emailSchema = z
@@ -34,18 +36,23 @@ const emailSchema = z
   .email('Enter a valid email address.')
   .transform(value => value.toLowerCase());
 
+// bcrypt ignores everything after 72 bytes, so the limit is UTF-8 bytes, not
+// characters: 72 ASCII characters fit, but only 36 accented ones.
 const passwordSchema = z
   .string()
   .min(PASSWORD_MIN, `Password must be at least ${PASSWORD_MIN} characters.`)
-  .max(PASSWORD_MAX, `Password is too long (max ${PASSWORD_MAX} characters).`)
   .regex(/[a-zA-Z]/, 'Password must contain at least one letter.')
-  .regex(/[0-9]/, 'Password must contain at least one number.');
+  .regex(/[0-9]/, 'Password must contain at least one number.')
+  .refine(
+    value => utf8ByteLength(value) <= PASSWORD_MAX_BYTES,
+    `Password is too long (max ${PASSWORD_MAX_BYTES} bytes).`,
+  );
 
 export const businessTypeSchema = z
   .string()
   .trim()
   .min(1, 'Business type is required.')
-  .max(60, 'Business type is too long.');
+  .max(BUSINESS_TYPE_MAX, 'Business type is too long.');
 
 export const signupSchema = z.object({
   firstName: nameSchema,

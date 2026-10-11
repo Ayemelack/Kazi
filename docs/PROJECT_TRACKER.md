@@ -7,7 +7,7 @@ respect are in [SECURITY.md](SECURITY.md) and [PERFORMANCE.md](PERFORMANCE.md). 
 executed in 15 agent sessions; their prompts, the standing rules and the owner decisions are in
 **[prompt.md](prompt.md)** (see [Execution plan](#execution-plan)).
 
-**Last updated:** 2026-10-11 · **Overall progress:** 5 / 38 tasks done (13%)
+**Last updated:** 2026-10-11 · **Overall progress:** 6 / 38 tasks done (16%)
 
 ---
 
@@ -39,12 +39,13 @@ A task is only **Done** when it meets the Definition of Done in [TESTING_QA.md](
 
 | Phase | Goal | Tasks | Done | Progress |
 |---|---|---|---|---|
+| 2026-10-11 | KZ-16 | `shared/src/limits.ts` holds every limit both sides enforce (person name 50, company name 2–100, business type 60, email 254, password 8 chars min / 72 UTF-8 bytes max + `utf8ByteLength`, item name 2–100, notes 500, stock reason 200, quantity and low-stock threshold 1e9, transaction description 200, debt name 100 / note 200, feedback 1000, client-op-id 8–64, history page 30 / API default 50 / max 200 / offset 1e6); `shared/src/date.ts` holds the business-date window (2000-01-01 to today + 365) and the date helpers moved from `server/src/validation/date.ts`. Server zod schemas (auth, items, transactions, debts, feedback, activity, dates) and app validators import them; password max is now bytes on the server (was 72 characters) and enforced on the app (was missing); the app now enforces business type 60 and the date window (new keys `auth.errors.businessTypeMax`, `auth.errors.passwordMax`, `transactions.errors.dateOutOfRange`, `debts.errors.dateOutOfRange` in en, fr, pid). Date picker: window from the shared constants (was years 1000–9999), out-of-window days and months disabled, opens on today when the value is outside the window. Every `maxLength` names a shared constant; History asks for `HISTORY_PAGE_SIZE`. Spec revised: one shared source makes the planned two-file parity test meaningless, so each side has a boundary test per limit, plus a guard against literal `maxLength` (plain JS test, because the app's type program has no Node types) | `server/src/validation/limits.test.ts` 29 boundary tests (incl. 2- and 4-byte passwords); `__tests__/limits.boundary.test.ts` 20 + `limits.maxlength.test.js` 2; shared `limits.test.ts` 13 (`utf8ByteLength` agrees with `Buffer.byteLength`, inclusive window, leap years). Pre-change auth validators fail 3 tests on each side (app: business type, ASCII and multi-byte password max; server: 2-byte, 4-byte and 37-character password). Root `npm run check` exit 0: shared 78/78, app tsc + eslint clean, Jest 15 suites 145/145, server 209/209 + build. Session 2 complete | this commit |
 | 2026-10-11 | KZ-25 | Migration `0002_integer_money`: rebuilds `items`, `transactions`, `debts`, `activity` with `INTEGER` money columns and `typeof(x) = 'integer'` CHECKs (plus `price >= 0`, `amount > 0`; activity amount nullable); copies with `ROUND()` (half away from zero; a positive amount under 0.5 becomes 1 so `amount > 0` holds); recreates every index and trigger from its own SQL, keeps FKs and `sqlite_sequence`; renames with `legacy_alter_table = ON` (without it SQLite rewrote `stock_movements`/`transactions` REFERENCES to the dropped `items_legacy` — measured); logs one warning with per-table counts of rounded rows, never values. `src/items/format.ts`, `src/money/format.ts` and their test deleted; Home, History, AddMoney, Debts and Products (prices) all use `formatMoney` from `@kazi/shared`. Admin dashboard: `app.js` is now an ES module importing `formatMoney` from `/shared/index.js` (the built package, served read-only) for Money in/out, Capital, Net flow, chart volume and activity amounts; counts still use `num()`. Migration tests no longer hardcode "baseline is last". Intended test change: screen tests now expect U+202F; NNBSP literals written as `\u202f` escapes (the KZ-04 commit had invisible U+202F characters in tests and `MONEY_SEPARATOR`; same value) | New `0002_integer_money.test.ts` (3): fresh DB (INTEGER types; 12.5, 0, -1 rejected by CHECK), DB with fractions (7 rounded, counts-only warning, rows/indexes/FKs/sequence kept, CASCADE and SET NULL still act, no `_legacy` left), upgraded schema == fresh. With `legacy_alter_table` forced OFF, 2 of 3 fail. Root `npm run check` exit 0: shared 65/65, app tsc + eslint clean, Jest 13 suites 123/123, server 180/180 + build. Manual: real file DB applied `1_baseline`, `2_integer_money`; admin (`ADMIN_TLS=off`) served `/`, `/app.js`, `/shared/index.js`, `/shared/money.js` 200 `application/javascript`, `/shared/nope.js` 404, `<script type="module">`; `/api/stats` totals 1234567 / 1000 formatted by the served module as `1 234 567 FCFA` / `1 000 FCFA` | this commit |
 | **P0** | Production blockers — the app cannot ship without these | 9 | 1 | 11% |
-| **P1** | Correctness, security and data integrity | 10 | 0 | 0% |
+| **P1** | Correctness, security and data integrity | 10 | 1 | 10% |
 | **P2** | Hardening and performance | 16 | 3 | 19% |
 | **P3** | Documentation, hygiene and CI | 3 | 1 | 33% |
-| **Total** | | **38** | **5** | **13%** |
+| **Total** | | **38** | **6** | **16%** |
 
 Work the phases in order. Inside a phase, tasks can run in parallel unless the board says otherwise.
 
@@ -77,7 +78,7 @@ resume prompt at the end of that file.
 | # | Session | Tasks | Tracker phase | Status |
 |---|---|---|---|---|
 | 1 | Foundation and project structure | Structure (shared/, migrations, root scripts), KZ-30, KZ-37, KZ-38 (+ KZ-26, folded into the baseline migration) | Setup | ✅ Done — KZ-38 🟨 Blocked on owner (push + branch protection) |
-| 2 | Shared contracts: money and validation | KZ-04, KZ-16, KZ-25 | P0 / P1 / P2 | 🟦 In progress |
+| 2 | Shared contracts: money and validation | KZ-04, KZ-16, KZ-25 | P0 / P1 / P2 | ✅ Done |
 | 3 | Connectivity, errors and language | KZ-01, KZ-12, KZ-22, KZ-24 | P0 / P1 / P2 | ⬜ |
 | 4 | Authentication hardening | KZ-05, KZ-29, KZ-21, KZ-20 | P0 / P2 | ⬜ |
 | 5 | Password reset | KZ-06 | P0 | ⬜ |
@@ -120,7 +121,7 @@ resume prompt at the end of that file.
 | KZ-13 | Logout does not end the session; 30-day tokens; mid-session 401 not handled | Medium | API / App / Security | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-13) |
 | KZ-14 | Item list ships every photo (up to 2 MB each) on every load | Medium | API / App / Perf | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-14) |
 | KZ-15 | iPhone HEIC photos rejected; image bytes never checked | Medium | App / API / Security | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-15) |
-| KZ-16 | App and server validation rules drift apart | Medium | App / API | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-16) |
+| KZ-16 | App and server validation rules drift apart | Medium | App / API | ✅ Done | [→](REMEDIATION_PLAN.md#kz-16) |
 | KZ-17 | Offline start with no cached profile shows the business-setup screen | Medium | App | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-17) |
 | KZ-18 | Admin dashboard has no start script; build omits its web files | Medium | API / Admin | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-18) |
 | KZ-19 | Vulnerable dependencies (1 critical + 2 high on server; 1 critical on app tooling) | Medium | Deps / Security | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-19) |

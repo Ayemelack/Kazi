@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import {
+  FEEDBACK_TEXT_MAX,
+} from '@kazi/shared';
 import { strictNumber } from '../validation/number.js';
 
 export const feedbackRatingSchema = strictNumber(
@@ -8,7 +11,7 @@ export const feedbackRatingSchema = strictNumber(
 export const feedbackTextSchema = z
   .string()
   .trim()
-  .max(1000, 'Feedback must be at most 1000 characters.')
+  .max(FEEDBACK_TEXT_MAX, `Feedback must be at most ${FEEDBACK_TEXT_MAX} characters.`)
   .optional()
   .transform(value => (value === '' ? undefined : value));
 

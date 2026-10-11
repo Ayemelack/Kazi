@@ -464,4 +464,10 @@ exports used only inside their own module, such as prop types, are allowed).
 **CI pipeline** — GitHub Actions (or equivalent) on every push and PR: app `tsc`, lint, Jest;
 server typecheck, tests, build; `npm audit --omit=dev --audit-level=high` on both; Android
 `assembleRelease` on main. See [TESTING_QA.md](TESTING_QA.md#ci-pipeline).
-Acceptance: [ ] a failing test blocks merge.
+_Session 1:_ `.github/workflows/ci.yml` added (jobs per TESTING_QA.md "CI pipeline"; the audit
+job is non-blocking until KZ-19 in session 6; `android-release` / `ios-build` are manual
+placeholders for session 9). Each job's commands pass locally via `npm run check`, and a failing
+Jest test makes `npx jest --ci` exit non-zero, which fails the job.
+Acceptance: [ ] a failing test blocks merge — **blocked on owner actions:** push the branch so the
+workflow runs on GitHub, then enable branch protection on `main` requiring the `app` and `server`
+checks (TESTING_QA.md "CI pipeline").

@@ -1,0 +1,139 @@
+# Kazi CI (KZ-38). Jobs and steps follow docs/TESTING_QA.md "CI pipeline".
+# Every job installs with `npm ci` from the committed lockfiles. shared/ is
+# installed first in every job: its `prepare` script builds shared/dist, which
+# the app and the server consume through `file:` links.
+name: CI
+
+on:
+  push:
+  pull_request:
+  schedule:
+    # Weekly, so new advisories surface even when nobody pushes.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  app:
+    name: App (typecheck, lint, Jest)
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            shared/package-lock.json
+      - name: Install shared (builds shared/dist)
+        run: npm ci
+        working-directory: shared
+      - name: Install app
+        run: npm ci
+      - name: Restore Jest transform cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/jest-cache
+          key: jest-${{ runner.os }}-${{ hashFiles('package-lock.json', 'babel.config.js', 'jest.config.js') }}
+          restore-keys: jest-${{ runner.os }}-
+      - name: Shared checks
+        run: npm run check
+        working-directory: shared
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Lint
+        run: npm run lint
+      - name: Jest
+        run: npx jest --ci --maxWorkers=50% --cacheDirectory="${{ runner.temp }}/jest-cache"
+
+  server:
+    name: Server (typecheck, tests, build)
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            server/package-lock.json
+            shared/package-lock.json
+      - name: Install shared (builds shared/dist)
+        run: npm ci
+        working-directory: shared
+      - name: Install server
+        run: npm ci
+        working-directory: server
+      - name: Typecheck
+        run: npm run typecheck
+        working-directory: server
+      - name: Tests
+        run: npm test
+        working-directory: server
+      - name: Build
+        run: npm run build
+        working-directory: server
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Non-blocking until session 6 (KZ-19): known critical/high advisories in
+    # the server (proxy-addr via express, @grpc/grpc-js, brace-expansion) and
+    # app tooling (shell-quote, braces, image-size) are fixed or documented
+    # there, after which this job becomes blocking at --audit-level=high.
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: ['.', 'server', 'shared']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: npm audit (${{ matrix.dir }})
+        run: npm audit --omit=dev --audit-level=high
+        working-directory: ${{ matrix.dir }}
+
+  # ---- Placeholders, completed in session 9 (KZ-09 / KZ-33) ----------------
+  # Manual only until the signing secrets and the production API URL exist.
+
+  android-release:
+    name: Android release bundle (placeholder)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Not configured yet
+        run: |
+          echo "android-release is a placeholder. Session 9 (KZ-09) adds the upload-keystore"
+          echo "secrets, KAZI_API_URL and ./gradlew bundleRelease."
+
+  ios-build:
+    name: iOS archive (placeholder)
+    if: github.event_name == 'workflow_dispatch'
+    # Session 9 switches this to macos-latest; an echo needs no macOS minutes.
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Not configured yet
+        run: |
+          echo "ios-build is a placeholder. Session 9 adds pod install and xcodebuild archive"
+          echo "once Firebase (KZ-02) and Apple signing are set up."

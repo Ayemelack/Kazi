@@ -148,14 +148,16 @@ Run on one low-end Android phone, one recent Android phone and one iPhone, in En
 
 ## CI pipeline
 
-To be added under `.github/workflows/ci.yml` (KZ-38). Every job runs `npm ci` with the lockfile.
+`.github/workflows/ci.yml` (KZ-38). Every job runs `npm ci` with the lockfile, installing
+`shared/` first (its `prepare` builds `shared/dist`). Node 22.
 
 | Job | Trigger | Steps |
 |---|---|---|
-| `app` | push, PR | `npx tsc --noEmit` · `npm run lint` · `npx jest --ci --maxWorkers=50%` |
-| `server` | push, PR | `npm run typecheck` · `npm test` · `npm run build` |
-| `audit` | push, PR, weekly | `npm audit --omit=dev --audit-level=high` in root and `server/` |
-| `android-release` | push to `main`, tags | `./gradlew bundleRelease` with signing secrets (KZ-09) |
-| `ios-build` | tags (macOS runner) | `pod install` · `xcodebuild archive` |
+| `app` | push, PR, manual | `shared`: `npm run check` · `npx tsc --noEmit` · `npm run lint` · `npx jest --ci --maxWorkers=50%` with the Jest transform cache restored from `actions/cache` |
+| `server` | push, PR, manual | `npm run typecheck` · `npm test` · `npm run build` |
+| `audit` | push, PR, weekly, manual | `npm audit --omit=dev --audit-level=high` in root, `server/` and `shared/`. **Non-blocking (`continue-on-error`) until session 6 (KZ-19)** fixes or documents the known advisories; then it becomes blocking |
+| `android-release` | manual only (placeholder) | Session 9 (KZ-09/KZ-33): `./gradlew bundleRelease` with signing secrets and `KAZI_API_URL` |
+| `ios-build` | manual only (placeholder) | Session 9: macOS runner, `pod install` · `xcodebuild archive` |
 
-Branch protection on `main`: all jobs green and one review before merge.
+Branch protection on `main` (owner action in GitHub → Settings → Branches): require the `app`,
+`server` and (after session 6) `audit` checks to pass, and one review, before merge.

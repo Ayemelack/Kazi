@@ -6,12 +6,8 @@ import { z } from 'zod';
 // schema in this API goes through this guard first: only JSON numbers and
 // plain decimal strings (form-encoded and query values) survive, everything
 // else becomes NaN so the wrapped zod schema rejects it with its own message.
+// Money is stricter still (whole FCFA only): see money.ts.
 const DECIMAL = /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?$/;
-
-// Shared with the money schema so both accept exactly the same string forms.
-export function isDecimalString(value: string): boolean {
-  return DECIMAL.test(value);
-}
 
 export function strictNumber<T extends z.ZodNumber>(
   base: T,

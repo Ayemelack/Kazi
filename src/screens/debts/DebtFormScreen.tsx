@@ -9,7 +9,9 @@ import DatePickerField from '../../components/ui/DatePickerField';
 import TextField from '../../components/ui/TextField';
 import Button from '../../components/ui/Button';
 import { useToast } from '../../components/ui/Toast';
+import { parseMoneyInput } from '@kazi/shared';
 import { createDebt } from '../../offline/api';
+import { MONEY_INPUT_MAX_LENGTH, moneyPreview } from '../../money/input';
 import {
   hasErrors,
   todayInput,
@@ -34,8 +36,7 @@ function DebtFormScreen({ navigation }: ScreenProps) {
 
   const submit = async () => {
     if (submitting) return;
-    const numericAmount = Number(amount.replace(',', '.'));
-    const validationErrors = validateDebt({ name, amount: numericAmount, date, note });
+    const validationErrors = validateDebt({ name, amount, date, note });
     if (hasErrors(validationErrors)) {
       setErrors(validationErrors);
       return;
@@ -44,7 +45,12 @@ function DebtFormScreen({ navigation }: ScreenProps) {
     setFormError(null);
     setSubmitting(true);
     try {
-      await createDebt({ name: name.trim(), amount: numericAmount, date: date.trim(), note: note.trim() || undefined });
+      await createDebt({
+        name: name.trim(),
+        amount: parseMoneyInput(amount) ?? 0,
+        date: date.trim(),
+        note: note.trim() || undefined,
+      });
       toast.show('success', t('debts.created'));
       navigation.goBack();
     } catch (err) {
@@ -54,9 +60,7 @@ function DebtFormScreen({ navigation }: ScreenProps) {
     }
   };
 
-  const canSubmit = !hasErrors(
-    validateDebt({ name, amount: Number(amount.replace(',', '.')), date, note }),
-  );
+  const canSubmit = !hasErrors(validateDebt({ name, amount, date, note }));
 
   return (
     <Screen>
@@ -75,10 +79,12 @@ function DebtFormScreen({ navigation }: ScreenProps) {
         <TextField
           testID="debt-amount"
           label={t('debts.amountLabel')}
-          keyboardType="numeric"
+          keyboardType="decimal-pad"
           value={amount}
           onChangeText={setAmount}
           error={errors.amount ? t(errors.amount) : undefined}
+          hint={moneyPreview(amount)}
+          maxLength={MONEY_INPUT_MAX_LENGTH}
           placeholder="0"
         />
         <DatePickerField

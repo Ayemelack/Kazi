@@ -84,22 +84,24 @@ Rules for every fix:
   (`src/items/validation.ts`) and `DebtFormScreen` replace the first `,` with `.`, so `"1,000"` and
   `"1.000"` both become `1`. The debt form also rejects `"1 000"` while the sale form accepts it.
 - **Fix:** FCFA has no minor unit, so money is a whole number (ADR A6).
-  1. One shared parser `src/money/parse.ts → parseMoneyInput(text): number | null`:
+  1. One shared parser `shared/src/money.ts → parseMoneyInput(text): number | null` (in
+     `@kazi/shared`, so the app and the API's tests use the same code — ADR A10):
      trim; remove spaces and non-breaking spaces; accept `,` or `.` **only** as thousands
      separators in groups of three (`1,000`, `1.000.000`); reject anything else (`1,5`, `12.34`,
-     `0x10`, `1e5`); return an integer.
+     `0x10`, `1e5`, signs, mixed separators like `1,000.000`); return an integer.
   2. Use it in the sale, expense, capital, debt and product forms; delete the three local parsers.
   3. Server: `moneyAmountSchema` and item `price` require integers.
   4. Show the parsed value under the field as the user types ("= 1 000 FCFA") so they can see what
      will be saved.
-- **Files:** `src/money/parse.ts` (new), `src/transactions/validation.ts`, `src/items/validation.ts`,
+- **Files:** `shared/src/money.ts` (new: `parseMoneyInput`, `formatMoney`, `MONEY_MAX`),
+  `src/money/input.ts` (new: live preview), `src/transactions/validation.ts`, `src/items/validation.ts`,
   `src/debts/validation.ts`, `src/screens/**/{TransactionForm,AddMoney,DebtForm,ProductForm}Screen.tsx`,
   `server/src/validation/money.ts`, `server/src/items/validation.ts`.
 - **Acceptance:**
-  - [ ] `1,000`, `1.000`, `1 000`, `1000` → 1000. `1,000,000` and `1.000.000` → 1000000.
-  - [ ] `1,5`, `12.34`, `0x10`, `1e3`, `-5`, `` → rejected with a translated message.
-  - [ ] API rejects `amount: 12.5` with `VALIDATION_ERROR`.
-  - [ ] Table-driven unit tests for the parser on both sides.
+  - [x] `1,000`, `1.000`, `1 000`, `1000` → 1000. `1,000,000` and `1.000.000` → 1000000.
+  - [x] `1,5`, `12.34`, `0x10`, `1e3`, `-5`, `` → rejected with a translated message.
+  - [x] API rejects `amount: 12.5` with `VALIDATION_ERROR`.
+  - [x] Table-driven unit tests for the parser on both sides.
 
 ### KZ-05
 **Password-uniqueness rule reveals which passwords are in use**

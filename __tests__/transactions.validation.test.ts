@@ -1,6 +1,5 @@
 import {
   hasTransactionErrors,
-  parseAmount,
   todayAsDateString,
   validateTransactionAmount,
   validateTransactionDate,
@@ -9,30 +8,19 @@ import {
 } from '../src/transactions/validation';
 
 describe('transaction validation', () => {
-  describe('parseAmount', () => {
-    it('parses an integer', () => {
-      expect(parseAmount('3500')).toBe(3500);
-    });
-
-    it('parses a comma decimal', () => {
-      expect(parseAmount('1 500,5')).toBe(1500.5);
-    });
-
-    it('returns null for empty or garbage input', () => {
-      expect(parseAmount('')).toBeNull();
-      expect(parseAmount('abc')).toBeNull();
-    });
-  });
-
   describe('validateTransactionAmount', () => {
     it('accepts a positive amount', () => {
       expect(validateTransactionAmount('3500')).toBeNull();
     });
 
-    it('rejects empty, zero, and negative amounts', () => {
+    it('rejects empty and zero amounts', () => {
       expect(validateTransactionAmount('')).toBe('transactions.errors.amountRequired');
       expect(validateTransactionAmount('0')).toBe('transactions.errors.amountPositive');
-      expect(validateTransactionAmount('-5')).toBe('transactions.errors.amountPositive');
+    });
+
+    it('rejects a sign or a decimal as an invalid whole amount', () => {
+      expect(validateTransactionAmount('-5')).toBe('transactions.errors.amountInvalid');
+      expect(validateTransactionAmount('1 500,5')).toBe('transactions.errors.amountInvalid');
     });
 
     it('rejects garbage', () => {

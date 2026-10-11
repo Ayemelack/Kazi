@@ -292,8 +292,12 @@ Rules for new migrations:
 ### 7.2 Money
 
 - Currency is FCFA (XAF), which has no minor unit.
-- **Target (KZ-04, KZ-25):** amounts are whole numbers end to end: one shared input parser on the
-  app, integer validation on the API, `INTEGER` columns in SQLite, one formatter (`1 000 FCFA`).
+- **Input (KZ-04, done):** every money field (sale, expense, capital, debt, product price) reads
+  text with `parseMoneyInput` from `@kazi/shared`: spaces ignored, `,` or `.` only as thousands
+  separators in groups of three, anything else rejected. The parsed value is shown under the field
+  as the user types (`= 1 000 FCFA`). The API accepts only a JSON integer or a digit string
+  (`moneyAmountSchema`, `priceSchema`), at most `MONEY_MAX`.
+- **Target (KZ-25):** `INTEGER` columns in SQLite, one formatter (`1 000 FCFA`).
 
 ### 7.3 Internationalisation
 

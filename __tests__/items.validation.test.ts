@@ -1,6 +1,5 @@
 import {
   hasItemErrors,
-  parsePrice,
   parseWholeNumber,
   validateItemForm,
   validateItemName,
@@ -24,28 +23,6 @@ describe('item validation', () => {
     });
   });
 
-  describe('parsePrice', () => {
-    it('parses an integer', () => {
-      expect(parsePrice('2500')).toBe(2500);
-    });
-
-    it('parses a decimal', () => {
-      expect(parsePrice('2500.5')).toBe(2500.5);
-    });
-
-    it('parses a comma decimal', () => {
-      expect(parsePrice('2500,5')).toBe(2500.5);
-    });
-
-    it('returns null for empty input', () => {
-      expect(parsePrice('')).toBeNull();
-    });
-
-    it('returns null for garbage', () => {
-      expect(parsePrice('abc')).toBeNull();
-    });
-  });
-
   describe('validateItemPrice', () => {
     it('accepts zero', () => {
       expect(validateItemPrice('0')).toBeNull();
@@ -59,8 +36,9 @@ describe('item validation', () => {
       expect(validateItemPrice('abc')).toBe('products.errors.priceInvalid');
     });
 
-    it('rejects negative prices', () => {
-      expect(validateItemPrice('-5')).toBe('products.errors.priceNegative');
+    it('rejects negative and fractional prices as invalid', () => {
+      expect(validateItemPrice('-5')).toBe('products.errors.priceInvalid');
+      expect(validateItemPrice('2500.5')).toBe('products.errors.priceInvalid');
     });
   });
 

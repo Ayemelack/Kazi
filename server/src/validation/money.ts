@@ -1,44 +1,60 @@
 import { z } from 'zod';
-import { isDecimalString } from './number.js';
+import { MONEY_MAX } from '@kazi/shared';
 
-// Coercion alone is not a validator: z.coerce.number() happily turns `true`
-// into 1, `[800]` into 800 and "0x10" into 16. Only JSON numbers and plain
-// decimal strings (form-encoded bodies) are accepted, and the value must
-// survive Number() as a real finite number before it is treated as money.
-export const moneyAmountSchema = z
-  .unknown()
-  .refine(
-    (value): value is number | string =>
-      typeof value === 'number' || typeof value === 'string',
-    { message: 'Amount must be a number.' },
-  )
-  .transform((value, ctx) => {
-    const isText = typeof value === 'string';
-    const text = isText ? value.trim() : '';
-    const numeric = isText ? Number(text) : value;
+// Money is whole FCFA (ADR A6), so only two forms are accepted: a JSON integer,
+// or a string of plain digits (form-encoded bodies). Like strictNumber, this
+// never coerces: `true`, `[800]`, "0x10", "1e3", "12.5" and "1,000" are all
+// rejected instead of being turned into some other number. Thousands
+// separators are the app's job (parseMoneyInput); the API only sees integers.
+const DIGITS = /^\d+$/;
 
-    if (!Number.isFinite(numeric) || (isText && (!text || !isDecimalString(text)))) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Amount must be a number.',
-      });
-      return z.NEVER;
-    }
-    if (numeric <= 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Amount must be greater than 0.',
-      });
-      return z.NEVER;
-    }
-    if (numeric > 1e12) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Amount is too large.',
-      });
-      return z.NEVER;
-    }
-    return numeric;
-  });
+interface WholeMoneyOptions {
+  min: 0 | 1;
+  label: string;
+  minMessage: string;
+}
+
+function wholeMoneySchema({ min, label, minMessage }: WholeMoneyOptions) {
+  const invalid = `${label} must be a whole number of FCFA.`;
+  return z
+    .unknown()
+    .refine(
+      (value): value is number | string =>
+        typeof value === 'number' || typeof value === 'string',
+      { message: invalid },
+    )
+    .transform((value, ctx) => {
+      const text = typeof value === 'string' ? value.trim() : '';
+      const numeric = typeof value === 'number' ? value : DIGITS.test(text) ? Number(text) : NaN;
+
+      if (!Number.isSafeInteger(numeric)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: invalid });
+        return z.NEVER;
+      }
+      if (numeric < min) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: minMessage });
+        return z.NEVER;
+      }
+      if (numeric > MONEY_MAX) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `${label} is too large.` });
+        return z.NEVER;
+      }
+      return numeric;
+    });
+}
+
+/** A transaction or debt amount: whole FCFA, at least 1. */
+export const moneyAmountSchema = wholeMoneySchema({
+  min: 1,
+  label: 'Amount',
+  minMessage: 'Amount must be greater than 0.',
+});
+
+/** An item price: whole FCFA, 0 allowed (free or unknown). */
+export const priceSchema = wholeMoneySchema({
+  min: 0,
+  label: 'Price',
+  minMessage: 'Price cannot be negative.',
+});
 
 export type MoneyAmountInput = z.infer<typeof moneyAmountSchema>;

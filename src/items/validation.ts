@@ -1,3 +1,4 @@
+import { MONEY_MAX, parseMoneyInput } from '@kazi/shared';
 import type { ItemType } from './types';
 
 export interface ItemFormInput {
@@ -12,7 +13,6 @@ export interface ItemFormInput {
 export type ItemFormField = 'name' | 'price' | 'lowStockThreshold';
 export type ItemFormErrors = Partial<Record<ItemFormField, string>>;
 
-const PRICE_MAX = 1e12;
 const THRESHOLD_MAX = 1e9;
 
 export function validateStockQuantity(value: string): string | null {
@@ -71,31 +71,18 @@ export function validateItemName(value: string): string | null {
   return null;
 }
 
-export function parsePrice(value: string): number | null {
-  const normalized = value.trim().replace(/\s/g, '').replace(',', '.');
-  if (normalized.length === 0) {
-    return null;
-  }
-  const number = Number(normalized);
-  if (!Number.isFinite(number)) {
-    return null;
-  }
-  return number;
-}
-
+// Whole FCFA only, read by the same parser as every other money field. A sign
+// is not a valid character, so a negative price is simply an invalid one.
 export function validateItemPrice(value: string): string | null {
   const trimmed = value.trim();
   if (trimmed.length === 0) {
     return 'products.errors.priceRequired';
   }
-  const number = parsePrice(trimmed);
+  const number = parseMoneyInput(trimmed);
   if (number === null) {
     return 'products.errors.priceInvalid';
   }
-  if (number < 0) {
-    return 'products.errors.priceNegative';
-  }
-  if (number > PRICE_MAX) {
+  if (number > MONEY_MAX) {
     return 'products.errors.priceTooLarge';
   }
   return null;

@@ -1,3 +1,4 @@
+import { MONEY_MAX, parseMoneyInput } from '@kazi/shared';
 import type { TransactionType } from './types';
 
 export interface TransactionFormInput {
@@ -11,34 +12,23 @@ export interface TransactionFormInput {
 export type TransactionFormField = 'amount' | 'date' | 'quantity' | 'description';
 export type TransactionFormErrors = Partial<Record<TransactionFormField, string>>;
 
-const AMOUNT_MAX = 1e12;
 const QUANTITY_MAX = 1e9;
 
-export function parseAmount(value: string): number | null {
-  const normalized = value.trim().replace(/\s/g, '').replace(',', '.');
-  if (normalized.length === 0) {
-    return null;
-  }
-  const number = Number(normalized);
-  if (!Number.isFinite(number)) {
-    return null;
-  }
-  return number;
-}
-
+// Whole FCFA only: "1,000", "1.000" and "1 000" are all one thousand, while
+// "1,5" or "12.34" are rejected instead of being saved as 1 or 12 (KZ-04).
 export function validateTransactionAmount(value: string): string | null {
   const trimmed = value.trim();
   if (trimmed.length === 0) {
     return 'transactions.errors.amountRequired';
   }
-  const number = parseAmount(trimmed);
+  const number = parseMoneyInput(trimmed);
   if (number === null) {
     return 'transactions.errors.amountInvalid';
   }
   if (number <= 0) {
     return 'transactions.errors.amountPositive';
   }
-  if (number > AMOUNT_MAX) {
+  if (number > MONEY_MAX) {
     return 'transactions.errors.amountTooLarge';
   }
   return null;

@@ -143,6 +143,38 @@ describe('AddMoneyScreen capital persistence and display', () => {
     });
   });
 
+  it.each(['1,000', '1.000', '1 000'])(
+    'saves %j as 1000 FCFA and previews it while typing (KZ-04)',
+    async text => {
+      const { renderer } = renderScreen();
+      await flush();
+
+      await typeAmount(renderer, text);
+      const field = renderer.root.findAll(
+        node => node.props.hint !== undefined && node.props.testID === 'add-money-amount',
+      )[0];
+      expect(field?.props.hint).toBe('= 1 000 FCFA');
+
+      await save(renderer);
+      expect((createTransaction as jest.Mock).mock.calls[0][0]).toMatchObject({
+        type: 'capital',
+        amount: 1000,
+      });
+    },
+  );
+
+  it('refuses a decimal amount instead of saving it as 1 FCFA (KZ-04)', async () => {
+    const { renderer } = renderScreen();
+    await flush();
+
+    await typeAmount(renderer, '1,5');
+    await save(renderer);
+
+    expect(createTransaction).not.toHaveBeenCalled();
+    const texts = renderer.root.findAllByType(Text).map(node => node.props.children);
+    expect(texts).toContain('Enter a whole amount in FCFA, like 1000 or 1 000.');
+  });
+
   it('creates a new capital deposit without mutating the previously recorded capital', async () => {
     const { renderer } = renderScreen();
     await flush();

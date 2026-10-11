@@ -1,7 +1,15 @@
-import type { DebtInput } from './types';
+import { MONEY_MAX, parseMoneyInput } from '@kazi/shared';
 
 export type DebtField = 'name' | 'amount' | 'note' | 'date';
 export type DebtFieldErrors = Partial<Record<DebtField, string>>;
+
+// What the form holds: the amount is still the text the user typed.
+export interface DebtFormInput {
+  name: string;
+  amount: string;
+  note?: string;
+  date: string;
+}
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -28,19 +36,21 @@ export function validateDebtName(value: string): string | null {
   return null;
 }
 
+// Same whole-FCFA parser as the sale and expense forms, so "1 000" and
+// "1,000" mean the same thing here as everywhere else (KZ-04).
 export function validateDebtAmount(value: string): string | null {
   const trimmed = value.trim();
   if (trimmed.length === 0) {
     return 'debts.errors.amountRequired';
   }
-  const numeric = Number(trimmed.replace(',', '.'));
-  if (!Number.isFinite(numeric)) {
+  const numeric = parseMoneyInput(trimmed);
+  if (numeric === null) {
     return 'debts.errors.amountInvalid';
   }
   if (numeric <= 0) {
     return 'debts.errors.amountPositive';
   }
-  if (numeric > 1e12) {
+  if (numeric > MONEY_MAX) {
     return 'debts.errors.amountTooLarge';
   }
   return null;
@@ -53,13 +63,13 @@ export function validateDebtDate(value: string): string | null {
   return null;
 }
 
-export function validateDebt(input: DebtInput): DebtFieldErrors {
+export function validateDebt(input: DebtFormInput): DebtFieldErrors {
   const errors: DebtFieldErrors = {};
   const nameError = validateDebtName(input.name);
   if (nameError) {
     errors.name = nameError;
   }
-  const amountError = validateDebtAmount(String(input.amount));
+  const amountError = validateDebtAmount(input.amount);
   if (amountError) {
     errors.amount = amountError;
   }

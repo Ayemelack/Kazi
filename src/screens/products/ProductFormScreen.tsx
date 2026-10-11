@@ -25,9 +25,10 @@ import {
   stockOut,
   updateItem,
 } from '../../offline/api';
+import { parseMoneyInput } from '@kazi/shared';
+import { MONEY_INPUT_MAX_LENGTH, moneyPreview } from '../../money/input';
 import {
   hasItemErrors,
-  parsePrice,
   parseWholeNumber,
   validateItemForm,
   type ItemFormErrors,
@@ -118,7 +119,7 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
     setFormError(null);
     setSubmitting(true);
     try {
-      const parsedPrice = parsePrice(price) ?? 0;
+      const parsedPrice = parseMoneyInput(price) ?? 0;
       const parsedThreshold = trackStock
         ? (parseWholeNumber(lowStockThreshold) ?? 0)
         : 0;
@@ -261,8 +262,8 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
         onChangeText={setPrice}
         keyboardType="decimal-pad"
         error={errors.price ? t(errors.price) : undefined}
-        hint={t('products.priceHint')}
-        maxLength={16}
+        hint={moneyPreview(price) ?? t('products.priceHint')}
+        maxLength={MONEY_INPUT_MAX_LENGTH}
       />
       <TextField
         testID="item-notes"

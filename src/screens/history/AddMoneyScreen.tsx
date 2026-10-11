@@ -10,9 +10,10 @@ import DatePickerField from '../../components/ui/DatePickerField';
 import TextField from '../../components/ui/TextField';
 import Button from '../../components/ui/Button';
 import { useToast } from '../../components/ui/Toast';
+import { parseMoneyInput } from '@kazi/shared';
 import { createTransaction, fetchSummary } from '../../offline/api';
+import { MONEY_INPUT_MAX_LENGTH, moneyPreview } from '../../money/input';
 import {
-  parseAmount,
   todayAsDateString,
   validateTransactionAmount,
   validateTransactionDate,
@@ -69,7 +70,7 @@ export default function AddMoneyScreen({ navigation }: ScreenProps) {
     try {
       await createTransaction({
         type: 'capital',
-        amount: parseAmount(amount) ?? 0,
+        amount: parseMoneyInput(amount) ?? 0,
         date: date.trim(),
         description: description.trim() || undefined,
       });
@@ -101,15 +102,16 @@ export default function AddMoneyScreen({ navigation }: ScreenProps) {
         value={amount}
         onChangeText={setAmount}
         keyboardType="decimal-pad"
-        error={amountError ?? undefined}
-        maxLength={16}
+        error={amountError ? t(amountError) : undefined}
+        hint={moneyPreview(amount)}
+        maxLength={MONEY_INPUT_MAX_LENGTH}
       />
       <DatePickerField
         testID="add-money-date"
         label={t('transactions.date')}
         value={date}
         onChange={setDate}
-        error={dateError ?? undefined}
+        error={dateError ? t(dateError) : undefined}
       />
       <TextField
         testID="add-money-description"

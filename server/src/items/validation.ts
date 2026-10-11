@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { priceSchema } from '../validation/money.js';
 import { strictNumber } from '../validation/number.js';
 
 export const itemTypeSchema = z.enum(['product', 'service']);
@@ -41,9 +42,7 @@ export const lowStockThresholdSchema = strictNumber(
 export const createItemSchema = z.object({
   name: nameSchema,
   type: itemTypeSchema,
-  price: strictNumber(
-    z.coerce.number().min(0, 'Price cannot be negative.').max(1e12, 'Price is too large.'),
-  ),
+  price: priceSchema,
   notes: notesSchema,
   image: imageSchema,
   trackStock: z.boolean().optional(),

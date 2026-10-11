@@ -7,7 +7,7 @@ respect are in [SECURITY.md](SECURITY.md) and [PERFORMANCE.md](PERFORMANCE.md). 
 executed in 15 agent sessions; their prompts, the standing rules and the owner decisions are in
 **[prompt.md](prompt.md)** (see [Execution plan](#execution-plan)).
 
-**Last updated:** 2026-10-10 · **Overall progress:** 3 / 38 tasks done (8%)
+**Last updated:** 2026-10-11 · **Overall progress:** 4 / 38 tasks done (11%)
 
 ---
 
@@ -39,11 +39,11 @@ A task is only **Done** when it meets the Definition of Done in [TESTING_QA.md](
 
 | Phase | Goal | Tasks | Done | Progress |
 |---|---|---|---|---|
-| **P0** | Production blockers — the app cannot ship without these | 9 | 0 | 0% |
+| **P0** | Production blockers — the app cannot ship without these | 9 | 1 | 11% |
 | **P1** | Correctness, security and data integrity | 10 | 0 | 0% |
 | **P2** | Hardening and performance | 16 | 2 | 13% |
 | **P3** | Documentation, hygiene and CI | 3 | 1 | 33% |
-| **Total** | | **38** | **3** | **8%** |
+| **Total** | | **38** | **4** | **11%** |
 
 Work the phases in order. Inside a phase, tasks can run in parallel unless the board says otherwise.
 
@@ -76,7 +76,7 @@ resume prompt at the end of that file.
 | # | Session | Tasks | Tracker phase | Status |
 |---|---|---|---|---|
 | 1 | Foundation and project structure | Structure (shared/, migrations, root scripts), KZ-30, KZ-37, KZ-38 (+ KZ-26, folded into the baseline migration) | Setup | ✅ Done — KZ-38 🟨 Blocked on owner (push + branch protection) |
-| 2 | Shared contracts: money and validation | KZ-04, KZ-16, KZ-25 | P0 / P1 / P2 | ⬜ |
+| 2 | Shared contracts: money and validation | KZ-04, KZ-16, KZ-25 | P0 / P1 / P2 | 🟦 In progress |
 | 3 | Connectivity, errors and language | KZ-01, KZ-12, KZ-22, KZ-24 | P0 / P1 / P2 | ⬜ |
 | 4 | Authentication hardening | KZ-05, KZ-29, KZ-21, KZ-20 | P0 / P2 | ⬜ |
 | 5 | Password reset | KZ-06 | P0 | ⬜ |
@@ -102,7 +102,7 @@ resume prompt at the end of that file.
 | KZ-01 | Connectivity check uses plain HTTP and fails in release builds (permanent "offline" pill) | High | App | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-01) |
 | KZ-02 | iOS has no Firebase setup; app is expected to crash on launch | High | App / iOS | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-02) |
 | KZ-03 | Push notifications: placeholder `google-services.json`, nothing triggers sends | High | App / API | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-03) |
-| KZ-04 | Money input "1,000" / "1.000" is saved as 1 FCFA | High | App / API | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-04) |
+| KZ-04 | Money input "1,000" / "1.000" is saved as 1 FCFA | High | App / API | ✅ Done | [→](REMEDIATION_PLAN.md#kz-04) |
 | KZ-05 | Password-uniqueness rule reveals which passwords are in use | High | API / Security | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-05) |
 | KZ-06 | Password reset is fail-open in dev and does not work at all in production | High | API / App | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-06) |
 | KZ-07 | No way to delete or correct a transaction | High | App / API | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-07) |
@@ -187,6 +187,7 @@ Newest first. One line per task or decision.
 
 | Date | Task / Decision | Change | Verified by | Commit |
 |---|---|---|---|---|
+| 2026-10-11 | KZ-04 | `@kazi/shared` gains `parseMoneyInput` (whole FCFA; spaces/NBSP/NNBSP removed; `,` or `.` only as thousands separators in groups of three, one kind per number; decimals, exponents, hex, signs, empty and mixed separators rejected; returns a safe integer), `formatMoney` (`1 000 FCFA`, narrow no-break space U+202F everywhere) and `MONEY_MAX` (1e12). `parseAmount`, `parsePrice` and the debt form's `Number(x.replace(',', '.'))` deleted; sale, expense, capital, debt and product forms validate and submit through the shared parser, show `= 1 000 FCFA` under the field while typing (`src/money/input.ts`), allow 24 characters and use `decimal-pad`. AddMoney now translates its field errors (raw keys before; overlaps KZ-22). `amountInvalid`/`priceInvalid` messages say what is accepted (en, fr, pid); unused `priceNegative` removed. Server: `moneyAmountSchema` and new `priceSchema` accept only a JSON safe integer or a digit string (no coercion: booleans, arrays, hex, exponents, decimals, separators rejected). Spec corrected: parser lives in `shared/src/money.ts`, not `src/money/parse.ts`. Tests changed for the intended behaviour change: `-5` / `2500.5` are now "invalid" rather than "negative"/accepted. **Baseline:** this session's pre-change `npm run check` overlapped my first edits, so I stopped it; the baseline is session 1's clean `npm run check` at the same code (`e7b1181` was docs-only) | Manual sanity run (`shared/dist`, `·` = U+202F): `"1,000"`, `"1.000"`, `"1 000"`, `"1000"` → 1000 → `1·000·FCFA`; `"1,000,000"`, `"1.000.000"` → 1000000; `"1,5"`, `"12.34"`, `"0x10"`, `"1e3"`, `"-5"`, `""`, `"1,000.000"` → rejected. The old parser gave `"1,000"`→1, `"1.000"`→1, `"0x10"`→16, `"1e3"`→1000, `"-5"`→-5 (9 of 13 wrong), and the old server schemas accepted `12.5`, `"12.5"`, `"1e3"` and price `2500.5`. `shared` `npm run check` 65/65; app `tsc` clean, `eslint .` clean, Jest 14 suites 127/127; server typecheck clean, 177/177, build OK | this commit |
 | 2026-10-11 | Session 1 docs | ARCHITECTURE §3 (layout: shared/, server/src/db/migrations, .github/; shared-contracts rules), §6.1 (migrations, in the KZ-26 commit), §9 ADRs A10 (shared package; the path-mapped fallback was not needed) and A11 (numbered migrations); prompt.md session 13 now says A12 for the read cache since A10/A11 are taken; TESTING_QA §1 (`npm run check`, install order, counts); DEPLOYMENT §4 (deploy shared/ next to server/; migrations on boot); README layout, setup order, scripts and "Tests & checks". Session 1 complete | Same evidence as KZ-30 (clean `npm ci` + `npm run check` exit 0 + 3 cold Jest runs) | this commit |
 | 2026-10-11 | KZ-38 | `.github/workflows/ci.yml`: `app` (shared check, tsc, lint, `jest --ci --maxWorkers=50%` with cached transforms), `server` (typecheck, test, build), `audit` (root, server, shared at `--audit-level=high`; push, PR, weekly; `continue-on-error` until KZ-19 in session 6, comment says why), `android-release` / `ios-build` manual-only placeholders for session 9. Every job installs `shared/` first. **🟨 Blocked:** the acceptance "a failing test blocks merge" needs (1) the branch pushed so the workflow runs on GitHub (pushing is outside this session's rules) and (2) branch protection on `main` requiring `app` and `server` — both owner actions (TESTING_QA.md "CI pipeline") | YAML parses (js-yaml: 5 jobs); each job's commands pass locally (`npm run check`, run 1 under KZ-30); a failing Jest test exits non-zero (cold run before the KZ-30 fix: `EXIT=1`). Not yet run on GitHub | this commit |
 | 2026-10-11 | KZ-37 | `zulu-chronicle/` copied to `../kazi-archive/zulu-chronicle/` (all 3 files SHA-256 verified) and removed; `@react-native/new-app-screen` uninstalled (no references in src, App, index.js, tests, Gradle or Podfile); removed `PendingOp`, `LocalItem`, `LocalTransaction`, `LocalDebt`, `pendingCount` (provider + pill), `queued` (facade results + 4 screens + test mocks), the unused `KAZI_NOTIFICATION_CHANNEL` alias, and locale keys `offline.offlineWithPending` / `savedOnPhone` / `notAvailableOffline` (en, fr, pid). Kept `LocalActivity`, `SyncStatus`, `syncStatus` (History). Left `getDebt`, `getTransaction`, `listStockMovements` for KZ-07 per spec. No user-visible change: `queued` was always false and `pendingCount` always 0 | `npx tsc --noEmit` clean; `eslint .` clean; unused-export scan of `src/` → only the 3 deferred API functions; i18n parity test passes; full suites green in the 3 cold runs logged under KZ-30 | this commit |

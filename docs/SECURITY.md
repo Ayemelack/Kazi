@@ -73,7 +73,7 @@ The earlier adversarial test report is in `SECURITY_ASSESSMENT.md` at the reposi
 | ~~Account deletion without password re-entry~~ | Fixed (KZ-20): `DELETE /auth/me` needs `{ password }`, rate-limited like login | KZ-20 ✅ |
 | ~~Login timing reveals registered emails~~ | Fixed (KZ-21): unknown emails cost a compare against a dummy hash | KZ-21 ✅ |
 | ~~Weak `JWT_SECRET` accepted~~ | Fixed (KZ-29): production refuses < 32 bytes or the `.env.example` value | KZ-29 ✅ |
-| Malformed admin cookie → 500 | Low | KZ-27 |
+| ~~Malformed admin cookie → 500~~ | Fixed (KZ-27): `admin/cookies.ts` skips a cookie that fails `decodeURIComponent`, so it counts as absent (401) | KZ-27 ✅ |
 | No structured, PII-free request logging | Low | KZ-34 |
 | No backups (availability and integrity) | Medium | KZ-35 |
 

@@ -5,7 +5,7 @@ pipeline that enforces it.
 
 ---
 
-## 1. Current state (updated 2026-10-14, session 5)
+## 1. Current state (updated 2026-10-14, session 6)
 
 **One command runs everything:** `npm run check` at the repository root — `shared/` typecheck +
 tests + build, then app typecheck + lint + Jest, then server typecheck + tests + build. On a fresh
@@ -14,10 +14,11 @@ clone install `shared/` first: `(cd shared && npm ci) && npm ci && (cd server &&
 | Suite | Runner | Command | Result |
 |---|---|---|---|
 | Shared (`shared/src/**/*.test.ts`) | `node --test` via `tsx` | `cd shared && npm run check` | ✅ 131 / 131; typecheck + build clean |
-| Server (`src/**/*.test.ts`, 23 files, 302 tests; boot tests start the real entry point through `src/testBoot.ts`) | `node --test` via `tsx` (glob, so new files are never skipped) | `cd server && npm run check` (typecheck + test + build) | ✅ all pass |
+| Server (`src/**/*.test.ts`, 27 files, 336 tests; boot tests start the real entry point through `src/testBoot.ts`; `src/admin/admin.test.ts` boots the admin dashboard) | `node --test` via `tsx` (glob, so new files are never skipped) | `cd server && npm run check` (typecheck + test + build) | ✅ all pass |
 | App (23 suites, 271 tests) | Jest, `@react-native/jest-preset`, `testTimeout` 30 s | `npm test` | ✅ passes cold (KZ-30) |
 | App types | `tsc` | `npm run typecheck` | ✅ clean |
 | App lint | ESLint | `npm run lint` | ✅ clean |
+| Dependency audit | `scripts/audit-gate.js` over `npm audit --omit=dev` (root, `server/`, `shared/`) | `npm run audit` | ✅ no high/critical except the documented tooling exceptions (SECURITY.md §6) |
 | CI | GitHub Actions | `.github/workflows/ci.yml` | Added (KZ-38); see [CI pipeline](#ci-pipeline) |
 
 Existing coverage is strong on server validation, idempotency, stock effects and cross-user

@@ -475,7 +475,12 @@ Acceptance: [x] test on a legacy-schema DB shows all three transaction indexes
 
 ### KZ-27
 **Admin cookie parsing** — wrap `decodeURIComponent` in `try/catch`, ignore bad cookies.
-Acceptance: [ ] `Cookie: kazi_admin_session=%E0%A4%A` → 401, not 500.
+Acceptance: [x] `Cookie: kazi_admin_session=%E0%A4%A` → 401, not 500.
+_Session 6:_ `parseCookies` moved to `server/src/admin/cookies.ts` (index.ts starts the server on
+import, so it could not be unit-tested there); a value that fails `decodeURIComponent` is skipped
+and the other cookies are kept. `server/src/admin/admin.test.ts` boots the real dashboard: the
+malformed cookie gets 401 on `/api/stats`, `/api/users` and `/api/session` (500 before the fix),
+and a valid session beside a malformed cookie still gets 200.
 
 ### KZ-28
 **History "Older" range** — with only From, cap `endDate` at the day before this week starts;

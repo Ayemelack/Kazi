@@ -12,6 +12,7 @@ import {
   getStats,
   getUsers,
 } from './data.js';
+import { parseCookies } from './cookies.js';
 import { loadCredentials, verifyPassword, type StoredCredentials } from './credentials.js';
 import { ensureCertificate, lanAddresses, readTlsMaterial, type TlsMaterial } from './tls.js';
 
@@ -165,25 +166,6 @@ class LoginThrottle {
   reset(key: string): void {
     this.perKey.delete(key);
   }
-}
-
-function parseCookies(header: string | undefined): Record<string, string> {
-  const out: Record<string, string> = {};
-  if (!header) {
-    return out;
-  }
-  for (const part of header.split(';')) {
-    const index = part.indexOf('=');
-    if (index === -1) {
-      continue;
-    }
-    const key = part.slice(0, index).trim();
-    const value = part.slice(index + 1).trim();
-    if (key) {
-      out[key] = decodeURIComponent(value);
-    }
-  }
-  return out;
 }
 
 function sessionCookie(token: string, maxAgeSeconds: number, secure: boolean): string {

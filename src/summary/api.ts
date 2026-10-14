@@ -8,8 +8,14 @@ export interface MoneySummary {
   totalSpent: number;
   totalNet: number;
   totalCapital: number;
+  // Tracked items at or under their low-stock threshold.
+  lowStockCount: number;
 }
 
-export function fetchSummary(): Promise<{ summary: MoneySummary }> {
-  return apiRequest<{ summary: MoneySummary }>('/summary', { auth: true });
+// `asOf` is the phone's calendar day: "today" totals are the owner's today,
+// never the server's (KZ-10).
+export function fetchSummary(asOf: string): Promise<{ summary: MoneySummary }> {
+  return apiRequest<{ summary: MoneySummary }>(`/summary?asOf=${encodeURIComponent(asOf)}`, {
+    auth: true,
+  });
 }

@@ -36,8 +36,8 @@ import { listActivity as listActivityRequest } from '../activity/types';
 // error (server unreachable, validation, auth, etc.) to the caller instead of
 // silently keeping a local record.
 
-export async function fetchSummary(): Promise<{ summary: MoneySummary }> {
-  return fetchSummaryRequest();
+export async function fetchSummary(asOf: string): Promise<{ summary: MoneySummary }> {
+  return fetchSummaryRequest(asOf);
 }
 
 export async function listItems(): Promise<{ items: Item[] }> {

@@ -15,7 +15,8 @@ import Screen from '../../components/ui/Screen';
 import KaziLogo from '../../components/brand/KaziLogo';
 import Card from '../../components/ui/Card';
 import { useAuth } from '../../auth/AuthContext';
-import { fetchSummary, listItems } from '../../offline/api';
+import { fetchSummary } from '../../offline/api';
+import { todayAsDateString } from '../../transactions/validation';
 import type { MoneySummary } from '../../summary/api';
 import { formatMoney } from '@kazi/shared';
 import { errorMessage } from '../../errors/messages';
@@ -84,14 +85,13 @@ export default function HomeScreen() {
   const load = useCallback(async () => {
     setLoadError(null);
     try {
-      const [summaryResult, itemsResult] = await Promise.all([fetchSummary(), listItems()]);
-      setSummary(summaryResult.summary);
+      // One request: the totals for the owner's today and the low-stock count.
+      const { summary: next } = await fetchSummary(todayAsDateString());
+      setSummary(next);
       setHasAnyActivity(
-        summaryResult.summary.totalReceived > 0 || summaryResult.summary.totalSpent > 0,
+        next.totalReceived > 0 || next.totalSpent > 0 || next.totalCapital > 0,
       );
-      setLowStockCount(
-        itemsResult.items.filter(item => item.trackStock && item.lowStock).length,
-      );
+      setLowStockCount(next.lowStockCount);
     } catch (err) {
       setLowStockCount(0);
       setLoadError(err);

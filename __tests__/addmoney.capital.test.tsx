@@ -82,6 +82,7 @@ const SUMMARY_CAPITAL: MoneySummary = {
   totalSpent: 0,
   totalNet: 0,
   totalCapital: 11000000,
+  lowStockCount: 0,
 };
 
 async function typeAmount(renderer: ReactTestRenderer.ReactTestRenderer, amount: string) {

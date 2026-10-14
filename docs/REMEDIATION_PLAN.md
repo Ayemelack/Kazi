@@ -275,8 +275,12 @@ Rules for every fix:
   ignores `asOf`. Home and History can disagree around midnight.
 - **Fix:** accept `asOf` (validated with `businessDateSchema`) on `/summary`; the app sends
   `todayAsDateString()`. Return `lowStockCount` from `/summary` too (used by KZ-14).
-- **Acceptance:** [ ] With the server in UTC and the phone at 00:30 WAT, a sale dated today counts
-  in Home "today" and History "today" alike. [ ] Unit test with a fixed `asOf`.
+- **Acceptance:** [x] With the server in UTC and the phone at 00:30 WAT, a sale dated today counts
+  in Home "today" and History "today" alike. [x] Unit test with a fixed `asOf`.
+- **Done (session 7):** `lowStockCount` = tracked items with `low_stock_threshold > 0` and
+  `stock <= low_stock_threshold` (the item's own `lowStock` rule); Home no longer calls `/items`
+  and counts capital as activity. The whole summary is one aggregate statement, which also
+  covers the "compute `/summary` in one aggregate query" part of KZ-32.
 
 ### KZ-11
 **Idempotent writes from the app**
@@ -529,7 +533,7 @@ scrolls at ≥ 55 fps on a budget Android device (see [PERFORMANCE.md](PERFORMAN
 ### KZ-32
 **Server performance** — set `synchronous = NORMAL`, `busy_timeout = 5000`, `temp_store = MEMORY`
 on open; prepare hot statements once per service instead of per call; compute `/summary` in one
-aggregate query; run `PRAGMA optimize` on shutdown and daily. Acceptance: [ ] budgets in
+aggregate query (done with KZ-10 in session 7); run `PRAGMA optimize` on shutdown and daily. Acceptance: [ ] budgets in
 [PERFORMANCE.md](PERFORMANCE.md#performance-budgets) met with the load script.
 
 ### KZ-33

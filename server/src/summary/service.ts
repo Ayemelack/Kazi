@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import { localDateString } from '../validation/date.js';
 
 export interface MoneySummary {
   todayReceived: number;
@@ -8,41 +9,52 @@ export interface MoneySummary {
   totalSpent: number;
   totalNet: number;
   totalCapital: number;
+  // Tracked items at or under their low-stock threshold (threshold > 0): the
+  // same rule as an item's `lowStock` flag, so Home needs no /items call.
+  lowStockCount: number;
 }
 
-interface SumRow {
-  total: number | null;
+interface SummaryRow {
+  todayReceived: number;
+  todaySpent: number;
+  totalReceived: number;
+  totalSpent: number;
+  totalCapital: number;
+  lowStockCount: number;
 }
 
-function sumFor(
+// One statement for the whole dashboard (KZ-10, and the single-query part of
+// KZ-32): a single pass over the user's transactions through
+// idx_transactions_user_type_date, plus a correlated count over the user's
+// items through idx_items_user.
+const SUMMARY_SQL = `
+  SELECT
+    COALESCE(SUM(CASE WHEN type = 'sale' AND date = @asOf THEN amount END), 0) AS todayReceived,
+    COALESCE(SUM(CASE WHEN type = 'purchase' AND date = @asOf THEN amount END), 0) AS todaySpent,
+    COALESCE(SUM(CASE WHEN type = 'sale' THEN amount END), 0) AS totalReceived,
+    COALESCE(SUM(CASE WHEN type = 'purchase' THEN amount END), 0) AS totalSpent,
+    COALESCE(SUM(CASE WHEN type = 'capital' THEN amount END), 0) AS totalCapital,
+    (SELECT COUNT(*) FROM items
+      WHERE user_id = @userId
+        AND track_stock = 1
+        AND low_stock_threshold > 0
+        AND stock <= low_stock_threshold) AS lowStockCount
+  FROM transactions
+  WHERE user_id = @userId
+`;
+
+// "Today" is the owner's calendar day (`asOf`, sent by the phone). The
+// server's local day is only the fallback for a caller that sends none.
+export function moneySummary(
   db: Database.Database,
   userId: number,
-  type: 'sale' | 'purchase' | 'capital',
-  whereDate?: string,
-): number {
-  let sql = 'SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE user_id = ? AND type = ?';
-  const params: (number | string)[] = [userId, type];
-  if (whereDate) {
-    sql += ' AND date = ?';
-    params.push(whereDate);
-  }
-  const row = db.prepare(sql).get(...params) as unknown as SumRow;
-  return Number(row.total ?? 0);
-}
-
-export function moneySummary(db: Database.Database, userId: number): MoneySummary {
-  const today = new Date();
-  const todayDate = [
-    today.getFullYear(),
-    String(today.getMonth() + 1).padStart(2, '0'),
-    String(today.getDate()).padStart(2, '0'),
-  ].join('-');
-
-  const todayReceived = sumFor(db, userId, 'sale', todayDate);
-  const todaySpent = sumFor(db, userId, 'purchase', todayDate);
-  const totalReceived = sumFor(db, userId, 'sale');
-  const totalSpent = sumFor(db, userId, 'purchase');
-  const totalCapital = sumFor(db, userId, 'capital');
+  asOf: string = localDateString(),
+): MoneySummary {
+  const row = db.prepare(SUMMARY_SQL).get({ userId, asOf }) as unknown as SummaryRow;
+  const todayReceived = Number(row.todayReceived);
+  const todaySpent = Number(row.todaySpent);
+  const totalReceived = Number(row.totalReceived);
+  const totalSpent = Number(row.totalSpent);
 
   return {
     todayReceived,
@@ -51,6 +63,7 @@ export function moneySummary(db: Database.Database, userId: number): MoneySummar
     totalReceived,
     totalSpent,
     totalNet: totalReceived - totalSpent,
-    totalCapital,
+    totalCapital: Number(row.totalCapital),
+    lowStockCount: Number(row.lowStockCount),
   };
 }

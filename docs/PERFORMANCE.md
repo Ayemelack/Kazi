@@ -44,16 +44,16 @@ Sustained throughput target: 200 requests/s mixed read/write without breaching p
 
 | Hotspot | Effect | Task |
 |---|---|---|
-| `GET /items` embeds every photo (up to 2 MB each); Home and the sale form load it on every focus | Megabytes per screen visit on 3G | KZ-14 |
+| `GET /items` embeds every photo (up to 2 MB each); the sale form loads it on every focus (Home no longer does since KZ-10) | Megabytes per screen visit on 3G | KZ-14 |
 | ~~Connectivity probe every 30 s over plain HTTP~~ | Fixed (KZ-01): NetInfo events; no timer; iOS reachability checks pause in the background | KZ-01 ✅ |
 | ~~bcrypt `hashSync` / `compareSync` on the request thread~~ | Fixed (KZ-21): bcryptjs async on a worker-thread pool started with the server (its async mode alone still blocks up to 100 ms per slice); measured numbers in the tracker log | KZ-21 ✅ |
-| `/summary` runs 5 separate queries | Avoidable round trips into SQLite | KZ-32 |
+| ~~`/summary` runs 5 separate queries~~ | Fixed (KZ-10, the `/summary` part of KZ-32): one statement — conditional sums over `idx_transactions_user_type_date` plus the low-stock count over `idx_items_user` | KZ-10 ✅ |
 | `db.prepare()` on every call | Re-parses SQL on hot paths | KZ-32 |
 | SQLite default `synchronous=FULL` with WAL | Slower commits than needed | KZ-32 |
 | Products / History / Debts use `ScrollView` + `map` | All rows render at once; jank on long lists | KZ-31 |
 | R8 / resource shrinking off; one APK with 4 ABIs | Larger download, slower install and start | KZ-33 |
 | ~~Rate-limiter map never pruned~~ | Fixed (KZ-08): expired buckets swept every minute (unref'd timer, stops at the first live bucket), at most 10 000 keys per limiter; 100 000 distinct keys tested | KZ-08 ✅ |
-| Duplicate writes on retry | Extra load and wrong data | KZ-11 |
+| ~~Duplicate writes on retry~~ | Fixed (KZ-11): every create / pay / stock write sends one `clientOpId` per submission; a retry is replayed from the ledger | KZ-11 ✅ |
 
 ---
 

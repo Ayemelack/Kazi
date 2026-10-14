@@ -144,7 +144,7 @@ Authorized endpoints take `Authorization: Bearer <token>`. Errors always use the
 | `/items` | `GET/POST /`, `GET/PUT/DELETE /:id`, `POST /:id/stock-in`, `POST /:id/stock-out`, `GET /:id/movements` |
 | `/transactions` | `GET/POST /`, `GET/DELETE /:id` |
 | `/debts` | `GET/POST /`, `POST /:id/pay`, `DELETE /:id` |
-| `/summary` | `GET /` — money received, spent and net |
+| `/summary` | `GET /?asOf=YYYY-MM-DD` — money received, spent and net for the caller's day and in total, money added, and the low-stock item count |
 | `/activity` | `GET /` — `period`, `from`/`to` range, `asOf`, `limit`/`offset`, per-type totals |
 | `/feedback` | `GET/POST /`, `GET/DELETE /:id` |
 | `/notifications` | `POST /push-tokens`, `DELETE /push-tokens`, `POST /send` |

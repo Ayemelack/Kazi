@@ -10,6 +10,7 @@ import { ApiError, NetworkError } from '../src/errors/ApiError';
 import HomeScreen from '../src/screens/home/HomeScreen';
 import { fetchSummary, listItems } from '../src/offline/api';
 import type { MoneySummary } from '../src/summary/api';
+import { todayAsDateString } from '../src/transactions/validation';
 
 jest.mock('../src/offline/api', () => ({
   fetchSummary: jest.fn(),
@@ -79,6 +80,7 @@ describe('HomeScreen money summary', () => {
     totalSpent: 4000,
     totalNet: 5000,
     totalCapital: 0,
+    lowStockCount: 0,
   };
 
   beforeEach(() => {
@@ -110,6 +112,33 @@ describe('HomeScreen money summary', () => {
     expect(text).toContain('-400\u202fFCFA');
     expect(text).not.toContain('+-400\u202fFCFA');
     expect(text).toContain('−500\u202fFCFA');
+  });
+
+  // KZ-10: "today" is the phone's day, and Home needs one request.
+  it('asks for the phone\'s today and never loads the item list', async () => {
+    await renderHome();
+    expect(fetchSummary).toHaveBeenCalledTimes(1);
+    expect(fetchSummary).toHaveBeenCalledWith(todayAsDateString());
+    expect(listItems).not.toHaveBeenCalled();
+  });
+
+  it('shows the low-stock alert from the summary\'s lowStockCount', async () => {
+    (fetchSummary as jest.Mock).mockResolvedValue({ summary: { ...SUMMARY, lowStockCount: 3 } });
+    const renderer = await renderHome();
+    expect(screenText(renderer)).toContain('3 items are low on stock.');
+
+    (fetchSummary as jest.Mock).mockResolvedValue({ summary: { ...SUMMARY, lowStockCount: 0 } });
+    const quiet = await renderHome();
+    expect(screenText(quiet)).not.toContain(en.home.lowStockTitle);
+  });
+
+  it('counts money added as activity, so a capital-only notebook gets no first-use hint', async () => {
+    const empty = { ...SUMMARY, todayReceived: 0, todaySpent: 0, todayNet: 0, totalReceived: 0, totalSpent: 0, totalNet: 0 };
+    (fetchSummary as jest.Mock).mockResolvedValue({ summary: empty });
+    expect(screenText(await renderHome())).toContain(en.home.firstHint);
+
+    (fetchSummary as jest.Mock).mockResolvedValue({ summary: { ...empty, totalCapital: 50000 } });
+    expect(screenText(await renderHome())).not.toContain(en.home.firstHint);
   });
 });
 

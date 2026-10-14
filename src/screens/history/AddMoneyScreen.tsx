@@ -48,7 +48,7 @@ export default function AddMoneyScreen({ navigation }: ScreenProps) {
       let cancelled = false;
       (async () => {
         try {
-          const result = await fetchSummary();
+          const result = await fetchSummary(todayAsDateString());
           if (!cancelled) {
             setTotalCapital(result.summary.totalCapital);
           }

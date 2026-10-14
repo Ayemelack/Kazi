@@ -368,7 +368,9 @@ Rules for new migrations:
 - A business date is a calendar day in the **owner's** time zone, always `YYYY-MM-DD`, chosen on
   the phone. It is never derived from a server timestamp.
 - Any endpoint that answers "today", "yesterday" or "this week" takes `asOf` from the phone.
-  `/activity` does; **Target (KZ-10):** `/summary` will too.
+  `/activity` and `/summary` do (KZ-10: Home's "today" is the phone's day, so Home and History
+  agree just after midnight even on a UTC server). Without `asOf` the server's local day is the
+  fallback.
 - Instants (`created_at`, `paid_at`) are UTC.
 - The accepted window is `BUSINESS_DATE_MIN` (2000-01-01) to today + 365 days (`@kazi/shared`
   `date.ts`); the API, the app's validators and the date picker all use it (KZ-16).

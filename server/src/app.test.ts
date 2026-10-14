@@ -586,7 +586,8 @@ test('feedback delete rejects a malformed id', async () => {
 });
 
 test('DELETE /auth/me removes the account', async () => {
-  const result = await call('DELETE', '/auth/me', {}, signupToken);
+  // KZ-20: the current password (set by the reset tests above) is required.
+  const result = await call('DELETE', '/auth/me', { password: 'coupeAutre123' }, signupToken);
   assert.equal(result.status, 204);
 
   // SECURITY: once the account is gone there is no row for its token_version,

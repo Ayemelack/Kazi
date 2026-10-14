@@ -11,8 +11,11 @@ interface ConfirmDialogProps {
   cancelLabel: string;
   tone?: 'danger' | 'primary';
   loading?: boolean;
+  confirmTestID?: string;
   onConfirm: () => void;
   onCancel: () => void;
+  /** Shown between the message and the buttons, e.g. a password field. */
+  children?: React.ReactNode;
 }
 
 function ConfirmDialog({
@@ -23,8 +26,10 @@ function ConfirmDialog({
   cancelLabel,
   tone = 'danger',
   loading = false,
+  confirmTestID,
   onConfirm,
   onCancel,
+  children,
 }: ConfirmDialogProps) {
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onCancel}>
@@ -32,6 +37,7 @@ function ConfirmDialog({
         <View style={styles.dialog}>
           <Text style={styles.title}>{title}</Text>
           {message ? <Text style={styles.message}>{message}</Text> : null}
+          {children ? <View style={styles.body}>{children}</View> : null}
           <View style={styles.buttons}>
             <Button
               label={cancelLabel}
@@ -41,6 +47,7 @@ function ConfirmDialog({
               style={styles.button}
             />
             <Button
+              testID={confirmTestID}
               label={confirmLabel}
               variant={tone === 'danger' ? 'destructive' : 'primary'}
               size="md"
@@ -82,6 +89,9 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     marginTop: spacing.sm,
+  },
+  body: {
+    marginTop: spacing.lg,
   },
   buttons: {
     flexDirection: 'row',

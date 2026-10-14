@@ -83,6 +83,7 @@ export function updateLanguage(language: AppLanguage): Promise<{ user: AuthResul
   });
 }
 
-export function deleteAccount(): Promise<void> {
-  return apiRequest<void>('/auth/me', { method: 'DELETE', auth: true });
+// The server checks the password before deleting anything (KZ-20).
+export function deleteAccount(password: string): Promise<void> {
+  return apiRequest<void>('/auth/me', { method: 'DELETE', body: { password }, auth: true });
 }

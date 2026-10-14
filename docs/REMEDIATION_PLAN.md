@@ -356,7 +356,11 @@ Rules for every fix:
 
 ### KZ-20
 **Require the password to delete the account** — `DELETE /auth/me` takes `{ password }` and
-verifies it; the screen asks for it. Acceptance: [ ] wrong password → 401, account intact.
+verifies it; the screen asks for it. Acceptance: [x] wrong password → 401, account intact.
+As built: `{ password }` is validated with zod (missing/empty → 400 on `password`), the wrong one
+is `401 INVALID_CREDENTIALS`, and the route has its own limiter with login's limits (25 per 15 min
+per IP). The app asks for the password inside the confirm dialog, keeps the dialog open with the
+reason on failure, and unregisters the push token only after the server has deleted the account.
 
 ### KZ-21
 **Login timing and blocking hashing** — when the email is unknown, still run a bcrypt compare

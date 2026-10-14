@@ -41,6 +41,7 @@ The earlier adversarial test report is in `SECURITY_ASSESSMENT.md` at the reposi
   a code is claimed inside the reset transaction, so two concurrent resets can't both use it.
 - Common, patterned and personal passwords refused by the API with a 10 000-entry list (KZ-05);
   several accounts may share a password and nothing reveals whether one is in use.
+- Deleting the account needs the password (KZ-20). Production refuses a weak `JWT_SECRET` (KZ-29).
 - All input validated with zod; `strictNumber` rejects hex, booleans, arrays and non-finite numbers.
 - SQL uses bound parameters everywhere (no string-built user input).
 - Security headers on the API (`nosniff`, `X-Frame-Options: DENY`, `no-referrer`, `no-store`);
@@ -65,7 +66,7 @@ The earlier adversarial test report is in `SECURITY_ASSESSMENT.md` at the reposi
 | Logout doesn't revoke; 30-day tokens | Medium | KZ-13 |
 | Image bytes never checked against declared type | Medium | KZ-15 |
 | Vulnerable dependencies (`proxy-addr` critical, others high) | Medium | KZ-19 |
-| Account deletion without password re-entry | Low | KZ-20 |
+| ~~Account deletion without password re-entry~~ | Fixed (KZ-20): `DELETE /auth/me` needs `{ password }`, rate-limited like login | KZ-20 ✅ |
 | ~~Login timing reveals registered emails~~ | Fixed (KZ-21): unknown emails cost a compare against a dummy hash | KZ-21 ✅ |
 | ~~Weak `JWT_SECRET` accepted~~ | Fixed (KZ-29): production refuses < 32 bytes or the `.env.example` value | KZ-29 ✅ |
 | Malformed admin cookie → 500 | Low | KZ-27 |

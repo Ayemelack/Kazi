@@ -50,7 +50,7 @@ export interface AuthContextValue {
   resetPassword: (input: ResetPasswordInput) => Promise<void>;
   completeBusinessProfile: (input: ProfileInput) => Promise<void>;
   updateAccountNames: (input: AccountNamesInput) => Promise<void>;
-  deleteAccount: () => Promise<void>;
+  deleteAccount: (password: string) => Promise<void>;
   changeLanguage: (language: AppLanguage) => Promise<void>;
 }
 
@@ -180,9 +180,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await setJson(USER_STORAGE_KEY, updated);
         setUser(updated);
       },
-      async deleteAccount() {
+      async deleteAccount(password) {
+        // Delete first: a wrong password must leave the account, its session
+        // and this phone's push registration exactly as they were.
+        await deleteAccount(password);
         await unregisterCurrentToken().catch(() => {});
-        await deleteAccount();
         logOutAccount().catch(() => {});
         await clearToken();
         await removeKey(USER_STORAGE_KEY);

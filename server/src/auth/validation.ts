@@ -96,6 +96,11 @@ export const languageSchema = z.object({
   language: z.enum(APP_LANGUAGES),
 });
 
+// Deleting the account needs the current password (KZ-20).
+export const deleteAccountSchema = z.object({
+  password: z.string().min(1, 'Password is required.'),
+});
+
 export type SignupInput = z.infer<typeof signupSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
@@ -103,6 +108,7 @@ export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type ProfileInput = z.infer<typeof profileSchema>;
 export type AccountInput = z.infer<typeof accountSchema>;
 export type LanguageInput = z.infer<typeof languageSchema>;
+export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;
 
 export function validate<S extends z.ZodTypeAny>(
   schema: S,

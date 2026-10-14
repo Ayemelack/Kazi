@@ -323,6 +323,9 @@ const en = {
     confirmTitle: 'Delete everything?',
     confirmMessage: 'This permanently deletes your account and all your business data. Are you sure?',
     confirmButton: 'Yes, delete everything',
+    passwordLabel: 'Your password',
+    passwordPrompt: 'Enter your password to confirm.',
+    wrongPassword: 'That password is not correct.',
   },
   offline: {
     youAreOffline: "You're offline",

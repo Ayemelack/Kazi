@@ -2,35 +2,57 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { AlertTriangle, Trash2 } from 'lucide-react-native';
+import { AlertTriangle, ShieldCheck, Trash2 } from 'lucide-react-native';
 import Screen from '../../components/ui/Screen';
 import AppHeader from '../../components/ui/AppHeader';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import TextField from '../../components/ui/TextField';
 import { useAuth } from '../../auth/AuthContext';
-import { errorMessage } from '../../errors/messages';
+import type { ErrorKeyOverrides } from '../../errors/messages';
+import { useFormErrors } from '../../forms/useFormErrors';
 import type { MoreStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 
 type ScreenProps = NativeStackScreenProps<MoreStackParamList, 'DeleteAccount'>;
 
+const FIELDS = ['password'] as const;
+
+// Here a 401 means the password typed to confirm was wrong, not "email or
+// password" as on the sign-in screen.
+const DELETE_MESSAGES: ErrorKeyOverrides = {
+  INVALID_CREDENTIALS: 'deleteAccount.wrongPassword',
+};
+
 function DeleteAccountScreen({ navigation }: ScreenProps) {
   const { t } = useTranslation();
   const { deleteAccount } = useAuth();
   const [confirming, setConfirming] = useState(false);
-  const [formError, setFormError] = useState<unknown>(null);
+  const [password, setPassword] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const form = useFormErrors(
+    FIELDS,
+    { password: password.length === 0 ? 'auth.errors.required' : null },
+    DELETE_MESSAGES,
+  );
 
+  const closeDialog = () => {
+    setConfirming(false);
+    setPassword('');
+    form.reset();
+  };
+
+  // KZ-20: the password is asked for inside the confirm step and checked by
+  // the server; on any failure the dialog stays open with the reason.
   const handleDelete = async () => {
     if (deleting) return;
-    setFormError(null);
+    if (!form.attempt()) return;
     setDeleting(true);
     try {
-      await deleteAccount();
+      await deleteAccount(password);
     } catch (err) {
-      setFormError(err);
-      setConfirming(false);
+      form.fail(err);
     } finally {
       setDeleting(false);
     }
@@ -55,7 +77,6 @@ function DeleteAccountScreen({ navigation }: ScreenProps) {
             ))}
           </View>
         </Card>
-        {formError ? <Text style={styles.formError}>{errorMessage(formError, t)}</Text> : null}
         <Button
           testID="delete-account-open"
           label={t('deleteAccount.button')}
@@ -73,9 +94,27 @@ function DeleteAccountScreen({ navigation }: ScreenProps) {
         cancelLabel={t('common.cancel')}
         tone="danger"
         loading={deleting}
+        confirmTestID="delete-account-confirm"
         onConfirm={handleDelete}
-        onCancel={() => setConfirming(false)}
-      />
+        onCancel={closeDialog}
+      >
+        <TextField
+          testID="delete-account-password"
+          label={t('deleteAccount.passwordLabel')}
+          hint={t('deleteAccount.passwordPrompt')}
+          leftIcon={ShieldCheck}
+          secure
+          value={password}
+          onChangeText={setPassword}
+          onBlur={() => form.touch('password')}
+          error={form.fieldError('password')}
+        />
+        {form.formError ? (
+          <Text testID="delete-account-error" style={styles.formError}>
+            {form.formError}
+          </Text>
+        ) : null}
+      </ConfirmDialog>
     </Screen>
   );
 }
@@ -116,6 +155,7 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.error,
     textAlign: 'center',
+    marginTop: spacing.sm,
   },
 });
 

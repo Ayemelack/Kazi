@@ -15,6 +15,7 @@ import {
 } from './service.js';
 import {
   accountSchema,
+  deleteAccountSchema,
   forgotPasswordSchema,
   languageSchema,
   loginSchema,
@@ -31,6 +32,8 @@ export function createAuthRouter(db: Database.Database): Router {
 
   const slowDown = rateLimit({ windowMs: 15 * 60 * 1000, max: 12 });
   const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 25 });
+  // Deleting the account checks the password, so it is limited like login.
+  const deleteLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 25 });
 
   // Handlers that hash or compare passwords are async (KZ-21); Express 4 does
   // not catch a rejected promise, so each one passes errors to next() itself.
@@ -144,9 +147,9 @@ export function createAuthRouter(db: Database.Database): Router {
     }
   });
 
-  router.delete('/me', requireAuth(db), (req, res, next) => {
+  router.delete('/me', deleteLimiter, requireAuth(db), async (req, res, next) => {
     try {
-      deleteAccount(db, req.user?.id ?? 0);
+      await deleteAccount(db, req.user?.id ?? 0, validate(deleteAccountSchema, req.body));
       res.status(204).end();
     } catch (err) {
       next(err);

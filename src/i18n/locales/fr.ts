@@ -325,6 +325,9 @@ const fr: TranslationSchema = {
     confirmTitle: 'Tout supprimer ?',
     confirmMessage: 'Cela supprime définitivement votre compte et toutes vos données professionnelles. Êtes-vous sûr ?',
     confirmButton: 'Oui, tout supprimer',
+    passwordLabel: 'Votre mot de passe',
+    passwordPrompt: 'Saisissez votre mot de passe pour confirmer.',
+    wrongPassword: 'Ce mot de passe est incorrect.',
   },
   offline: {
     youAreOffline: 'Vous êtes hors ligne',

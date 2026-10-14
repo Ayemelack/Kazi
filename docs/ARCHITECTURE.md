@@ -182,7 +182,7 @@ Each domain folder has the same three files:
   (`auth/passwordHash.ts`, ADR A14) so a login never blocks other requests; an unknown email is
   compared against a dummy hash made once at start (KZ-21). Weak passwords are refused by
   `auth/passwordPolicy.ts` with the shared rules in `shared/src/password.ts` and the list in
-  `server/assets/common-passwords.txt` (KZ-05).
+  `server/assets/common-passwords.txt` (KZ-05). `DELETE /auth/me` needs the password (KZ-20).
 - Session: HS256 JWT, 30 days, carries `sub` and `ver` (`users.token_version`). `requireAuth`
   checks the version on every request, so a password reset invalidates old tokens.
 - **Target (KZ-13, decision D4):** 15-minute access token + rotating refresh token stored hashed in

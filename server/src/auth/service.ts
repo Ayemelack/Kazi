@@ -10,6 +10,7 @@ import {
 import { assertPasswordNotTooCommon } from './passwordPolicy.js';
 import type {
   AccountInput,
+  DeleteAccountInput,
   ForgotPasswordInput,
   LanguageInput,
   LoginInput,
@@ -216,9 +217,19 @@ export function updateLanguage(
   return toPublicUser(selectUser(db, userId) as unknown as UserRow);
 }
 
-export function deleteAccount(db: Database.Database, userId: number): void {
-  if (!selectUser(db, userId)) {
+// Deleting the account needs the password (KZ-20), so a phone left unlocked
+// or a stolen session token cannot erase the business's records.
+export async function deleteAccount(
+  db: Database.Database,
+  userId: number,
+  input: DeleteAccountInput,
+): Promise<void> {
+  const row = selectUser(db, userId);
+  if (!row) {
     throw new AppError(404, 'NOT_FOUND', 'Account not found.');
+  }
+  if (!(await verifyPassword(input.password, row.password_hash))) {
+    throw invalidCredentials();
   }
   // Foreign keys cascade to password resets, items, stock movements,
   // transactions, debts, activity and feedback.

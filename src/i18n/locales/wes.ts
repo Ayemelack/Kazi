@@ -336,6 +336,9 @@ const wes: TranslationSchema = {
     confirmMessage:
       'This go delete your account and all your business data forever. You sure?',
     confirmButton: 'Yes, delete everything',
+    passwordLabel: 'Your password',
+    passwordPrompt: 'Put your password make we confirm.',
+    wrongPassword: 'That password no correct.',
   },
   offline: {
     youAreOffline: 'You no get internet',

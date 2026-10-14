@@ -181,3 +181,62 @@ test('password_fingerprints is gone from the database and the code', () => {
   walk(srcDir);
   assert.deepEqual(offenders, []);
 });
+
+// ── KZ-20: deleting the account needs the password ──
+
+async function itemCount(userId: number): Promise<number> {
+  return (db.prepare('SELECT COUNT(*) AS n FROM items WHERE user_id = ?').get(userId) as { n: number }).n;
+}
+
+test('DELETE /auth/me with a wrong or missing password deletes nothing', async () => {
+  const created = await signup('keeper@market.cm', 'tenantShop2026x');
+  assert.equal(created.status, 201);
+  const token = created.data.token as string;
+  const userId = (created.data.user as { id: number }).id;
+  const item = await call('POST', '/items', { name: 'Rice', type: 'product', price: 1000 }, token);
+  assert.equal(item.status, 201);
+
+  const wrong = await call('DELETE', '/auth/me', { password: 'not-the-password-1' }, token);
+  assert.equal(wrong.status, 401);
+  assert.equal(errorOf(wrong.data).code, 'INVALID_CREDENTIALS');
+
+  const missing = await call('DELETE', '/auth/me', {}, token);
+  assert.equal(missing.status, 400);
+  assert.equal(errorOf(missing.data).code, 'VALIDATION_ERROR');
+  assert.equal(errorOf(missing.data).field, 'password');
+
+  const empty = await call('DELETE', '/auth/me', { password: '' }, token);
+  assert.equal(empty.status, 400);
+
+  // The account, its session and its data are intact.
+  assert.equal(userCount('keeper@market.cm'), 1);
+  assert.equal(await itemCount(userId), 1);
+  assert.equal((await call('GET', '/auth/me', undefined, token)).status, 200);
+
+  const right = await call('DELETE', '/auth/me', { password: 'tenantShop2026x' }, token);
+  assert.equal(right.status, 204);
+  assert.equal(userCount('keeper@market.cm'), 0);
+  assert.equal(await itemCount(userId), 0);
+});
+
+test('DELETE /auth/me needs a session before the password is checked', async () => {
+  const result = await call('DELETE', '/auth/me', { password: 'whatever-it-is-1' });
+  assert.equal(result.status, 401);
+  assert.notEqual(errorOf(result.data).code, 'INVALID_CREDENTIALS');
+});
+
+test('DELETE /auth/me is rate-limited like login', async () => {
+  const created = await signup('guessed@market.cm', 'strongShop2026x');
+  const token = created.data.token as string;
+  let status = 0;
+  let attempts = 0;
+  while (attempts < 30) {
+    attempts += 1;
+    status = (await call('DELETE', '/auth/me', { password: `wrong-guess-${attempts}` }, token)).status;
+    if (status === 429) break;
+    assert.equal(status, 401);
+  }
+  assert.equal(status, 429);
+  assert.equal(attempts, 26, '25 attempts allowed, the 26th refused');
+  assert.equal(userCount('guessed@market.cm'), 1);
+});

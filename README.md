@@ -156,8 +156,11 @@ Create, payment and stock writes carry a `clientOpId` in the body: a retried req
 stored response instead of duplicating the record, and reusing the same id for a different
 operation returns `409 IDEMPOTENCY_CONFLICT`.
 
-Authentication and password-reset routes are rate-limited (signup/forgot/reset: 12 per 15 min,
-login: 25 per 15 min; reset codes: 3 per email per hour), as is `POST /notifications/send` (10 per minute).
+Rate limits (refusals are `429` with `Retry-After`): signup/forgot/reset 12 per 15 min per IP each;
+login and account deletion 25 per 15 min per IP plus 10 wrong passwords per 15 min per account;
+reset codes 3 per hour and 10 per day per email; 120 writes a minute per signed-in user;
+`POST /notifications/send` 10 a minute per user. Behind a reverse proxy set `TRUST_PROXY` to the
+number of proxies (production: `1`), or every client shares the proxy's address.
 
 The owner-only read-only dashboard runs as a **separate server** — `server/src/admin/`, default
 `http://127.0.0.1:4100` with optional TLS and a `HttpOnly; SameSite=Strict` session cookie —
@@ -246,7 +249,8 @@ review dates are in `docs/SECURITY.md` §6).
 - Input is validated with zod on both sides. Money, business dates and page limits reject hex
   strings, booleans and non-finite numbers instead of coercing them, and out-of-range paging
   returns `400` rather than a server error.
-- Auth, password-reset and push-send routes are rate-limited. API responses omit `X-Powered-By`;
+- Auth, password-reset, push-send and all authenticated write routes are rate-limited, behind a
+  proxy too (`TRUST_PROXY`). API responses omit `X-Powered-By`;
   admin dashboard responses are `Cache-Control: no-store`.
 - `JWT_SECRET` must be at least 32 random bytes: with `NODE_ENV=production` the API refuses to
   start with a shorter value or the `.env.example` placeholder (see `.env.example`).

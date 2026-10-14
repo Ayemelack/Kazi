@@ -9,6 +9,7 @@ import { isTooCommonPassword } from '@kazi/shared';
 import { openDatabase } from '../db/index.js';
 import { createApp } from '../app.js';
 import { commonPasswordCount } from './passwordPolicy.js';
+import { PASSWORD_FAILURES_PER_ACCOUNT } from './routes.js';
 import { issueResetCode } from './service.js';
 
 let server: Server;
@@ -228,6 +229,8 @@ test('DELETE /auth/me needs a session before the password is checked', async () 
   assert.notEqual(errorOf(result.data).code, 'INVALID_CREDENTIALS');
 });
 
+// KZ-08: like login, wrong passwords are limited per account (10 per 15
+// minutes) before the per-IP limit (25) is reached.
 test('DELETE /auth/me is rate-limited like login', async () => {
   const created = await signup('guessed@market.cm', 'strongShop2026x');
   const token = created.data.token as string;
@@ -240,6 +243,6 @@ test('DELETE /auth/me is rate-limited like login', async () => {
     assert.equal(status, 401);
   }
   assert.equal(status, 429);
-  assert.equal(attempts, 26, '25 attempts allowed, the 26th refused');
+  assert.equal(attempts, PASSWORD_FAILURES_PER_ACCOUNT + 1, '10 wrong passwords allowed, the 11th attempt refused');
   assert.equal(userCount('guessed@market.cm'), 1);
 });

@@ -87,7 +87,7 @@ WantedBy=multi-user.target
 | `JWT_SECRET` | ✅ | — | ≥ 32 random bytes. With `NODE_ENV=production` the API exits at boot if it is missing, shorter, or the `.env.example` value (KZ-29); elsewhere it only warns |
 | `PORT` | | `4000` | Bind behind the proxy |
 | `DATABASE_PATH` | | `server/data/kazi.db` | Absolute path on SSD recommended |
-| `TRUST_PROXY` | ✅ `1` | unset | **New (KZ-08)** — number of proxy hops |
+| `TRUST_PROXY` | ✅ `1` | unset | Number of reverse proxies in front of the API (KZ-08): a whole number 0–10. Unset or `0`: `X-Forwarded-For` is ignored and limits use the connection address. Any other value (`true`, an address list, a typo) stops the API at boot. See "Rate limits and TRUST_PROXY" below |
 | `CORS_ORIGIN` | | unset (denied) | Only if a browser client is added |
 | `FIREBASE_SERVICE_ACCOUNT` or `GOOGLE_APPLICATION_CREDENTIALS` | ✅ for push | unset | Push disabled when unset |
 | `EMAIL_PROVIDER` | ✅ | unset | `brevo`, `postmark` or `http` (KZ-06). Without it the API starts only with `NODE_ENV=development` or `test`, where reset codes are printed to the console |
@@ -99,6 +99,33 @@ WantedBy=multi-user.target
 
 The API checks these at boot and exits with a message naming the variable to fix (never its
 value). It logs where codes go: `Password reset codes go to email (brevo).`
+
+#### Rate limits and TRUST_PROXY (KZ-08)
+
+Limits are per client address (signup, forgot-password and reset-password 12 per 15 min each;
+login and account deletion 25 per 15 min), per account (10 wrong passwords per 15 min for login,
+counted per email from every address, and for account deletion; reset codes 3 per hour and 10 per
+day per email) and per user (120 writes a minute; push sends 10 a minute). A refused request gets
+`429 TOO_MANY_REQUESTS` with `Retry-After` in seconds. All counters are in memory in the one API
+process and reset on restart.
+
+Behind a reverse proxy every connection comes from the proxy, so without `TRUST_PROXY` all users
+would share one bucket and 25 bad logins anywhere would lock everyone out. Set it to the number
+of proxies that append to `X-Forwarded-For` on the way in, counting from the API:
+
+- One Caddy or nginx on the same host (the topology in §2): `TRUST_PROXY=1`. Caddy's
+  `reverse_proxy` and nginx's `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for`
+  append the client address; the API takes the last entry and ignores anything the client wrote
+  before it.
+- A CDN or load balancer in front of that proxy: `2` — only if it also appends to
+  `X-Forwarded-For`, and only if the API cannot be reached except through it.
+- Clients connect straight to the API (local development): leave it unset.
+
+Too high a count lets a client pick its own address by sending the header; too low makes every
+user share the proxy's bucket. Check after deploying: the journal shows
+`Client addresses: from X-Forwarded-For, trusting 1 proxy hop(s).`; then from two networks (for
+example Wi-Fi and mobile data) make 13 bad `POST /auth/signup` requests with `{}` from the first
+— the 13th answers 429 — and one from the second, which must still answer 400.
 
 #### Password-reset email (KZ-06, decision D2)
 

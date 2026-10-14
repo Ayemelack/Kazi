@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import type Database from 'better-sqlite3';
 import { rateLimit } from '../middleware/rateLimit.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -14,10 +14,10 @@ import {
   validate,
 } from './validation.js';
 
-export function createNotificationsRouter(db: Database.Database): Router {
+export function createNotificationsRouter(db: Database.Database, userWrites: RequestHandler): Router {
   const router = Router();
 
-  router.use(requireAuth(db));
+  router.use(requireAuth(db), userWrites);
 
   router.post('/push-tokens', (req, res, next) => {
     try {
@@ -40,8 +40,9 @@ export function createNotificationsRouter(db: Database.Database): Router {
   });
 
   // Every send fans out to the caller's own push tokens, so an authenticated
-  // caller could otherwise burn the Firebase quota in a tight loop.
-  const sendLimiter = rateLimit({ windowMs: 60_000, max: 10 });
+  // caller could otherwise burn the Firebase quota in a tight loop. Counted
+  // per user (on top of the general write limit), not per address.
+  const sendLimiter = rateLimit({ windowMs: 60_000, max: 10, key: req => `send:${req.user?.id ?? 0}` });
 
   router.post('/send', sendLimiter, async (req, res, next) => {
     try {

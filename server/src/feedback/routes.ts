@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import type Database from 'better-sqlite3';
 import { requireAuth } from '../middleware/auth.js';
 import {
@@ -8,10 +8,10 @@ import {
 } from './service.js';
 import { createFeedbackSchema, feedbackIdSchema, validate } from './validation.js';
 
-export function createFeedbackRouter(db: Database.Database): Router {
+export function createFeedbackRouter(db: Database.Database, userWrites: RequestHandler): Router {
   const router = Router();
 
-  router.use(requireAuth(db));
+  router.use(requireAuth(db), userWrites);
 
   router.get('/', (req, res, next) => {
     try {

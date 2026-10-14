@@ -164,7 +164,11 @@ express()
  └─ errorHandler → { error: { code, message } }
 ```
 
-**Target:** `trust proxy` set from config (KZ-08), request timing and structured logs (KZ-34).
+`trust proxy` comes from `TRUST_PROXY` (a hop count; KZ-08, `server/src/trustProxy.ts`), and each
+authenticated router runs `requireAuth` then the per-user write limiter (`rateLimit.ts`) before
+its routes.
+
+**Target:** request timing and structured logs (KZ-34).
 
 ### 5.2 Module pattern
 

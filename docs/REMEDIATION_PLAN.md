@@ -232,9 +232,17 @@ Rules for every fix:
   5. Add a per-user limiter on authenticated write routes (generous, e.g. 120/min) to stop scripted abuse.
 - **Files:** `server/src/middleware/rateLimit.ts`, `server/src/app.ts`, `server/src/auth/routes.ts`.
 - **Acceptance:**
-  - [ ] Behind a proxy, two different client IPs get separate buckets (test with `X-Forwarded-For`).
-  - [ ] A spoofed `X-Forwarded-For` is ignored when `TRUST_PROXY` is unset.
-  - [ ] Map size stays bounded under a 100k-distinct-key load test.
+  - [x] Behind a proxy, two different client IPs get separate buckets (test with `X-Forwarded-For`).
+  - [x] A spoofed `X-Forwarded-For` is ignored when `TRUST_PROXY` is unset.
+  - [x] Map size stays bounded under a 100k-distinct-key load test.
+- _Session 6:_ `TRUST_PROXY` is a hop count only (unset/0 → false; anything else stops the boot),
+  never `true`. New `FixedWindowLimiter` + `rateLimit({ key })` middleware (sweep every minute on
+  an unref'd timer, 10 000-key cap, `Retry-After`). Login: 25/15 min per IP plus 10 failures/15 min
+  per normalized email (counted when the attempt starts, cleared on success or a completed reset);
+  account deletion the same per user; 120 writes a minute per user on every authenticated router;
+  push send 10 a minute per user. Also the daily reset-code cap (10 per email) that SECURITY §6
+  assigned to this task. Tests: `server/src/middleware/rateLimit{,.routes}.test.ts`,
+  `server/src/trustProxy.test.ts`, `server/src/auth/reset.test.ts`.
 
 ### KZ-09
 **Release signing and production API URL**

@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import type Database from 'better-sqlite3';
 import { requireAuth } from '../middleware/auth.js';
 import { runIdempotent } from '../idempotency.js';
@@ -20,10 +20,10 @@ import {
   validate,
 } from './validation.js';
 
-export function createItemsRouter(db: Database.Database): Router {
+export function createItemsRouter(db: Database.Database, userWrites: RequestHandler): Router {
   const router = Router();
 
-  router.use(requireAuth(db));
+  router.use(requireAuth(db), userWrites);
 
   router.get('/', (req, res, next) => {
     try {

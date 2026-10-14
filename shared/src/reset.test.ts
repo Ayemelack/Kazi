@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
+  RESET_CODES_PER_EMAIL_PER_DAY,
   RESET_CODES_PER_EMAIL_PER_HOUR,
   RESET_CODE_LENGTH,
   RESET_CODE_MAX_ATTEMPTS,
@@ -13,6 +14,7 @@ test('reset code limits are the ones in the KZ-06 spec', () => {
   assert.equal(RESET_CODE_TTL_MINUTES, 15);
   assert.equal(RESET_CODE_MAX_ATTEMPTS, 5);
   assert.equal(RESET_CODES_PER_EMAIL_PER_HOUR, 3);
+  assert.equal(RESET_CODES_PER_EMAIL_PER_DAY, 10);
 });
 
 test('a reset code is exactly six ASCII digits', () => {

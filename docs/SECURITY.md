@@ -65,7 +65,7 @@ The earlier adversarial test report is in `SECURITY_ASSESSMENT.md` at the reposi
 |---|---|---|
 | ~~Password-uniqueness check reveals that a password is in use somewhere~~ | Fixed (KZ-05): rule and `password_fingerprints` removed; common-password list instead | KZ-05 ✅ |
 | ~~Reset code returned in HTTP response unless `NODE_ENV=production` (fail-open); no delivery in production~~ | Fixed (KZ-06): emailed codes; the response never carries a code outside development; boot fails closed. Staging end-to-end check waits on the email provider (D2) | KZ-06 ✅ (staging check 🟨) |
-| Rate limiter shares one bucket for all users behind a proxy; unbounded memory | High | KZ-08 |
+| ~~Rate limiter shares one bucket for all users behind a proxy; unbounded memory~~ | Fixed (KZ-08): `trust proxy` from `TRUST_PROXY` (hop count only); per-email login and per-account delete failure limits; per-user write limit; buckets swept every minute and capped at 10 000 keys; `Retry-After` on every 429 | KZ-08 ✅ |
 | Release APK signed with the public debug key | High | KZ-09 |
 | Logout doesn't revoke; 30-day tokens | Medium | KZ-13 |
 | Image bytes never checked against declared type | Medium | KZ-15 |
@@ -121,11 +121,19 @@ The earlier adversarial test report is in `SECURITY_ASSESSMENT.md` at the reposi
 - Errors: stable `code` for the client, no stack traces or SQL in responses.
 
 ### 5.4 Abuse protection
-- Rate limits: signup / forgot / reset 12 per 15 min per IP; reset codes 3 per email address per
-  hour, counted for every address so the limit reveals nothing (KZ-06); login 25 per 15 min per
-  IP plus a per-email failure limit; authenticated writes per user (KZ-08). Always send
-  `Retry-After`.
-- `trust proxy` set to the exact proxy configuration in production, never `true` blindly.
+- Rate limits (`server/src/middleware/rateLimit.ts`: fixed windows, swept every minute, at most
+  10 000 keys per limiter with the oldest dropped first):
+  - per IP: signup, forgot-password and reset-password 12 per 15 min each; login and account
+    deletion 25 per 15 min;
+  - per account: login 10 wrong passwords per 15 min per normalized email, from any address,
+    counted for unknown emails too (so it reveals nothing) and cleared by a successful login or
+    password reset; account deletion the same per user; reset codes 3 per hour and 10 per day per
+    email, counted for every address (KZ-06, KZ-08);
+  - per user: 120 authenticated writes (POST, PUT, PATCH, DELETE) a minute across all routes;
+    `POST /notifications/send` 10 a minute.
+- Every 429 is `TOO_MANY_REQUESTS` with `Retry-After` (whole seconds).
+- `trust proxy` comes from `TRUST_PROXY`, a hop count only (KZ-08); `true`, address lists and
+  anything else stop the API at boot. Production behind one proxy: `1` (DEPLOYMENT §3).
 
 ### 5.5 Transport
 - Release builds talk to the API over HTTPS only (TLS 1.2+ at the proxy, HSTS on the API domain).
@@ -183,9 +191,11 @@ Each entry needs an owner and a review date.
 
 | Risk | Why accepted | Mitigation | Review by |
 |---|---|---|---|
-| Signup returns `EMAIL_IN_USE` (email enumeration) | Users need to be told to sign in instead | Rate limits; per-email login limits (KZ-08) | 2027-01-31 |
+| Signup returns `EMAIL_IN_USE` (email enumeration) | Users need to be told to sign in instead | Rate limits; per-email login limits (KZ-08, done) | 2027-01-31 |
 | Single-process rate limiting and admin sessions (including the per-email reset-code limit, which a restart clears) | One API instance | Move to a shared store before scaling out | When adding a 2nd instance |
-| Online guessing of one account's reset code (KZ-06) | 3 codes per address per hour × 5 tries = at most 15 guesses an hour at 1 in 1 000 000 each: about 0.04 % a day, but about 12 % over a year of non-stop attempts | Every code is an email to the owner (an attack floods their inbox); per-IP limits; KZ-08 (session 6) should add a daily per-address cap (e.g. 10 codes a day: about 2 % a year) | 2026-11-30 (KZ-08) |
+| Online guessing of one account's reset code (KZ-06) | Since KZ-08 at most 10 codes per address a day × 5 tries = 50 guesses a day at 1 in 1 000 000 each: about 0.005 % a day, about 1.8 % over a year of non-stop attempts (12 % a year with the hourly limit alone) | Every code is an email to the owner (an attack floods their inbox); per-IP limits; daily cap of 10 codes per address (KZ-08) | 2027-04-14 |
+| Anyone who knows an email can lock its login for up to 15 minutes with 10 wrong passwords (KZ-08) | The per-email failure limit is what stops a distributed guessing attack on one account; a short lockout is the usual trade-off | The window is 15 minutes; a completed password reset lifts the lockout at once; per-IP limits slow the attacker. Revisit if support reports abuse | 2027-01-31 |
+| A flood of more than 10 000 distinct keys (addresses or emails) inside one window drops the oldest buckets, which resets their counts (KZ-08) | Keeps memory bounded (about 1–2 MB per limiter) | Reaching 10 000 emails needs 400+ addresses because of the per-IP login limit; the proxy's per-IP connection limits | When adding a 2nd instance |
 | App build tooling: `braces` 3.0.3 stack-exhaustion DoS on deeply nested glob patterns (GHSA-vfj7-8cjw-p6xm, high) | No fixed release exists (3.0.3 is the latest). It is reached only through `micromatch` in Metro, Jest and the React Native CLI | Exposure: build machines only, with glob patterns from our own config. Not in the release bundle (checked: an Android release bundle contains no `micromatch`/`braces` code). Listed in `scripts/audit-exceptions.json` | 2027-01-14 |
 | App build tooling: `image-size` 1.2.1 infinite loops on crafted JXL/HEIF/ICNS files (GHSA-5p2g-fcmc-qvqq, GHSA-w3rx-r6r6-pgpr, high) | Fixed only in 2.0.3+, a major version with a different API, outside Metro 0.87's `^1.0.2` range; overriding would break asset bundling | Exposure: Metro reads the dimensions of the repository's own image assets at bundle time; no user file ever reaches it, and it is not in the release bundle. Listed in `scripts/audit-exceptions.json` | 2027-01-14 |
 

@@ -21,6 +21,7 @@ const ISOLATED: Record<string, string> = {
   EMAIL_FROM: '',
   EMAIL_FROM_NAME: '',
   EMAIL_API_URL: '',
+  TRUST_PROXY: '',
 };
 
 export const bootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kazi-boot-'));

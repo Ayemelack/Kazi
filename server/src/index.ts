@@ -4,6 +4,7 @@ import { openDatabase, resolveDatabasePath } from './db/index.js';
 import { resetDeliveryFromEnv } from './auth/delivery.js';
 import { log } from './log.js';
 import { checkJwtSecret } from './secrets.js';
+import { parseTrustProxy } from './trustProxy.js';
 
 // Fail fast instead of serving 500s on the first authenticated request, and
 // never run production with a guessable signing secret (KZ-29).
@@ -29,12 +30,28 @@ if (resetDelivery.delivery.devCodeInResponse) {
   log.warn('ALLOW_DEV_RESET_CODE=1: forgot-password also returns the code in its response (development only).');
 }
 
+// Per-IP rate limits behind a reverse proxy need the client address from
+// X-Forwarded-For, trusted for exactly the configured number of hops (KZ-08).
+const trustProxy = parseTrustProxy(process.env.TRUST_PROXY);
+if (!trustProxy.ok) {
+  log.error(trustProxy.error);
+  process.exit(1);
+}
+log.info(
+  trustProxy.value === false
+    ? 'Client addresses: from the connection (TRUST_PROXY unset; X-Forwarded-For ignored).'
+    : `Client addresses: from X-Forwarded-For, trusting ${trustProxy.value} proxy hop(s).`,
+);
+
 const port = Number(process.env.PORT ?? 4000);
 
 log.info(`Kazi API database: ${resolveDatabasePath()}`);
 
 const db = openDatabase();
-const app = createApp(db, { resetDelivery: resetDelivery.delivery });
+const app = createApp(db, {
+  resetDelivery: resetDelivery.delivery,
+  trustProxy: trustProxy.value,
+});
 
 const server = app.listen(port, () => {
   log.info(`Kazi API listening on http://localhost:${port}`);

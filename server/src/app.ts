@@ -11,6 +11,7 @@ import { createNotificationsRouter } from './notifications/routes.js';
 import { createSummaryRouter } from './summary/routes.js';
 import { createTransactionsRouter } from './transactions/routes.js';
 import { errorHandler } from './errors.js';
+import { byUserWrite, rateLimit } from './middleware/rateLimit.js';
 
 export interface AppOptions {
   /**
@@ -18,13 +19,33 @@ export interface AppOptions {
    * resetDeliveryFromEnv (KZ-06). Without it nothing is sent.
    */
   resetDelivery?: ResetDelivery;
+  /**
+   * Express's `trust proxy`: false (X-Forwarded-For ignored) or the number of
+   * proxy hops, from TRUST_PROXY (KZ-08, see trustProxy.ts). Never `true`.
+   */
+  trustProxy?: false | number;
 }
+
+// Generous enough for any person using the app, low enough to stop a script
+// (KZ-08). One bucket per user across every write route.
+export const USER_WRITES_PER_MINUTE = 120;
 
 export function createApp(db: Database.Database, options: AppOptions = {}): Express {
   const app = express();
   // Fingerprinting aid only: without this Express advertises "X-Powered-By:
   // Express" on every response, including error responses.
   app.disable('x-powered-by');
+  // Per-IP rate limits key on req.ip, which follows this setting.
+  app.set('trust proxy', options.trustProxy ?? false);
+
+  // Every authenticated router counts writes (POST, PUT, PATCH, DELETE) per
+  // user after requireAuth, so the bucket is the verified account, not an
+  // address a proxy or mobile network shares.
+  const userWrites = rateLimit({
+    windowMs: 60_000,
+    max: USER_WRITES_PER_MINUTE,
+    key: byUserWrite,
+  });
 
   // Lean security headers for the JSON API. Kept inline so no middleware
   // dependency is introduced for a small, fixed set of headers. Cache-Control
@@ -60,14 +81,14 @@ export function createApp(db: Database.Database, options: AppOptions = {}): Expr
     res.status(200).json({ status: 'ok' });
   });
 
-  app.use('/auth', createAuthRouter(db, options.resetDelivery));
-  app.use('/items', createItemsRouter(db));
-  app.use('/transactions', createTransactionsRouter(db));
-  app.use('/debts', createDebtsRouter(db));
+  app.use('/auth', createAuthRouter(db, userWrites, options.resetDelivery));
+  app.use('/items', createItemsRouter(db, userWrites));
+  app.use('/transactions', createTransactionsRouter(db, userWrites));
+  app.use('/debts', createDebtsRouter(db, userWrites));
   app.use('/summary', createSummaryRouter(db));
   app.use('/activity', createActivityRouter(db));
-  app.use('/feedback', createFeedbackRouter(db));
-  app.use('/notifications', createNotificationsRouter(db));
+  app.use('/feedback', createFeedbackRouter(db, userWrites));
+  app.use('/notifications', createNotificationsRouter(db, userWrites));
 
   app.use((_req, res) => {
     res.status(404).json({

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, mock, test } from 'node:test';
 import type { Server } from 'node:http';
 import type Database from 'better-sqlite3';
 import {
+  RESET_CODES_PER_EMAIL_PER_DAY,
   RESET_CODES_PER_EMAIL_PER_HOUR,
   RESET_CODE_MAX_ATTEMPTS,
   type AppLanguage,
@@ -248,6 +249,34 @@ test('the per-email limit resets after an hour (fake clock)', async () => {
   assert.equal((await call('/auth/forgot-password', { email: 'hourly@market.cm' })).status, 429);
   mock.timers.tick(60 * 60 * 1000);
   assert.equal((await call('/auth/forgot-password', { email: 'hourly@market.cm' })).status, 202);
+});
+
+// KZ-08 (SECURITY.md §6): a daily cap bounds online guessing of one
+// account's code to 10 codes × 5 tries a day.
+test('ten codes per email per day; requests the hourly limit refused do not count (fake clock)', async () => {
+  mock.timers.enable({ apis: ['Date'], now: Date.now() });
+  const hour = 60 * 60 * 1000;
+  let granted = 0;
+  for (let h = 0; h < 4; h += 1) {
+    for (let i = 0; i < 5; i += 1) {
+      const reply = await call('/auth/forgot-password', { email: 'daily@market.cm' });
+      if (reply.status === 202) {
+        granted += 1;
+      } else {
+        assert.equal(reply.status, 429);
+        assert.equal(errorCode(reply), 'TOO_MANY_REQUESTS');
+      }
+    }
+    mock.timers.tick(hour);
+  }
+  assert.equal(granted, RESET_CODES_PER_EMAIL_PER_DAY);
+
+  // A new hour, but the day's allowance is spent until 24 h after the first code.
+  const spent = await call('/auth/forgot-password', { email: 'daily@market.cm' });
+  assert.equal(spent.status, 429);
+  assert.equal(Number(spent.headers.get('retry-after')), 20 * 60 * 60);
+  mock.timers.tick(20 * hour);
+  assert.equal((await call('/auth/forgot-password', { email: 'daily@market.cm' })).status, 202);
 });
 
 test('the stored code is an HMAC bound to the account, expiring in 15 minutes, never the code', async () => {

@@ -52,7 +52,7 @@ Sustained throughput target: 200 requests/s mixed read/write without breaching p
 | SQLite default `synchronous=FULL` with WAL | Slower commits than needed | KZ-32 |
 | Products / History / Debts use `ScrollView` + `map` | All rows render at once; jank on long lists | KZ-31 |
 | R8 / resource shrinking off; one APK with 4 ABIs | Larger download, slower install and start | KZ-33 |
-| Rate-limiter map never pruned | Memory grows with unique IPs | KZ-08 |
+| ~~Rate-limiter map never pruned~~ | Fixed (KZ-08): expired buckets swept every minute (unref'd timer, stops at the first live bucket), at most 10 000 keys per limiter; 100 000 distinct keys tested | KZ-08 ✅ |
 | Duplicate writes on retry | Extra load and wrong data | KZ-11 |
 
 ---

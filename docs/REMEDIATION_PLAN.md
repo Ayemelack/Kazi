@@ -287,8 +287,13 @@ Rules for every fix:
   (≥ 16 chars, timestamp + random) and reuses it for every retry of that submission; a new id only
   after success or after the user changes the form. Apply to item create, stock in/out,
   transaction create, debt create and debt pay.
-- **Acceptance:** [ ] Simulated lost response + retry → one record, second call returns 200 with
-  the same body. [ ] Jest test that the id is stable across retries.
+- **Acceptance:** [x] Simulated lost response + retry → one record, second call returns 200 with
+  the same body. [x] Jest test that the id is stable across retries.
+- **Done (session 7):** ids are 25 characters (`newClientOpId`, timestamp + random + counter), above
+  the spec's 16, and are created on the first Save tap rather than on mount, so an opened-and-left
+  form never holds one. "A new id after the user changes the form" is implemented as "a new id
+  whenever the values about to be sent differ from the ones the id was made for", so one id can
+  never cover two different bodies (the API would answer the second with the first's record).
 
 ### KZ-12
 **Errors in the user's language**

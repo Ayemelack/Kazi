@@ -251,7 +251,14 @@ once; a repeat with the same id and type replays the stored response, a repeat w
 type returns `409 IDEMPOTENCY_CONFLICT`. Applies to item create, stock in/out, transaction create,
 debt create and debt pay.
 
-**Target (KZ-11):** the app generates one `clientOpId` per form submission and reuses it on retry.
+Since KZ-11 the app sends one on every one of those writes. `newClientOpId()` (`@kazi/shared`)
+makes a 25-character lowercase base36 id: 9 characters of the millisecond clock, 12 random, 4 of a
+module counter. It is an idempotency key, not a secret: the ledger is keyed by `user_id`, so another
+account can neither replay nor block it, and `Math.random` is enough. `useSubmission()`
+(`src/forms/useSubmission.ts`) holds one id per submission: `opId(values)` on Save creates it,
+reuses it while the values to send are unchanged (a retry after a timeout or lost answer), makes a
+new one as soon as any value differs, and `succeeded()` drops it after the server confirmed. Forms:
+TransactionForm, AddMoney, DebtForm, Debts (pay), ProductForm (create, stock in, stock out).
 
 ### 5.6 Activity log
 
@@ -431,7 +438,7 @@ sequenceDiagram
 ```
 
 If the response is lost and the user taps Save again, the same `clientOpId` replays the stored
-response: no second sale, no second stock movement (after KZ-11).
+response: no second sale, no second stock movement (KZ-11).
 
 ### 8.2 App start
 

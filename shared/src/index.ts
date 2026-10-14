@@ -9,3 +9,4 @@ export * from './errors.js';
 export * from './language.js';
 export * from './password.js';
 export * from './reset.js';
+export { CLIENT_OP_ID_LENGTH, newClientOpId } from './clientOpId.js';

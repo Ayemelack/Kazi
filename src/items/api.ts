@@ -4,7 +4,12 @@ import type { Item, ItemInput, StockMovement } from './types';
 export interface StockMovementInput {
   quantity: number;
   reason?: string;
+  // Idempotency key for this submission (KZ-11, src/forms/useSubmission.ts).
+  clientOpId?: string;
 }
+
+// Only creating an item is idempotent; an update is naturally safe to repeat.
+export type CreateItemInput = ItemInput & { clientOpId?: string };
 
 export function listItems(): Promise<{ items: Item[] }> {
   return apiRequest<{ items: Item[] }>('/items', { auth: true });
@@ -14,7 +19,7 @@ export function getItem(itemId: number): Promise<{ item: Item }> {
   return apiRequest<{ item: Item }>(`/items/${itemId}`, { auth: true });
 }
 
-export function createItem(input: ItemInput): Promise<{ item: Item }> {
+export function createItem(input: CreateItemInput): Promise<{ item: Item }> {
   return apiRequest<{ item: Item }>('/items', {
     method: 'POST',
     body: input,

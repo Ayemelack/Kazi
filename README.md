@@ -152,8 +152,9 @@ Authorized endpoints take `Authorization: Bearer <token>`. Errors always use the
 
 Every query is scoped to the authenticated user, and business dates (`transactions.date`,
 `debts.date`, `activity.event_date`) are filtered in the caller's own time zone via `asOf`.
-Create, payment and stock writes carry a `clientOpId` in the body: a retried request replays the
-stored response instead of duplicating the record, and reusing the same id for a different
+Create, payment and stock writes carry a `clientOpId` in the body (the app sends one per form
+submission and reuses it when Save is tapped again after a failure): a retried request replays
+the stored response instead of duplicating the record, and reusing the same id for a different
 operation returns `409 IDEMPOTENCY_CONFLICT`.
 
 Rate limits (refusals are `429` with `Retry-After`): signup/forgot/reset 12 per 15 min per IP each;

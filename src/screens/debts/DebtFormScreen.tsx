@@ -14,6 +14,7 @@ import { createDebt } from '../../offline/api';
 import { MONEY_INPUT_MAX_LENGTH, moneyPreview } from '../../money/input';
 import { todayInput, validateDebt } from '../../debts/validation';
 import { useFormErrors } from '../../forms/useFormErrors';
+import { useSubmission } from '../../forms/useSubmission';
 import type { HistoryStackParamList } from '../../navigation/RootNavigator';
 import { colors, spacing, typography } from '../../theme';
 
@@ -30,17 +31,20 @@ function DebtFormScreen({ navigation }: ScreenProps) {
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const form = useFormErrors(FIELDS, validateDebt({ name, amount, date, note }));
+  const submission = useSubmission();
 
   const submit = async () => {
     if (submitting || !form.attempt()) return;
     setSubmitting(true);
     try {
-      await createDebt({
+      const input = {
         name: name.trim(),
         amount: parseMoneyInput(amount) ?? 0,
         date: date.trim(),
         note: note.trim() || undefined,
-      });
+      };
+      await createDebt({ ...input, clientOpId: submission.opId(input) });
+      submission.succeeded();
       toast.show('success', t('debts.created'));
       navigation.goBack();
     } catch (err) {

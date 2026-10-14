@@ -17,10 +17,14 @@ export function createDebt(input: DebtInput): Promise<{ debt: Debt }> {
   });
 }
 
-export function payDebt(debtId: number, paidOn?: string): Promise<{ debt: Debt }> {
+export function payDebt(
+  debtId: number,
+  paidOn?: string,
+  clientOpId?: string,
+): Promise<{ debt: Debt }> {
   return apiRequest<{ debt: Debt }>(`/debts/${debtId}/pay`, {
     method: 'POST',
-    body: paidOn ? { date: paidOn } : {},
+    body: { date: paidOn, clientOpId },
     auth: true,
   });
 }

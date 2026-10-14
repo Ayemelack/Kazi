@@ -17,6 +17,7 @@ import { todayAsDateString, validateTransactionForm } from '../../transactions/v
 import type { TransactionType } from '../../transactions/types';
 import type { Item } from '../../items/types';
 import { useFormErrors } from '../../forms/useFormErrors';
+import { useSubmission } from '../../forms/useSubmission';
 import type { HistoryStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 import ItemPickerDialog from './ItemPickerDialog';
@@ -76,6 +77,7 @@ export default function TransactionFormScreen({ navigation, route }: ScreenProps
     ),
   );
   const resetForm = form.reset;
+  const submission = useSubmission();
 
   useEffect(() => {
     setType(route.params?.initialType ?? 'sale');
@@ -111,14 +113,16 @@ export default function TransactionFormScreen({ navigation, route }: ScreenProps
     setSubmitting(true);
     try {
       const parsedQuantity = quantity.trim() === '' ? undefined : Number(quantity.trim());
-      await createTransaction({
+      const input = {
         type,
         amount: parseMoneyInput(amount) ?? 0,
         description: description.trim() || undefined,
         date: date.trim(),
         itemId: selectedItem?.id,
         quantity: parsedQuantity,
-      });
+      };
+      await createTransaction({ ...input, clientOpId: submission.opId(input) });
+      submission.succeeded();
       toast.show('success', t('transactions.saved'));
       navigation.goBack();
     } catch (err) {

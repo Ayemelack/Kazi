@@ -20,6 +20,7 @@ import {
 } from '../../transactions/validation';
 import { formatMoney } from '@kazi/shared';
 import { useFormErrors } from '../../forms/useFormErrors';
+import { useSubmission } from '../../forms/useSubmission';
 import type { HistoryStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 
@@ -40,6 +41,7 @@ export default function AddMoneyScreen({ navigation }: ScreenProps) {
     amount: validateTransactionAmount(amount),
     date: validateTransactionDate(date),
   });
+  const submission = useSubmission();
 
   useFocusEffect(
     useCallback(() => {
@@ -64,12 +66,14 @@ export default function AddMoneyScreen({ navigation }: ScreenProps) {
     if (submitting || !form.attempt()) return;
     setSubmitting(true);
     try {
-      await createTransaction({
-        type: 'capital',
+      const input = {
+        type: 'capital' as const,
         amount: parseMoneyInput(amount) ?? 0,
         date: date.trim(),
         description: description.trim() || undefined,
-      });
+      };
+      await createTransaction({ ...input, clientOpId: submission.opId(input) });
+      submission.succeeded();
       toast.show('success', t('transactions.saved'));
       navigation.goBack();
     } catch (err) {

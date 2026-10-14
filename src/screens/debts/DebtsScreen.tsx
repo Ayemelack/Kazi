@@ -19,6 +19,7 @@ import { formatMoney } from '@kazi/shared';
 import { dateToDateString, todayAsDateString } from '../../transactions/validation';
 import type { HistoryStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
+import { useSubmission } from '../../forms/useSubmission';
 
 type ScreenProps = NativeStackScreenProps<HistoryStackParamList, 'Debts'>;
 
@@ -33,6 +34,7 @@ export default function DebtsScreen({ navigation }: ScreenProps) {
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [payTarget, setPayTarget] = useState<Debt | null>(null);
   const [payBusy, setPayBusy] = useState(false);
+  const paySubmission = useSubmission();
 
   const load = useCallback(
     async (mode: 'initial' | 'refresh') => {
@@ -67,7 +69,15 @@ export default function DebtsScreen({ navigation }: ScreenProps) {
     try {
       // The owner settles the debt on their own calendar day, which becomes
       // the day it shows up in the history.
-      const result = await payDebt(payTarget.id, todayAsDateString());
+      const paidOn = todayAsDateString();
+      // Paying the same debt again after a failed attempt reuses the id, so a
+      // payment whose answer was lost is not recorded twice.
+      const result = await payDebt(
+        payTarget.id,
+        paidOn,
+        paySubmission.opId({ debtId: payTarget.id, paidOn }),
+      );
+      paySubmission.succeeded();
       setDebts(prev =>
         prev.map(item => (item.id === result.debt.id ? result.debt : item)),
       );

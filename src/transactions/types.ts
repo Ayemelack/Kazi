@@ -26,4 +26,6 @@ export interface TransactionInput {
   date: string;
   itemId?: number;
   quantity?: number;
+  // Idempotency key for this submission (KZ-11, src/forms/useSubmission.ts).
+  clientOpId?: string;
 }

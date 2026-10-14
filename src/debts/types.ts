@@ -17,4 +17,6 @@ export interface DebtInput {
   amount: number;
   note?: string;
   date: string;
+  // Idempotency key for this submission (KZ-11, src/forms/useSubmission.ts).
+  clientOpId?: string;
 }

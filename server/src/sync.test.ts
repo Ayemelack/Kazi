@@ -207,3 +207,101 @@ test('reusing a clientOpId for a different operation is rejected', async () => {
   );
   assert.equal(countRows('items'), itemsBefore);
 });
+// KZ-11: the app retries a write with the same clientOpId when the answer was
+// lost. Every idempotent route must answer the retry with 200 and exactly the
+// body it sent the first time, and must not write anything again.
+test('every idempotent route replays 200 with the identical body and writes nothing', async () => {
+  const stamp = Date.now();
+  const tables = ['transactions', 'debts', 'items', 'stock_movements', 'activity', 'client_ops'];
+  const snapshot = () => tables.map(table => countRows(table));
+
+  const item = await call('POST', '/items', {
+    name: 'Rice bag',
+    type: 'product',
+    price: 25000,
+    trackStock: true,
+    lowStockThreshold: 2,
+    clientOpId: `kz11-item-${stamp}`,
+  });
+  assert.equal(item.status, 201);
+  const itemId = (item.data.item as { id: number }).id;
+  const debt = await call('POST', '/debts', {
+    name: 'Papa Joe',
+    amount: 4000,
+    date: '2026-10-14',
+    clientOpId: `kz11-debt-${stamp}`,
+  });
+  assert.equal(debt.status, 201);
+  const debtId = (debt.data.debt as { id: number }).id;
+
+  const writes: Array<[string, string, Record<string, unknown>, number]> = [
+    ['POST', '/items', {
+      name: 'Rice bag',
+      type: 'product',
+      price: 25000,
+      trackStock: true,
+      lowStockThreshold: 2,
+      clientOpId: `kz11-item-${stamp}`,
+    }, 201],
+    ['POST', '/debts', {
+      name: 'Papa Joe',
+      amount: 4000,
+      date: '2026-10-14',
+      clientOpId: `kz11-debt-${stamp}`,
+    }, 201],
+    ['POST', `/items/${itemId}/stock-in`, { quantity: 8, reason: 'Delivery', clientOpId: `kz11-in-${stamp}` }, 200],
+    ['POST', `/items/${itemId}/stock-out`, { quantity: 3, reason: 'Spoiled', clientOpId: `kz11-out-${stamp}` }, 200],
+    ['POST', '/transactions', {
+      type: 'sale',
+      amount: 50000,
+      date: '2026-10-14',
+      itemId,
+      quantity: 2,
+      clientOpId: `kz11-sale-${stamp}`,
+    }, 201],
+    ['POST', `/debts/${debtId}/pay`, { date: '2026-10-14', clientOpId: `kz11-pay-${stamp}` }, 200],
+  ];
+
+  for (const [method, path, body, firstStatus] of writes) {
+    // The item and debt were already created above; their first answer is that one.
+    const first =
+      path === '/items' ? item : path === '/debts' ? debt : await call(method, path, body);
+    assert.equal(first.status, firstStatus, `${path} first status`);
+    const before = snapshot();
+    const replay = await call(method, path, body);
+    assert.equal(replay.status, 200, `${path} replay status`);
+    assert.deepEqual(replay.data, first.data, `${path} replay body`);
+    assert.deepEqual(snapshot(), before, `${path} wrote nothing on replay`);
+  }
+
+  // Stock moved once per write: 8 in, 3 out, 2 sold.
+  const fresh = await call('GET', `/items/${itemId}`);
+  assert.equal((fresh.data.item as { stock: number }).stock, 3);
+});
+
+test('a clientOpId is scoped to its user', async () => {
+  const signup = await fetch(`${baseUrl}/auth/signup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      firstName: 'Second',
+      lastName: 'Trader',
+      email: 'second@market.cm',
+      password: 'mboaLedger2026',
+    }),
+  });
+  const other = ((await signup.json()) as unknown as AuthResult).token;
+  const clientOpId = `kz11-shared-${Date.now()}`;
+  const body = { type: 'sale', amount: 700, date: '2026-10-14', clientOpId };
+
+  const mine = await call('POST', '/transactions', body);
+  assert.equal(mine.status, 201);
+  const theirs = await fetch(`${baseUrl}/transactions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${other}` },
+    body: JSON.stringify(body),
+  });
+  assert.equal(theirs.status, 201);
+  const theirTransaction = ((await theirs.json()) as { transaction: { id: number } }).transaction;
+  assert.notEqual(theirTransaction.id, (mine.data.transaction as { id: number }).id);
+});

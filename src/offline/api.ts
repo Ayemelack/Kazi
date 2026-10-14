@@ -1,7 +1,7 @@
 import type { Item, ItemInput } from '../items/types';
 import type { Transaction, TransactionInput } from '../transactions/types';
 import type { Debt, DebtInput } from '../debts/types';
-import type { StockMovementInput } from '../items/api';
+import type { CreateItemInput, StockMovementInput } from '../items/api';
 import type { MoneySummary } from '../summary/api';
 import type { LocalActivity } from './types';
 import type { ActivityQuery, ActivitySummary } from '../activity/types';
@@ -94,8 +94,9 @@ export async function createDebt(
 export async function payDebt(
   debtId: number,
   paidOn?: string,
+  clientOpId?: string,
 ): Promise<{ debt: Debt }> {
-  return payDebtRequest(debtId, paidOn);
+  return payDebtRequest(debtId, paidOn, clientOpId);
 }
 
 export async function deleteDebt(debtId: number): Promise<void> {
@@ -103,7 +104,7 @@ export async function deleteDebt(debtId: number): Promise<void> {
 }
 
 export async function createItem(
-  input: ItemInput,
+  input: CreateItemInput,
 ): Promise<{ item: Item }> {
   const { item } = await createItemRequest(input);
   return { item };

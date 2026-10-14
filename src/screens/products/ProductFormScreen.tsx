@@ -38,6 +38,7 @@ import type { Item, ItemType, StockDirection } from '../../items/types';
 import type { ProductsStackParamList } from '../../navigation/RootNavigator';
 import { LocalError, errorMessage } from '../../errors/messages';
 import { useFormErrors } from '../../forms/useFormErrors';
+import { useSubmission } from '../../forms/useSubmission';
 import { colors, radius, spacing, typography } from '../../theme';
 import StockMovementDialog from './StockMovementDialog';
 
@@ -67,6 +68,8 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
   const [stockDialog, setStockDialog] = useState<StockDirection | null>(null);
   const [stockBusy, setStockBusy] = useState(false);
   const [stockError, setStockError] = useState<unknown>(null);
+  const createSubmission = useSubmission();
+  const stockSubmission = useSubmission();
   const form = useFormErrors(
     FIELDS,
     validateItemForm({ name, type, price, notes, trackStock, lowStockThreshold }),
@@ -128,7 +131,8 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
         await updateItem(itemId, input);
         toast.show('success', t('products.itemUpdated'));
       } else {
-        await createItem(input);
+        await createItem({ ...input, clientOpId: createSubmission.opId(input) });
+        createSubmission.succeeded();
         toast.show('success', t('products.itemCreated'));
       }
       navigation.goBack();
@@ -165,9 +169,11 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
     setStockError(null);
     try {
       const isIn = stockDialog === 'in';
+      const clientOpId = stockSubmission.opId({ itemId, direction: stockDialog, quantity, reason });
       const result = isIn
-        ? await stockIn(itemId, { quantity, reason })
-        : await stockOut(itemId, { quantity, reason });
+        ? await stockIn(itemId, { quantity, reason, clientOpId })
+        : await stockOut(itemId, { quantity, reason, clientOpId });
+      stockSubmission.succeeded();
       setCurrentItem(result.item);
       setStockDialog(null);
       toast.show('success', t(isIn ? 'products.stockAdded' : 'products.stockRemoved'));
@@ -332,6 +338,7 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
           {itemId !== undefined ? (
             <View style={styles.stockActions}>
               <Button
+                testID="item-stock-in"
                 label={t('products.addStock')}
                 variant="secondary"
                 icon={PackagePlus}
@@ -342,6 +349,7 @@ export default function ProductFormScreen({ navigation, route }: ScreenProps) {
                 style={styles.stockActionButton}
               />
               <Button
+                testID="item-stock-out"
                 label={t('products.removeStock')}
                 variant="outline"
                 icon={PackageMinus}

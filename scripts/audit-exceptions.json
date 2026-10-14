@@ -1,0 +1,26 @@
+{
+  "$comment": "High/critical advisories the CI audit gate (scripts/audit-gate.js) lets through. Each entry is explained in docs/SECURITY.md section 6 and stops counting after reviewBy (KZ-19).",
+  "exceptions": [
+    {
+      "id": "GHSA-vfj7-8cjw-p6xm",
+      "package": "braces",
+      "dir": ".",
+      "reason": "Build tooling only (micromatch in Metro, Jest and the React Native CLI); no fixed release exists",
+      "reviewBy": "2027-01-14"
+    },
+    {
+      "id": "GHSA-5p2g-fcmc-qvqq",
+      "package": "image-size",
+      "dir": ".",
+      "reason": "Build tooling only (Metro reads the repository's own image assets); the fix is in image-size 2.x, outside Metro's ^1.0.2 range",
+      "reviewBy": "2027-01-14"
+    },
+    {
+      "id": "GHSA-w3rx-r6r6-pgpr",
+      "package": "image-size",
+      "dir": ".",
+      "reason": "Build tooling only (Metro reads the repository's own image assets); the fix is in image-size 2.x, outside Metro's ^1.0.2 range",
+      "reviewBy": "2027-01-14"
+    }
+  ]
+}

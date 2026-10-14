@@ -69,7 +69,7 @@ The earlier adversarial test report is in `SECURITY_ASSESSMENT.md` at the reposi
 | Release APK signed with the public debug key | High | KZ-09 |
 | Logout doesn't revoke; 30-day tokens | Medium | KZ-13 |
 | Image bytes never checked against declared type | Medium | KZ-15 |
-| Vulnerable dependencies (`proxy-addr` critical, others high) | Medium | KZ-19 |
+| ~~Vulnerable dependencies (`proxy-addr` critical, others high)~~ | Fixed (KZ-19): server clean at high/critical (express 4.22.3); app runtime clean; two build-tooling advisories documented in §6; CI audit gate blocking | KZ-19 ✅ |
 | ~~Account deletion without password re-entry~~ | Fixed (KZ-20): `DELETE /auth/me` needs `{ password }`, rate-limited like login | KZ-20 ✅ |
 | ~~Login timing reveals registered emails~~ | Fixed (KZ-21): unknown emails cost a compare against a dummy hash | KZ-21 ✅ |
 | ~~Weak `JWT_SECRET` accepted~~ | Fixed (KZ-29): production refuses < 32 bytes or the `.env.example` value | KZ-29 ✅ |
@@ -162,8 +162,17 @@ The earlier adversarial test report is in `SECURITY_ASSESSMENT.md` at the reposi
 
 ### 5.9 Dependencies
 - Lockfiles committed; `npm ci` in CI.
-- `npm audit --omit=dev --audit-level=high` must pass in CI (KZ-38). Exceptions are recorded below
-  with an expiry date.
+- The CI `audit` job is blocking (KZ-19): `node scripts/audit-gate.js` runs
+  `npm audit --omit=dev` in the root, `server/` and `shared/` and fails on any high or critical
+  advisory not listed in `scripts/audit-exceptions.json`. An exception names one advisory (GHSA
+  id), package and directory, must also appear in §6 below (the gate checks), and stops counting
+  after its review date. Run it locally with `npm run audit`.
+- Never `npm audit fix --force` without reading what it changes: for the app it proposes
+  downgrading React Native to 0.72 and React Native Firebase to 20.
+- `overrides` in the root `package.json` pins `@grpc/grpc-js` to `^1.14.6` (GHSA-m9gg-hp2v-232j):
+  `firebase@12` (pulled in by `@react-native-firebase/app` for web/macOS only, never bundled on
+  Android/iOS) still asks for `~1.9.0`, which has no fix. Remove the override once `firebase`
+  depends on a fixed version.
 - Review new dependencies for maintenance, licence and install scripts before adding.
 
 ---
@@ -177,6 +186,8 @@ Each entry needs an owner and a review date.
 | Signup returns `EMAIL_IN_USE` (email enumeration) | Users need to be told to sign in instead | Rate limits; per-email login limits (KZ-08) | 2027-01-31 |
 | Single-process rate limiting and admin sessions (including the per-email reset-code limit, which a restart clears) | One API instance | Move to a shared store before scaling out | When adding a 2nd instance |
 | Online guessing of one account's reset code (KZ-06) | 3 codes per address per hour × 5 tries = at most 15 guesses an hour at 1 in 1 000 000 each: about 0.04 % a day, but about 12 % over a year of non-stop attempts | Every code is an email to the owner (an attack floods their inbox); per-IP limits; KZ-08 (session 6) should add a daily per-address cap (e.g. 10 codes a day: about 2 % a year) | 2026-11-30 (KZ-08) |
+| App build tooling: `braces` 3.0.3 stack-exhaustion DoS on deeply nested glob patterns (GHSA-vfj7-8cjw-p6xm, high) | No fixed release exists (3.0.3 is the latest). It is reached only through `micromatch` in Metro, Jest and the React Native CLI | Exposure: build machines only, with glob patterns from our own config. Not in the release bundle (checked: an Android release bundle contains no `micromatch`/`braces` code). Listed in `scripts/audit-exceptions.json` | 2027-01-14 |
+| App build tooling: `image-size` 1.2.1 infinite loops on crafted JXL/HEIF/ICNS files (GHSA-5p2g-fcmc-qvqq, GHSA-w3rx-r6r6-pgpr, high) | Fixed only in 2.0.3+, a major version with a different API, outside Metro 0.87's `^1.0.2` range; overriding would break asset bundling | Exposure: Metro reads the dimensions of the repository's own image assets at bundle time; no user file ever reaches it, and it is not in the release bundle. Listed in `scripts/audit-exceptions.json` | 2027-01-14 |
 
 ---
 

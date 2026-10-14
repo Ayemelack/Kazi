@@ -212,11 +212,13 @@ npm run lint
 npm test             # Jest: validation, formatting, screens, i18n parity
 cd server && npm run check    # server only
 cd shared && npm run check    # shared only (typecheck + node --test + build)
+npm run audit        # dependency audit gate: no high/critical except scripts/audit-exceptions.json
 ```
 
 After editing `shared/src`, rebuild it (`npm run check` at the root does) so the app and server
 see the change. CI (`.github/workflows/ci.yml`) runs the same checks on every push and pull
-request, plus a dependency audit.
+request, plus the blocking dependency audit gate (`npm run audit`; exceptions and their
+review dates are in `docs/SECURITY.md` §6).
 
 ---
 

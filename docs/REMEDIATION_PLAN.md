@@ -385,8 +385,13 @@ Rules for every fix:
 - **Fix:** `npm audit fix` on both; upgrade express to the latest 4.x patch; re-run tests; for
   anything that can't be fixed, record the reason and exposure in [SECURITY.md](SECURITY.md#6-accepted-risks).
   `proxy-addr` matters once `trust proxy` is on (KZ-08), so do this before or with KZ-08.
-- **Acceptance:** [ ] `npm audit --omit=dev` shows no critical or high on the server. [ ] App
+- **Acceptance:** [x] `npm audit --omit=dev` shows no critical or high on the server. [x] App
   runtime dependencies have no critical/high; tooling exceptions documented.
+- _Session 6:_ server fixed by `npm audit fix` + express 4.22.3; app by `npm audit fix` (patch/minor
+  only) and an `overrides` pin of `@grpc/grpc-js` (firebase@12 has no fixed `~1.9` release). Left:
+  `braces` and `image-size` in Metro/Jest/CLI tooling, no fix in range, documented in
+  SECURITY.md §6 and excepted (with a review date) by `scripts/audit-gate.js`, which the CI audit
+  job now runs as a blocking step.
 
 ---
 
@@ -558,7 +563,7 @@ exports used only inside their own module, such as prop types, are allowed).
 server typecheck, tests, build; `npm audit --omit=dev --audit-level=high` on both; Android
 `assembleRelease` on main. See [TESTING_QA.md](TESTING_QA.md#ci-pipeline).
 _Session 1:_ `.github/workflows/ci.yml` added (jobs per TESTING_QA.md "CI pipeline"; the audit
-job is non-blocking until KZ-19 in session 6; `android-release` / `ios-build` are manual
+job was non-blocking until KZ-19, which made it blocking in session 6; `android-release` / `ios-build` are manual
 placeholders for session 9). Each job's commands pass locally via `npm run check`, and a failing
 Jest test makes `npx jest --ci` exit non-zero, which fails the job.
 Acceptance: [ ] a failing test blocks merge — **blocked on owner actions:** push the branch so the

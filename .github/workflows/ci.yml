@@ -92,11 +92,10 @@ jobs:
     name: Dependency audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Non-blocking until session 6 (KZ-19): known critical/high advisories in
-    # the server (proxy-addr via express, @grpc/grpc-js, brace-expansion) and
-    # app tooling (shell-quote, braces, image-size) are fixed or documented
-    # there, after which this job becomes blocking at --audit-level=high.
-    continue-on-error: true
+    # Blocking since KZ-19: `npm audit --omit=dev` must show no high or
+    # critical advisory, except the build-tooling ones listed (with a review
+    # date) in scripts/audit-exceptions.json and docs/SECURITY.md §6. The
+    # gate reads only the lockfiles, so nothing is installed.
     strategy:
       fail-fast: false
       matrix:
@@ -106,9 +105,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - name: npm audit (${{ matrix.dir }})
-        run: npm audit --omit=dev --audit-level=high
-        working-directory: ${{ matrix.dir }}
+      - name: npm audit gate (${{ matrix.dir }})
+        run: node scripts/audit-gate.js "${{ matrix.dir }}"
 
   # ---- Placeholders, completed in session 9 (KZ-09 / KZ-33) ----------------
   # Manual only until the signing secrets and the production API URL exist.

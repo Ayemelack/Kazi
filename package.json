@@ -12,7 +12,8 @@
     "check:shared": "npm --prefix shared run check",
     "check:app": "npm run typecheck && npm run lint && npm test",
     "check:server": "npm --prefix server run check",
-    "check": "npm run check:shared && npm run check:app && npm run check:server"
+    "check": "npm run check:shared && npm run check:app && npm run check:server",
+    "audit": "node scripts/audit-gate.js"
   },
   "dependencies": {
     "@kazi/shared": "file:./shared",
@@ -60,5 +61,8 @@
   },
   "engines": {
     "node": ">= 22.11.0"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "^1.14.6"
   }
 }

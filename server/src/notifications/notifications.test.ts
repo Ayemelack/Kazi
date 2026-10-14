@@ -48,7 +48,7 @@ async function call(
 }
 
 async function signUpUser(email: string, password?: string): Promise<string> {
-  const pwd = password ?? `fcmPass_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const pwd = password ?? 'pushLedger2026';
   const result = await call('POST', '/auth/signup', {
     firstName: 'Fcm',
     lastName: 'Tester',

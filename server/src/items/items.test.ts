@@ -146,7 +146,7 @@ test('each user sees only their own items', async () => {
       firstName: 'Marc',
       lastName: 'Dupont',
       email: 'other@example.com',
-      password: 'other123',
+      password: 'secondShop123',
     }),
   });
   const otherAuth = (await other.json()) as unknown as AuthResult;
@@ -187,7 +187,7 @@ test('cannot touch another user item', async () => {
       firstName: 'Thierry',
       lastName: 'Mbarga',
       email: 'third@example.com',
-      password: 'third123',
+      password: 'shopTrois123',
     }),
   });
   const otherAuth = (await other.json()) as unknown as AuthResult;

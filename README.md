@@ -18,7 +18,7 @@ Both are built for the value proposition: *"Your business, kept simple."*
 
 - **Accounts** — sign up, sign in, forgot/reset password, update your name or business profile,
   delete your account. Sessions are 30-day JWTs stored in the device Keychain; passwords are
-  hashed with bcrypt and a password another account already uses is refused.
+  hashed with bcrypt, and common or easy-to-guess passwords are refused.
 - **Products & services** — a catalog of what you sell, each with a name, type (product or
   service), price and optional notes.
 - **Inventory** — optional stock tracking per item: record stock in/out (with reasons), get a
@@ -78,7 +78,7 @@ Kazi/
     src/
       activity/     activity feed (period/range filters, pagination)
       admin/        owner-only read-only dashboard (separate port, optional TLS)
-      auth/         signup, login, password reset, JWT, password fingerprints
+      auth/         signup, login, password reset, JWT, password policy
       debts/        debt CRUD + pay
       feedback/     in-app feedback
       items/        catalog CRUD + stock in/out
@@ -90,6 +90,7 @@ Kazi/
       db/           openDatabase() + migration runner (schema_migrations)
         migrations/ numbered schema migrations (0001_baseline, …)
       app.ts errors.ts idempotency.ts index.ts log.ts
+    assets/     common-password list loaded at start (SecLists, MIT)
     data/       SQLite database (git-ignored, created on first boot)
     .env        runtime secrets (git-ignored)
 ```
@@ -229,9 +230,10 @@ request, plus a dependency audit.
 ## Security notes
 
 - Passwords are never stored in plain text (bcrypt). Tokens live only in the device Keychain.
-- A password another account already uses is refused at signup and at password reset: each
-  account stores salted fingerprints of the passwords it has used, recorded when the password is
-  first used (signup or a successful sign-in).
+- Signup and password reset refuse passwords that are easy to guess: the 10 000 most common
+  (`server/assets/common-passwords.txt`), simple patterns such as `abcd1234` or `qwerty123`, and
+  passwords containing your name or email. Several accounts may use the same password; nothing
+  reveals whether a password is in use.
 - Every query is scoped to the authenticated user; no endpoint exposes other users' data
   (covered by tests).
 - Input is validated with zod on both sides. Money, business dates and page limits reject hex

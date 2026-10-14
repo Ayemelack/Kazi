@@ -346,8 +346,8 @@ const fr: TranslationSchema = {
       UNAUTHORIZED: 'Veuillez vous reconnecter.',
       INSUFFICIENT_STOCK: 'Stock insuffisant. Choisissez une quantité plus petite.',
       ALREADY_PAID: 'Cette dette est déjà réglée.',
-      PASSWORD_NOT_ALLOWED:
-        'Ce mot de passe est déjà utilisé par un autre compte. Veuillez en choisir un autre.',
+      PASSWORD_TOO_COMMON:
+        'Ce mot de passe est trop facile à deviner. Évitez les mots de passe courants, les suites simples, ainsi que votre nom ou votre e-mail.',
       TOO_MANY_REQUESTS: 'Trop de tentatives. Veuillez réessayer dans quelques minutes.',
       PUSH_NOT_CONFIGURED: 'Les notifications ne sont pas disponibles pour le moment.',
       IDEMPOTENCY_CONFLICT: 'Cette action a déjà été faite autrement. Actualisez et réessayez.',
@@ -431,7 +431,7 @@ const fr: TranslationSchema = {
       'Nous n’avons pas pu vérifier ces informations. Vérifiez l’e-mail et le nom utilisés à l’inscription, puis réessayez.',
     resetSessionEnded: 'Votre session de réinitialisation a pris fin. Recommencez.',
     passwordResetSuccess: 'Mot de passe mis à jour. Vous pouvez maintenant vous connecter.',
-    passwordHint: 'Au moins 8 caractères, avec une lettre et un chiffre.',
+    passwordHint: 'Au moins 8 caractères, avec une lettre et un chiffre. Évitez les mots de passe courants et votre nom.',
     firstName: 'Prénom',
     lastName: 'Nom',
     companyName: 'Nom de l’entreprise',
@@ -459,6 +459,8 @@ const fr: TranslationSchema = {
       companyNameMax: 'Le nom de l’entreprise doit contenir au plus 100 caractères.',
       businessTypeMax: 'Le type d’activité doit contenir au plus 60 caractères.',
       passwordMax: 'Mot de passe trop long. Choisissez-en un plus court.',
+      passwordTooCommon:
+        'Ce mot de passe est trop facile à deviner. Évitez les mots de passe courants, les suites comme 1234 ou azerty, ainsi que votre nom ou votre e-mail.',
       tokenInvalid: 'Ce code est invalide. Demandez-en un nouveau.',
       tokenExpired: 'Ce code a expiré. Demandez-en un nouveau.',
     },

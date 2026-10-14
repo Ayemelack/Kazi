@@ -7,3 +7,4 @@ export * from './limits.js';
 export * from './date.js';
 export * from './errors.js';
 export * from './language.js';
+export * from './password.js';

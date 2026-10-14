@@ -123,12 +123,17 @@ Rules for every fix:
   2. Replace it with a denylist of common and breached passwords (bundle a top-10k list on the
      server; optional k-anonymity check against Have I Been Pwned) → `PASSWORD_TOO_COMMON`.
   3. Update README and the app copy that advertise the old rule.
-- **Files:** `server/src/auth/service.ts`, `server/src/auth/validation.ts`, `server/src/db.ts`,
-  `server/src/errors.ts`, `src/auth/errorMessage.ts`, locales, README.
+- **Files (as built):** `server/src/auth/{service,passwordPolicy}.ts`,
+  `server/assets/common-passwords.txt` (SecLists 10k, MIT; source and licence in its header),
+  `server/src/db/migrations/0004_drop_password_fingerprints.ts`, `shared/src/{password,commonPasswords,errors}.ts`,
+  `src/auth/validation.ts`, `src/errors/messages.ts`, locales, README. The rules (list, patterns,
+  name/email) live in `shared/` so the app's instant check (top 1000) and the API (full list) can't
+  drift; the API is the authority. The optional Have I Been Pwned check was not added (it would
+  send password-hash prefixes to a third party; left for a later decision).
 - **Acceptance:**
-  - [ ] Two accounts can use the same strong password; the response never reveals it.
-  - [ ] `Password123`-style common passwords are refused with a translated message.
-  - [ ] No code reads or writes `password_fingerprints`.
+  - [x] Two accounts can use the same strong password; the response never reveals it.
+  - [x] `Password123`-style common passwords are refused with a translated message.
+  - [x] No code reads or writes `password_fingerprints`.
 
 ### KZ-06
 **Password reset: fail-open in dev, broken in production**

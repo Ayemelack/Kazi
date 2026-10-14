@@ -64,6 +64,7 @@ kazi/
     src/                  Pure TypeScript; tests run with node --test
     dist/                 Build output (ESM + .d.ts, git-ignored), what app and server load
   server/src/             API (see §5) and admin dashboard (server/src/admin)
+  server/assets/          Files the API reads at start (common-password list, KZ-05)
     db/                   openDatabase(), migration runner (§6.1)
       migrations/         Numbered migrations NNNN_<name>.ts
   .github/workflows/      CI: ci.yml (app, server, audit; release jobs are manual placeholders)
@@ -178,6 +179,8 @@ Each domain folder has the same three files:
 ### 5.3 Authentication and sessions
 
 - Passwords: bcrypt (cost 10). **Target (KZ-21):** async hashing so the event loop is never blocked.
+  Weak passwords are refused by `auth/passwordPolicy.ts` with the shared rules in
+  `shared/src/password.ts` and the list in `server/assets/common-passwords.txt` (KZ-05).
 - Session: HS256 JWT, 30 days, carries `sub` and `ver` (`users.token_version`). `requireAuth`
   checks the version on every request, so a password reset invalidates old tokens.
 - **Target (KZ-13, decision D4):** 15-minute access token + rotating refresh token stored hashed in
@@ -258,7 +261,6 @@ erDiagram
 | `activity` | type, title, amount (INTEGER FCFA or NULL), quantity, event_date, ref_type, ref_id | History feed |
 | `client_ops` | (user_id, client_op_id) PK, op_type, response | Idempotency ledger |
 | `password_resets` | token (SHA-256), expires_at, used | |
-| `password_fingerprints` | HMAC of password | **Target (KZ-05):** remove |
 | `push_tokens` | token (unique), platform | |
 | `feedback` | rating 1–5, liked, disliked, suggestion | |
 
@@ -292,6 +294,9 @@ still store 12.5 as a REAL). Old values are rounded half away from zero; a posit
 table, never the values.
 
 `0003_language_wes` (KZ-24) is data-only: `users.language = 'pid'` becomes `'wes'`.
+
+`0004_drop_password_fingerprints` (KZ-05) drops `password_fingerprints` and its index: the
+"no two accounts may share a password" rule is gone (decision D1).
 
 Rules for new migrations:
 

@@ -29,7 +29,7 @@ before(async () => {
       firstName: 'Café',
       lastName: 'Port',
       email: 'cafe@transactions.cm',
-      password: 'port1234',
+      password: 'mboaLedger1234',
     }),
   });
   const auth = (await response.json()) as unknown as AuthResult;
@@ -310,7 +310,7 @@ test('isolation: another user cannot see or delete these transactions', async ()
       firstName: 'Autre',
       lastName: 'Boutique',
       email: 'autre@transactions.cm',
-      password: 'boutique1',
+      password: 'mboaShop2',
     }),
   });
   const auth = (await other.json()) as unknown as AuthResult;

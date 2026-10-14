@@ -29,17 +29,15 @@ async function call(
   return { status: response.status, data: text ? JSON.parse(text) : {} };
 }
 
-// Each account gets its own password: the API still refuses a password that
-// another account uses (removed by KZ-05).
-let accounts = 0;
+// Every account shares one password: allowed since KZ-05.
+const PASSWORD = 'mboaLedger2026';
 
 async function signUp(email: string): Promise<string> {
-  accounts += 1;
   const result = await call('POST', '/auth/signup', {
     firstName: 'Awa',
     lastName: 'Fon',
     email,
-    password: `secret12${accounts}`,
+    password: PASSWORD,
   });
   assert.equal(result.status, 201);
   return result.data.token as string;
@@ -74,7 +72,7 @@ test('PATCH /auth/me/language saves the choice and login returns it', async () =
 
   const login = await call('POST', '/auth/login', {
     email: 'lang.save@example.com',
-    password: 'secret122',
+    password: PASSWORD,
   });
   assert.equal(login.data.user.language, 'wes');
 });

@@ -336,7 +336,7 @@ test('reset-password updates the password and invalidates the old one', async ()
 
   const reset = await call('POST', '/auth/reset-password', {
     token: resetToken,
-    password: 'newpass456',
+    password: 'coupeNeuve456',
   });
   assert.equal(reset.status, 200);
 
@@ -348,7 +348,7 @@ test('reset-password updates the password and invalidates the old one', async ()
 
   const newLogin = await call('POST', '/auth/login', {
     email: 'awa@market.cm',
-    password: 'newpass456',
+    password: 'coupeNeuve456',
   });
   assert.equal(newLogin.status, 200);
   assert.equal(typeof (newLogin.data as unknown as AuthResult).token, 'string');
@@ -359,11 +359,11 @@ test('a used reset token cannot be reused', async () => {
 
   await call('POST', '/auth/reset-password', {
     token: resetToken,
-    password: 'another123',
+    password: 'coupeAutre123',
   });
   const second = await call('POST', '/auth/reset-password', {
     token: resetToken,
-    password: 'another456',
+    password: 'coupeAutre456',
   });
   assert.equal(second.status, 400);
   assert.equal((second.data.error as { code: string }).code, 'INVALID_TOKEN');
@@ -384,7 +384,7 @@ test('a bogus reset token is rejected', async () => {
 test('re-authenticate with a fresh token after password resets', async () => {
   const login = await call('POST', '/auth/login', {
     email: 'awa@market.cm',
-    password: 'another123',
+    password: 'coupeAutre123',
   });
   assert.equal(login.status, 200);
   signupToken = (login.data as unknown as AuthResult).token;
@@ -468,7 +468,7 @@ test('a user cannot read or delete another user debt', async () => {
     firstName: 'Frida',
     lastName: 'Kamga',
     email: 'frida@market.cm',
-    password: 'fridaPassword999',
+    password: 'kribiMarket999',
   });
   assert.equal(otherSignup.status, 201);
   const otherToken = (otherSignup.data as unknown as AuthResult).token;
@@ -597,43 +597,30 @@ test('DELETE /auth/me removes the account', async () => {
 
   const login = await call('POST', '/auth/login', {
     email: 'awa@market.cm',
-    password: 'newpass456',
+    password: 'coupeNeuve456',
   });
   assert.equal(login.status, 401);
 });
 
-test('SECURITY: prevents cross-account password reuse', async () => {
-  // 1. Create user Alpha with secretPassword123
-  const userAlpha = await call('POST', '/auth/signup', {
+test('SECURITY: two accounts may use the same password and nothing reveals it (KZ-05)', async () => {
+  const alpha = await call('POST', '/auth/signup', {
     firstName: 'Alpha',
     lastName: 'User',
     email: 'alpha@market.cm',
-    password: 'secretPassword123',
+    password: 'sharedLedger2026',
   });
-  assert.equal(userAlpha.status, 201);
+  assert.equal(alpha.status, 201);
 
-  // 2. Attempt user Beta with the EXACT same password -> rejected
-  const userBeta = await call('POST', '/auth/signup', {
+  const beta = await call('POST', '/auth/signup', {
     firstName: 'Beta',
     lastName: 'User',
     email: 'beta@market.cm',
-    password: 'secretPassword123',
+    password: 'sharedLedger2026',
   });
-  assert.equal(userBeta.status, 400);
-  assert.equal((userBeta.data.error as { code: string }).code, 'PASSWORD_NOT_ALLOWED');
-  assert.equal(
-    (userBeta.data.error as { message: string }).message,
-    'Please choose a different password.',
-  );
-
-  // 3. User Beta with unique password succeeds
-  const userBetaOk = await call('POST', '/auth/signup', {
-    firstName: 'Beta',
-    lastName: 'User',
-    email: 'beta@market.cm',
-    password: 'differentPassword789',
-  });
-  assert.equal(userBetaOk.status, 201);
+  assert.equal(beta.status, 201);
+  // Same response shape as any signup: a token and the new account only.
+  assert.deepEqual(Object.keys(beta.data).sort(), ['token', 'user']);
+  assert.equal((beta.data.user as { email: string }).email, 'beta@market.cm');
 });
 
 test('history supports period filtering and financial totals', async () => {
@@ -641,7 +628,7 @@ test('history supports period filtering and financial totals', async () => {
     firstName: 'History',
     lastName: 'Tester',
     email: 'history@market.cm',
-    password: 'historyPass2026',
+    password: 'ledgerHist2026',
   });
   assert.equal(userRes.status, 201);
   const token = (userRes.data as unknown as AuthResult).token;
@@ -692,7 +679,7 @@ test('debts records paid_at timestamp and filters by status', async () => {
     firstName: 'Debts',
     lastName: 'Tester',
     email: 'debt_tester@market.cm',
-    password: 'debtPass2026',
+    password: 'ledgerDette2026',
   });
   assert.equal(userRes.status, 201);
   const token = (userRes.data as unknown as AuthResult).token;

@@ -37,6 +37,8 @@ The earlier adversarial test report is in `SECURITY_ASSESSMENT.md` at the reposi
   `user_id`. Tests cover cross-user isolation.
 - JWT algorithm pinned to HS256; `token_version` check on every request; deleted accounts rejected.
 - Passwords hashed with bcrypt; reset codes stored as SHA-256 hashes and single-use.
+- Common, patterned and personal passwords refused by the API with a 10 000-entry list (KZ-05);
+  several accounts may share a password and nothing reveals whether one is in use.
 - All input validated with zod; `strictNumber` rejects hex, booleans, arrays and non-finite numbers.
 - SQL uses bound parameters everywhere (no string-built user input).
 - Security headers on the API (`nosniff`, `X-Frame-Options: DENY`, `no-referrer`, `no-store`);
@@ -54,7 +56,7 @@ The earlier adversarial test report is in `SECURITY_ASSESSMENT.md` at the reposi
 
 | Gap | Risk | Task |
 |---|---|---|
-| Password-uniqueness check reveals that a password is in use somewhere | High | KZ-05 |
+| ~~Password-uniqueness check reveals that a password is in use somewhere~~ | Fixed (KZ-05): rule and `password_fingerprints` removed; common-password list instead | KZ-05 ✅ |
 | Reset code returned in HTTP response unless `NODE_ENV=production` (fail-open) | High | KZ-06 |
 | Rate limiter shares one bucket for all users behind a proxy; unbounded memory | High | KZ-08 |
 | Release APK signed with the public debug key | High | KZ-09 |
@@ -73,8 +75,14 @@ The earlier adversarial test report is in `SECURITY_ASSESSMENT.md` at the reposi
 ## 5. Security requirements (apply to every change)
 
 ### 5.1 Authentication and sessions
-- Passwords: 8+ characters, at least one letter and one digit, max 72 **bytes**, not on the
-  common/breached list (after KZ-05).
+- Passwords: 8+ characters, at least one letter and one digit, max 72 **bytes**, and not easy to
+  guess (KZ-05, `shared/src/password.ts`): not on the 10 000-entry common list
+  (`server/assets/common-passwords.txt`, SecLists, MIT), not only a pattern (repeats, runs such as
+  `abcd`/`4321`, QWERTY/AZERTY keyboard walks), not a listed word or pattern wrapped in digits or
+  symbols (`Password123!`), and not containing the email local part or a first/last name of 4+
+  characters (case-insensitive) → `PASSWORD_TOO_COMMON`. The app runs the same rules with the top
+  1000 for instant feedback; the API is the authority. Never refuse a password because another
+  account uses it.
 - Hashing: bcrypt cost ≥ 10, async only (KZ-21). Never log, return or store a plain password.
 - Sessions (after KZ-13): access token ≤ 15 min; refresh token rotated on use, stored hashed,
   revocable; reuse of a rotated refresh token revokes the session family.

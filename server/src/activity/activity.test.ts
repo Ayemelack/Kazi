@@ -103,7 +103,7 @@ const DAY_OLDER = '2026-09-05';
 const DAY_ANCHOR = '2026-09-12';
 
 test('period filters follow the caller supplied asOf day', async () => {
-  periodToken = await signup('period@market.cm', 'periodPass2026');
+  periodToken = await signup('period@market.cm', 'ledgerMonth2026');
 
   await call(
     'POST',
@@ -315,7 +315,7 @@ test('paging bounds and coerced number tricks are rejected as 400s', async () =>
 });
 
 test('deleting a transaction removes its history entry and keeps totals in step', async () => {
-  cascadeToken = await signup('cascade@market.cm', 'cascadePass2026');
+  cascadeToken = await signup('cascade@market.cm', 'ledgerChain2026');
 
   const sale = await call(
     'POST',

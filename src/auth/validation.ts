@@ -6,7 +6,9 @@ import {
   PASSWORD_MAX_BYTES,
   PASSWORD_MIN,
   PERSON_NAME_MAX,
+  isTooCommonPassword,
   utf8ByteLength,
+  type PersonalInfo,
 } from '@kazi/shared';
 import type {
   ForgotPasswordInput,
@@ -82,7 +84,7 @@ export function validateEmail(value: string): string | null {
   return null;
 }
 
-export function validatePassword(value: string): string | null {
+export function validatePassword(value: string, personal?: PersonalInfo): string | null {
   if (value.length === 0) {
     return 'auth.errors.required';
   }
@@ -99,6 +101,11 @@ export function validatePassword(value: string): string | null {
   }
   if (/[0-9]/.test(value) === false) {
     return 'auth.errors.passwordNumber';
+  }
+  // KZ-05: instant feedback with the 1000 most common passwords and the
+  // shared pattern rules; the API checks its full list and stays the authority.
+  if (isTooCommonPassword(value, { personal })) {
+    return 'auth.errors.passwordTooCommon';
   }
   return null;
 }
@@ -148,7 +155,11 @@ export function validateSignup(input: SignUpInput): AuthFieldErrors {
   if (emailError) {
     errors.email = emailError;
   }
-  const passwordError = validatePassword(input.password);
+  const passwordError = validatePassword(input.password, {
+    email: input.email,
+    firstName: input.firstName,
+    lastName: input.lastName,
+  });
   if (passwordError) {
     errors.password = passwordError;
   }

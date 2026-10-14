@@ -139,14 +139,17 @@ template `debug.keystore`).
 
 1. On a clean checkout of the release tag: `(cd shared && npm ci)`, then
    `cd server && npm ci && npm run build && npm test`.
-2. Copy `server/dist/`, `server/package.json`, `server/package-lock.json` **and** `shared/package.json`
+2. Copy `server/dist/`, `server/assets/` (the common-password list the API loads at start,
+   KZ-05), `server/package.json`, `server/package-lock.json` **and** `shared/package.json`
    + `shared/dist/` to the host, keeping the `server/` and `shared/` folders side by side (the API
    depends on `"@kazi/shared": "file:../shared"`). Run `npm ci --omit=dev` in `server/` there
    (better-sqlite3 builds natively for the server's platform).
 3. **Back up the database** (`§5`) before every deploy — pending numbered migrations
    (`server/src/db/migrations`, see [ARCHITECTURE.md](ARCHITECTURE.md) §6.1) run on boot, each in
    its own transaction; a failed migration stops the boot and leaves the database at the last good
-   version. The first deploy after session 2 runs `2_integer_money` (KZ-25), which rebuilds four
+   version. The first deploy after session 4 also runs `4_drop_password_fingerprints` (KZ-05),
+   which deletes the password fingerprints table. The first deploy after session 2 runs
+   `2_integer_money` (KZ-25), which rebuilds four
    tables to whole-FCFA `INTEGER` money; if it logs `rounded N fractional money value(s)`, keep
    the pre-deploy backup — it is the only copy of the original fractions. A previous build still
    starts on the new schema (it skips migrations newer than itself), but any fractional amount it

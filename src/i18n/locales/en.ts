@@ -343,8 +343,8 @@ const en = {
       UNAUTHORIZED: 'Please sign in again.',
       INSUFFICIENT_STOCK: 'Not enough in stock. Choose a smaller quantity.',
       ALREADY_PAID: 'This debt is already settled.',
-      PASSWORD_NOT_ALLOWED:
-        'That password is already used by another account. Please choose a different one.',
+      PASSWORD_TOO_COMMON:
+        'This password is too easy to guess. Avoid common passwords, simple patterns, and your name or email.',
       TOO_MANY_REQUESTS: 'Too many attempts. Please try again in a few minutes.',
       PUSH_NOT_CONFIGURED: 'Notifications are not available right now.',
       IDEMPOTENCY_CONFLICT: 'This was already done differently. Refresh and try again.',
@@ -428,7 +428,7 @@ const en = {
       'We could not verify those details. Check the email and name you signed up with and try again.',
     resetSessionEnded: 'Your reset session has ended. Start again.',
     passwordResetSuccess: 'Password updated. You can now sign in.',
-    passwordHint: 'At least 8 characters, with a letter and a number.',
+    passwordHint: 'At least 8 characters, with a letter and a number. Avoid common passwords and your name.',
     firstName: 'First name',
     lastName: 'Last name',
     companyName: 'Business name',
@@ -456,6 +456,8 @@ const en = {
       companyNameMax: 'Business name must be at most 100 characters.',
       businessTypeMax: 'Type of business must be at most 60 characters.',
       passwordMax: 'Password is too long. Use a shorter one.',
+      passwordTooCommon:
+        'This password is too easy to guess. Avoid common passwords, patterns like 1234 or qwerty, and your name or email.',
       tokenInvalid: 'This reset code is invalid. Request a new one.',
       tokenExpired: 'This reset code has expired. Request a new one.',
     },

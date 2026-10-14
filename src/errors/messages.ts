@@ -56,8 +56,14 @@ export function errorMessage(
   return t('errors.generic');
 }
 
-// The request field a VALIDATION_ERROR is about, so a form can show the
+// Codes whose `field` says where to show them: a VALIDATION_ERROR, and a
+// password the API refused as too easy to guess (KZ-05).
+const FIELD_CODES: ReadonlySet<string> = new Set(['VALIDATION_ERROR', 'PASSWORD_TOO_COMMON']);
+
+// The request field a failed request is about, so a form can show the
 // message under that field instead of at the bottom.
 export function errorField(err: unknown): string | undefined {
-  return err instanceof ApiError && err.code === 'VALIDATION_ERROR' ? err.field : undefined;
+  return err instanceof ApiError && err.code !== undefined && FIELD_CODES.has(err.code)
+    ? err.field
+    : undefined;
 }

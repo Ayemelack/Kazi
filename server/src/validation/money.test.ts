@@ -94,7 +94,7 @@ describe('money routes reject fractional amounts', () => {
         firstName: 'Awa',
         lastName: 'Money',
         email: 'awa@money.cm',
-        password: 'money1234',
+        password: 'mboaCash1234',
       }),
     });
     token = ((await signup.json()) as AuthResult).token;

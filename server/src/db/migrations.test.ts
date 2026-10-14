@@ -101,11 +101,12 @@ test('fresh database: baseline applied once, full schema, foreign keys on and cl
     'activity',
     'feedback',
     'client_ops',
-    'password_fingerprints',
     'schema_migrations',
   ]) {
     assert.ok(tables.includes(table), `missing table ${table}`);
   }
+  // Dropped by 0004 (KZ-05).
+  assert.ok(!tables.includes('password_fingerprints'));
 
   const itemColumns = (db.pragma('table_info(items)') as { name: string }[]).map(c => c.name);
   for (const column of ['stock', 'track_stock', 'low_stock_threshold', 'image']) {

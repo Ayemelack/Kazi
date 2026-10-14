@@ -356,8 +356,8 @@ const wes: TranslationSchema = {
       UNAUTHORIZED: 'Sign in again abeg.',
       INSUFFICIENT_STOCK: 'Stock no reach. Choose small quantity.',
       ALREADY_PAID: 'Dem don already pay this debt.',
-      PASSWORD_NOT_ALLOWED:
-        'That password dey used by another account. Abeg choose another one.',
+      PASSWORD_TOO_COMMON:
+        'This password too easy for guess. No use common password, simple pattern, or your name or email.',
       TOO_MANY_REQUESTS: 'Too many tries. Wait small try again.',
       PUSH_NOT_CONFIGURED: 'Notification no dey work now now.',
       IDEMPOTENCY_CONFLICT: 'Dem don do this one another way. Refresh, try am again.',
@@ -444,7 +444,7 @@ const wes: TranslationSchema = {
       'We no fit verify those details. Check the email and name wey you use sign up try again.',
     resetSessionEnded: 'Your reset session don end. Start again.',
     passwordResetSuccess: 'Password don update. You fit sign in now.',
-    passwordHint: 'At least 8 letters, with one letter and one number.',
+    passwordHint: 'At least 8 letters, with one letter and one number. No use common password or your name.',
     firstName: 'First name',
     lastName: 'Last name',
     companyName: 'Business name',
@@ -473,6 +473,8 @@ const wes: TranslationSchema = {
       companyNameMax: 'Business name must no pass 100 letters.',
       businessTypeMax: 'Type of business must no pass 60 letters.',
       passwordMax: 'Password too long. Use one wey short pass.',
+      passwordTooCommon:
+        'This password too easy for guess. No use common password, pattern like 1234 or qwerty, or your name or email.',
       tokenInvalid: 'This reset code no correct. Request new one.',
       tokenExpired: 'This reset code don expire. Request new one.',
     },

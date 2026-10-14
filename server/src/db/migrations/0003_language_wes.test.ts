@@ -6,6 +6,9 @@ import { MIGRATIONS } from './index.js';
 import { baseline } from './0001_baseline.js';
 import { integerMoney } from './0002_integer_money.js';
 
+// Up to this migration only, so later migrations don't change what it checks.
+const THROUGH = MIGRATIONS.filter(m => m.version <= 3);
+
 function memory(): Database.Database {
   const db = new Database(':memory:');
   db.pragma('foreign_keys = ON');
@@ -33,7 +36,7 @@ test('0003 renames the stored Pidgin code pid to wes and leaves the rest', () =>
       (4, 'D', 'd@example.com', 'h', 'pid');
   `);
 
-  runMigrations(db, MIGRATIONS);
+  runMigrations(db, THROUGH);
 
   const rows = db.prepare('SELECT id, language FROM users ORDER BY id').all();
   assert.deepEqual(rows, [
@@ -47,7 +50,7 @@ test('0003 renames the stored Pidgin code pid to wes and leaves the rest', () =>
 
 test('0003 runs on a fresh database and leaves the schema unchanged', () => {
   const fresh = memory();
-  runMigrations(fresh, MIGRATIONS);
+  runMigrations(fresh, THROUGH);
   const versions = (
     fresh.prepare('SELECT version FROM schema_migrations ORDER BY version').all() as {
       version: number;

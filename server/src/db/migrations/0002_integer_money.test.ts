@@ -14,6 +14,9 @@ const MONEY_COLUMNS: ReadonlyArray<readonly [string, string]> = [
   ['activity', 'amount'],
 ];
 
+// Up to this migration only, so later migrations don't change what it checks.
+const THROUGH = MIGRATIONS.filter(m => m.version <= 2);
+
 function memory(): Database.Database {
   const db = new Database(':memory:');
   db.pragma('foreign_keys = ON');
@@ -63,7 +66,7 @@ function baselineWithFractions(): Database.Database {
 
 test('0002 on a fresh database: INTEGER money columns with CHECKs, FKs clean', () => {
   const db = memory();
-  runMigrations(db, MIGRATIONS);
+  runMigrations(db, THROUGH);
 
   for (const [table, column] of MONEY_COLUMNS) {
     assert.equal(columnType(db, table, column), 'INTEGER', `${table}.${column}`);
@@ -109,7 +112,7 @@ test('0002 rounds fractional money, keeps every row, index, FK and sequence', ()
     warnings.push(args.join(' '));
   };
   try {
-    runMigrations(db, MIGRATIONS);
+    runMigrations(db, THROUGH);
   } finally {
     log.warn = originalWarn;
   }
@@ -178,9 +181,9 @@ test('0002 rounds fractional money, keeps every row, index, FK and sequence', ()
 
 test('0002 leaves an upgraded database with the same schema as a fresh one', () => {
   const fresh = memory();
-  runMigrations(fresh, MIGRATIONS);
+  runMigrations(fresh, THROUGH);
   const upgraded = baselineWithFractions();
-  runMigrations(upgraded, MIGRATIONS);
+  runMigrations(upgraded, THROUGH);
   const schema = (db: Database.Database) =>
     db.prepare('SELECT type, name, tbl_name, sql FROM sqlite_master ORDER BY type, name').all();
   assert.deepEqual(schema(upgraded), schema(fresh));

@@ -62,7 +62,7 @@ before(async () => {
       firstName: 'Ada',
       lastName: 'Ngono',
       email: 'ada.errors@example.com',
-      password: 'secret123',
+      password: 'ledgerErr123',
     }),
   });
   token = ((await signup.json()) as { token: string }).token;

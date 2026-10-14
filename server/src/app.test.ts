@@ -5,7 +5,7 @@ import type Database from 'better-sqlite3';
 import { openDatabase } from './db/index.js';
 import { createApp } from './app.js';
 import type { AuthResult } from './auth/service.js';
-import { createResetToken, hashResetToken } from './auth/jwt.js';
+import { issueResetCode } from './auth/service.js';
 
 let server: Server;
 let baseUrl: string;
@@ -45,18 +45,13 @@ async function call(
   return { status: response.status, data: text ? (JSON.parse(text) as Record<string, unknown>) : {} };
 }
 
-// Mirrors server-side token issuance so tests can exercise reset-password
-// through the HTTP API. The raw code is never exposed by the API itself.
-function issueResetToken(email: string): string {
-  const user = db.prepare('SELECT id FROM users WHERE email = ?').get(email) as
-    | { id: number }
-    | undefined;
-  assert.ok(user, `user ${email} exists before issuing a reset token`);
-  const { token, expiresAt } = createResetToken();
-  db.prepare(
-    'INSERT INTO password_resets (token, user_id, expires_at) VALUES (?, ?, ?)',
-  ).run(hashResetToken(token), user.id, expiresAt);
-  return token;
+// Issues a code the way forgot-password does, without an email sender, so
+// tests can drive reset-password over HTTP (KZ-06; the delivery side is in
+// auth/reset.test.ts).
+function issueCode(email: string): string {
+  const issued = issueResetCode(db, email);
+  assert.ok(issued, `user ${email} exists before issuing a reset code`);
+  return issued.code;
 }
 
 let signupToken: string;
@@ -233,60 +228,6 @@ test('logout returns 204', async () => {
   assert.equal(result.status, 204);
 });
 
-test('forgot-password returns a reset token when email and names match', async () => {
-  const result = await call('POST', '/auth/forgot-password', {
-    firstName: 'Awa',
-    lastName: 'Nkono-Bella',
-    email: 'awa@market.cm',
-  });
-  assert.equal(result.status, 200);
-  const data = result.data as { message: string; resetToken?: string };
-  assert.equal(typeof data.message, 'string');
-  assert.equal(typeof data.resetToken, 'string');
-});
-
-test('forgot-password rejects a request without names', async () => {
-  const result = await call('POST', '/auth/forgot-password', {
-    email: 'awa@market.cm',
-  });
-  assert.equal(result.status, 400);
-  assert.equal((result.data.error as { code: string }).code, 'VALIDATION_ERROR');
-});
-
-test('forgot-password never returns a token without a matching name', async () => {
-  const wrongName = await call('POST', '/auth/forgot-password', {
-    firstName: 'Someone',
-    lastName: 'Else',
-    email: 'awa@market.cm',
-  });
-  const unknownEmail = await call('POST', '/auth/forgot-password', {
-    firstName: 'Awa',
-    lastName: 'Nkono-Bella',
-    email: 'nobody@example.com',
-  });
-  assert.equal(wrongName.status, 200);
-  assert.equal(unknownEmail.status, 200);
-  assert.equal('resetToken' in wrongName.data, false);
-  assert.equal('resetToken' in unknownEmail.data, false);
-  assert.deepEqual(wrongName.data, unknownEmail.data);
-});
-
-test('forgot-password withholds the reset token in production', async () => {
-  const previous = process.env.NODE_ENV;
-  process.env.NODE_ENV = 'production';
-  try {
-    const result = await call('POST', '/auth/forgot-password', {
-      firstName: 'Awa',
-      lastName: 'Nkono-Bella',
-      email: 'awa@market.cm',
-    });
-    assert.equal(result.status, 200);
-    assert.equal('resetToken' in result.data, false);
-  } finally {
-    process.env.NODE_ENV = previous;
-  }
-});
-
 test('malformed JSON is rejected as a validation error, not a server error', async () => {
   const response = await fetch(`${baseUrl}/auth/login`, {
     method: 'POST',
@@ -298,16 +239,12 @@ test('malformed JSON is rejected as a validation error, not a server error', asy
   assert.equal(data.error.code, 'VALIDATION_ERROR');
 });
 
-test('a token from forgot-password completes the reset flow', async () => {
-  const requested = await call('POST', '/auth/forgot-password', {
-    firstName: 'Awa',
-    lastName: 'Nkono-Bella',
-    email: 'awa@market.cm',
-  });
-  const resetToken = (requested.data as { resetToken: string }).resetToken;
+test('a reset code completes the reset flow', async () => {
+  const code = issueCode('awa@market.cm');
 
   const reset = await call('POST', '/auth/reset-password', {
-    token: resetToken,
+    email: 'awa@market.cm',
+    code,
     password: 'freshpass007',
   });
   assert.equal(reset.status, 200);
@@ -332,17 +269,18 @@ test('a token from forgot-password completes the reset flow', async () => {
 });
 
 test('reset-password updates the password and invalidates the old one', async () => {
-  const resetToken = issueResetToken('awa@market.cm');
+  const code = issueCode('awa@market.cm');
 
   const reset = await call('POST', '/auth/reset-password', {
-    token: resetToken,
+    email: 'awa@market.cm',
+    code,
     password: 'coupeNeuve456',
   });
   assert.equal(reset.status, 200);
 
   const oldLogin = await call('POST', '/auth/login', {
     email: 'awa@market.cm',
-    password: 'coupe123',
+    password: 'freshpass007',
   });
   assert.equal(oldLogin.status, 401);
 
@@ -354,28 +292,32 @@ test('reset-password updates the password and invalidates the old one', async ()
   assert.equal(typeof (newLogin.data as unknown as AuthResult).token, 'string');
 });
 
-test('a used reset token cannot be reused', async () => {
-  const resetToken = issueResetToken('awa@market.cm');
+test('a used reset code cannot be reused', async () => {
+  const code = issueCode('awa@market.cm');
 
-  await call('POST', '/auth/reset-password', {
-    token: resetToken,
+  const first = await call('POST', '/auth/reset-password', {
+    email: 'awa@market.cm',
+    code,
     password: 'coupeAutre123',
   });
+  assert.equal(first.status, 200);
   const second = await call('POST', '/auth/reset-password', {
-    token: resetToken,
+    email: 'awa@market.cm',
+    code,
     password: 'coupeAutre456',
   });
   assert.equal(second.status, 400);
-  assert.equal((second.data.error as { code: string }).code, 'INVALID_TOKEN');
+  assert.equal((second.data.error as { code: string }).code, 'RESET_CODE_INVALID');
 });
 
-test('a bogus reset token is rejected', async () => {
+test('a reset code for an email without an account is rejected', async () => {
   const result = await call('POST', '/auth/reset-password', {
-    token: 'no-such-token',
+    email: 'nobody@example.com',
+    code: '123456',
     password: 'whatever123',
   });
   assert.equal(result.status, 400);
-  assert.equal((result.data.error as { code: string }).code, 'INVALID_TOKEN');
+  assert.equal((result.data.error as { code: string }).code, 'RESET_CODE_INVALID');
 });
 
 // Password resets above bumped the account token_version, which invalidates

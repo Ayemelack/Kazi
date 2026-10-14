@@ -9,6 +9,7 @@ import { isTooCommonPassword } from '@kazi/shared';
 import { openDatabase } from '../db/index.js';
 import { createApp } from '../app.js';
 import { commonPasswordCount } from './passwordPolicy.js';
+import { issueResetCode } from './service.js';
 
 let server: Server;
 let baseUrl: string;
@@ -64,10 +65,12 @@ function userCount(email: string): number {
   return (db.prepare('SELECT COUNT(*) AS n FROM users WHERE email = ?').get(email) as { n: number }).n;
 }
 
-async function resetCodeFor(email: string, firstName = 'Ngum', lastName = 'Achu'): Promise<string> {
-  const requested = await call('POST', '/auth/forgot-password', { email, firstName, lastName });
-  assert.equal(requested.status, 200);
-  return (requested.data as { resetToken: string }).resetToken;
+// A code issued the way forgot-password does (KZ-06; delivery is tested in
+// reset.test.ts).
+function resetCodeFor(email: string): string {
+  const issued = issueResetCode(db, email);
+  assert.ok(issued, email);
+  return issued.code;
 }
 
 // ── KZ-05: common passwords instead of the password-uniqueness oracle ──
@@ -86,8 +89,8 @@ test('two accounts can use the same strong password, and a reset can pick it too
     assert.equal(login.status, 200, email);
   }
 
-  const code = await resetCodeFor('third.shared@market.cm');
-  const reset = await call('POST', '/auth/reset-password', { token: code, password: 'mboaLedger2026' });
+  const code = resetCodeFor('third.shared@market.cm');
+  const reset = await call('POST', '/auth/reset-password', { email: 'third.shared@market.cm', code, password: 'mboaLedger2026' });
   assert.equal(reset.status, 200);
 });
 
@@ -132,10 +135,10 @@ test('passwords containing the email local part or a name (4+ letters) are refus
 
 test('a password reset refuses a common or personal password and leaves the account as it was', async () => {
   assert.equal((await signup('resetter@market.cm', 'firstLedger2026')).status, 201);
-  const code = await resetCodeFor('resetter@market.cm');
+  const code = resetCodeFor('resetter@market.cm');
 
   for (const password of ['Password123', 'achuLedger2026', 'resetter99']) {
-    const refused = await call('POST', '/auth/reset-password', { token: code, password });
+    const refused = await call('POST', '/auth/reset-password', { email: 'resetter@market.cm', code, password });
     assert.equal(refused.status, 400, password);
     assert.equal(errorOf(refused.data).code, 'PASSWORD_TOO_COMMON', password);
   }
@@ -144,7 +147,7 @@ test('a password reset refuses a common or personal password and leaves the acco
   assert.equal(old.status, 200, 'the old password still works');
 
   // A refused password does not use up the code.
-  const ok = await call('POST', '/auth/reset-password', { token: code, password: 'secondLedger2026' });
+  const ok = await call('POST', '/auth/reset-password', { email: 'resetter@market.cm', code, password: 'secondLedger2026' });
   assert.equal(ok.status, 200);
 });
 

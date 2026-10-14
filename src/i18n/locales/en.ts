@@ -348,6 +348,7 @@ const en = {
       ALREADY_PAID: 'This debt is already settled.',
       PASSWORD_TOO_COMMON:
         'This password is too easy to guess. Avoid common passwords, simple patterns, and your name or email.',
+      RESET_CODE_INVALID: 'This code is wrong or no longer valid. Check it or ask for a new one.',
       TOO_MANY_REQUESTS: 'Too many attempts. Please try again in a few minutes.',
       PUSH_NOT_CONFIGURED: 'Notifications are not available right now.',
       IDEMPOTENCY_CONFLICT: 'This was already done differently. Refresh and try again.',
@@ -370,7 +371,8 @@ const en = {
       lastName: 'Last name',
       email: 'Email',
       password: 'Password',
-      token: 'Reset code',
+      code: 'Reset code',
+      token: 'Notification token',
       companyName: 'Business name',
       businessType: 'Type of business',
       language: 'Language',
@@ -422,13 +424,16 @@ const en = {
     forgotPassword: 'Forgot password?',
     forgotPasswordTitle: 'Reset your password',
     forgotPasswordMessage:
-      'Enter the email you signed up with and your name so we can verify your identity.',
-    forgotPasswordButton: 'Continue',
+      "Enter the email you signed up with. We'll send a 6-digit code to it.",
+    forgotPasswordButton: 'Send code',
+    haveResetCode: 'I already have a code',
     resetPasswordTitle: 'Choose a new password',
-    resetPasswordMessage: 'Your details were verified. Choose a new password.',
+    resetCodeSent:
+      "If an account exists for {{email}}, we've sent it a 6-digit code. It works for 15 minutes.",
+    resetCode: 'Code from the email',
     resetPasswordButton: 'Reset password',
-    resetVerificationFailed:
-      'We could not verify those details. Check the email and name you signed up with and try again.',
+    resendCode: 'Send a new code',
+    resetCodeResent: "If an account exists for {{email}}, we've sent it a new code.",
     resetSessionEnded: 'Your reset session has ended. Start again.',
     passwordResetSuccess: 'Password updated. You can now sign in.',
     passwordHint: 'At least 8 characters, with a letter and a number. Avoid common passwords and your name.',
@@ -461,8 +466,12 @@ const en = {
       passwordMax: 'Password is too long. Use a shorter one.',
       passwordTooCommon:
         'This password is too easy to guess. Avoid common passwords, patterns like 1234 or qwerty, and your name or email.',
-      tokenInvalid: 'This reset code is invalid. Request a new one.',
-      tokenExpired: 'This reset code has expired. Request a new one.',
+      codeFormat: 'Enter the 6-digit code from the email.',
+      codeWrong: 'That code is not right. Check the email and try again.',
+      codeExpired: 'This code has expired: codes work for 15 minutes. Ask for a new one.',
+      codeUsedUp: 'Too many wrong tries: this code no longer works. Ask for a new one.',
+      tooManyCodes:
+        "You've asked for several codes. Use the last one we sent, or try again in an hour.",
     },
   },
 };

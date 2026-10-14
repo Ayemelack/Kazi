@@ -361,6 +361,7 @@ const wes: TranslationSchema = {
       ALREADY_PAID: 'Dem don already pay this debt.',
       PASSWORD_TOO_COMMON:
         'This password too easy for guess. No use common password, simple pattern, or your name or email.',
+      RESET_CODE_INVALID: 'This code no correct or e no dey work again. Check am or ask for new one.',
       TOO_MANY_REQUESTS: 'Too many tries. Wait small try again.',
       PUSH_NOT_CONFIGURED: 'Notification no dey work now now.',
       IDEMPOTENCY_CONFLICT: 'Dem don do this one another way. Refresh, try am again.',
@@ -383,7 +384,8 @@ const wes: TranslationSchema = {
       lastName: 'Last name',
       email: 'Email',
       password: 'Password',
-      token: 'Reset code',
+      code: 'Reset code',
+      token: 'Notification token',
       companyName: 'Business name',
       businessType: 'Type of business',
       language: 'Language',
@@ -437,14 +439,16 @@ const wes: TranslationSchema = {
     forgotPassword: 'You forget your password?',
     forgotPasswordTitle: 'Reset your password',
     forgotPasswordMessage:
-      'Put the email wey you use sign up and your name make we fit verify say na you.',
-    forgotPasswordButton: 'Continue',
+      'Put the email wey you use sign up. We go send 6-number code go there.',
+    forgotPasswordButton: 'Send code',
+    haveResetCode: 'I don already get code',
     resetPasswordTitle: 'Choose new password',
-    resetPasswordMessage:
-      'Your details don verify. Choose new password.',
+    resetCodeSent:
+      'If account dey for {{email}}, we don send 6-number code go there. E go work for 15 minutes.',
+    resetCode: 'Code wey dey for the email',
     resetPasswordButton: 'Reset password',
-    resetVerificationFailed:
-      'We no fit verify those details. Check the email and name wey you use sign up try again.',
+    resendCode: 'Send new code',
+    resetCodeResent: 'If account dey for {{email}}, we don send new code go there.',
     resetSessionEnded: 'Your reset session don end. Start again.',
     passwordResetSuccess: 'Password don update. You fit sign in now.',
     passwordHint: 'At least 8 letters, with one letter and one number. No use common password or your name.',
@@ -478,8 +482,12 @@ const wes: TranslationSchema = {
       passwordMax: 'Password too long. Use one wey short pass.',
       passwordTooCommon:
         'This password too easy for guess. No use common password, pattern like 1234 or qwerty, or your name or email.',
-      tokenInvalid: 'This reset code no correct. Request new one.',
-      tokenExpired: 'This reset code don expire. Request new one.',
+      codeFormat: 'Put the 6-number code wey dey for the email.',
+      codeWrong: 'That code no correct. Check the email, try again.',
+      codeExpired: 'This code don expire: code dey work only 15 minutes. Ask for new one.',
+      codeUsedUp: 'You don try wrong code too much: this code no go work again. Ask for new one.',
+      tooManyCodes:
+        'You don ask for plenty codes. Use the last one wey we send, or try again after one hour.',
     },
   },
 };

@@ -351,6 +351,7 @@ const fr: TranslationSchema = {
       ALREADY_PAID: 'Cette dette est déjà réglée.',
       PASSWORD_TOO_COMMON:
         'Ce mot de passe est trop facile à deviner. Évitez les mots de passe courants, les suites simples, ainsi que votre nom ou votre e-mail.',
+      RESET_CODE_INVALID: 'Ce code est erroné ou n’est plus valable. Vérifiez-le ou demandez-en un nouveau.',
       TOO_MANY_REQUESTS: 'Trop de tentatives. Veuillez réessayer dans quelques minutes.',
       PUSH_NOT_CONFIGURED: 'Les notifications ne sont pas disponibles pour le moment.',
       IDEMPOTENCY_CONFLICT: 'Cette action a déjà été faite autrement. Actualisez et réessayez.',
@@ -373,7 +374,8 @@ const fr: TranslationSchema = {
       lastName: 'Nom',
       email: 'E-mail',
       password: 'Mot de passe',
-      token: 'Code de réinitialisation',
+      code: 'Code de réinitialisation',
+      token: 'Jeton de notification',
       companyName: "Nom de l'entreprise",
       businessType: "Type d'activité",
       language: 'Langue',
@@ -425,13 +427,16 @@ const fr: TranslationSchema = {
     forgotPassword: 'Mot de passe oublié ?',
     forgotPasswordTitle: 'Réinitialiser votre mot de passe',
     forgotPasswordMessage:
-      'Saisissez l’e-mail utilisé à l’inscription et votre nom pour vérifier votre identité.',
-    forgotPasswordButton: 'Continuer',
+      'Saisissez l’e-mail utilisé à l’inscription. Nous y enverrons un code à 6 chiffres.',
+    forgotPasswordButton: 'Envoyer le code',
+    haveResetCode: 'J’ai déjà un code',
     resetPasswordTitle: 'Choisissez un nouveau mot de passe',
-    resetPasswordMessage: 'Vos informations ont été vérifiées. Choisissez un nouveau mot de passe.',
+    resetCodeSent:
+      'Si un compte existe pour {{email}}, nous lui avons envoyé un code à 6 chiffres. Il est valable 15 minutes.',
+    resetCode: 'Code reçu par e-mail',
     resetPasswordButton: 'Réinitialiser le mot de passe',
-    resetVerificationFailed:
-      'Nous n’avons pas pu vérifier ces informations. Vérifiez l’e-mail et le nom utilisés à l’inscription, puis réessayez.',
+    resendCode: 'Envoyer un nouveau code',
+    resetCodeResent: 'Si un compte existe pour {{email}}, nous lui avons envoyé un nouveau code.',
     resetSessionEnded: 'Votre session de réinitialisation a pris fin. Recommencez.',
     passwordResetSuccess: 'Mot de passe mis à jour. Vous pouvez maintenant vous connecter.',
     passwordHint: 'Au moins 8 caractères, avec une lettre et un chiffre. Évitez les mots de passe courants et votre nom.',
@@ -464,8 +469,12 @@ const fr: TranslationSchema = {
       passwordMax: 'Mot de passe trop long. Choisissez-en un plus court.',
       passwordTooCommon:
         'Ce mot de passe est trop facile à deviner. Évitez les mots de passe courants, les suites comme 1234 ou azerty, ainsi que votre nom ou votre e-mail.',
-      tokenInvalid: 'Ce code est invalide. Demandez-en un nouveau.',
-      tokenExpired: 'Ce code a expiré. Demandez-en un nouveau.',
+      codeFormat: 'Saisissez le code à 6 chiffres reçu par e-mail.',
+      codeWrong: 'Ce code n’est pas le bon. Vérifiez l’e-mail et réessayez.',
+      codeExpired: 'Ce code a expiré : un code est valable 15 minutes. Demandez-en un nouveau.',
+      codeUsedUp: 'Trop d’essais erronés : ce code ne fonctionne plus. Demandez-en un nouveau.',
+      tooManyCodes:
+        'Vous avez demandé plusieurs codes. Utilisez le dernier reçu, ou réessayez dans une heure.',
     },
   },
 };

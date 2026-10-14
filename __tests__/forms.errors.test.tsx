@@ -189,7 +189,7 @@ const FORMS: Array<[string, () => Promise<Renderer>, string]> = [
   ['ForgotPassword', () => renderForm(ForgotPasswordScreen as never), 'forgot-submit'],
   [
     'ResetPassword',
-    () => renderForm(ResetPasswordScreen as never, { token: 'reset-code-123' }),
+    () => renderForm(ResetPasswordScreen as never, { email: 'owner@jolie.cm' }),
     'reset-submit',
   ],
   ['BusinessProfile', () => renderForm(BusinessProfileScreen as never), 'business-submit'],

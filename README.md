@@ -105,7 +105,7 @@ Requirements: **Node.js ≥ 22.11**.
 (cd shared && npm install)   # first time only — builds @kazi/shared, which the API imports
 cd server
 npm install            # first time only
-cp .env.example .env   # first time only — set a real JWT_SECRET
+cp .env.example .env   # first time only — set a real JWT_SECRET and uncomment NODE_ENV=development
 npm run dev            # starts the API on http://localhost:4000 (auto-reloads)
 ```
 
@@ -113,10 +113,14 @@ The API listens on port `4000` by default (override with `PORT`). It creates its
 database at `server/data/kazi.db` on first boot and applies any pending numbered migrations
 (`server/src/db/migrations/`) on every boot.
 
-> **Dev note:** there is no email service yet. Outside production, `POST /auth/forgot-password`
-> returns the reset code in the response body so the app flow can be tested end to end. In
-> production (`NODE_ENV=production`) the code is never returned, so a real sender must be added
-> before the reset flow can be used there.
+> **Password reset (KZ-06):** `POST /auth/forgot-password { email }` always answers `202` with
+> the same body and emails a 6-digit code (15 minutes, 5 tries) to the account, if there is one;
+> `POST /auth/reset-password { email, code, password }` finishes it. Email goes through a
+> provider's HTTPS API set with `EMAIL_*` variables (`server/.env.example`, docs/DEPLOYMENT.md
+> §3). With `NODE_ENV=development` and no provider, codes are printed to the server console; add
+> `ALLOW_DEV_RESET_CODE=1` to also get the code in the response (the app prefills it in debug
+> builds). Any other `NODE_ENV` refuses to start without an email provider, and refuses
+> `ALLOW_DEV_RESET_CODE=1` outright.
 
 Useful scripts:
 
@@ -153,7 +157,7 @@ stored response instead of duplicating the record, and reusing the same id for a
 operation returns `409 IDEMPOTENCY_CONFLICT`.
 
 Authentication and password-reset routes are rate-limited (signup/forgot/reset: 12 per 15 min,
-login: 25 per 15 min), as is `POST /notifications/send` (10 per minute).
+login: 25 per 15 min; reset codes: 3 per email per hour), as is `POST /notifications/send` (10 per minute).
 
 The owner-only read-only dashboard runs as a **separate server** — `server/src/admin/`, default
 `http://127.0.0.1:4100` with optional TLS and a `HttpOnly; SameSite=Strict` session cookie —
@@ -218,9 +222,10 @@ request, plus a dependency audit.
 
 ## Testing everything together
 
-1. Start the backend: `cd server && npm run dev`.
-2. Anticipate: `npm run check` passes — backend 111 tests (10 files), mobile 110 tests
-   (13 suites), shared 1 test, clean `tsc`/`eslint` — and a successful `assembleDebug`.
+1. Start the backend: `cd server && npm run dev` (with `NODE_ENV=development` in `server/.env`;
+   reset codes are then printed in this terminal).
+2. Anticipate: `npm run check` passes — backend 302 tests (23 files), mobile 271 tests
+   (23 suites), shared 131 tests, clean `tsc`/`eslint` — and a successful `assembleDebug`.
 3. Run the app from Metro. Create an account, add products/services, toggle stock tracking, add
    stock, record a sale (watch stock drop), record a purchase (watch it rise), add money, and
    confirm the Home balance and History feed update.
@@ -245,8 +250,11 @@ request, plus a dependency audit.
   start with a shorter value or the `.env.example` placeholder (see `.env.example`).
 - The SQLite DB and `.env` are git-ignored — never commit them.
 - Transport is HTTP in development. Production should terminate TLS in front of the API.
-- Known accepted limitation: signup and forgot-password reveal whether an email is registered.
-  Documented in `SECURITY_ASSESSMENT.md`.
+- Password reset never reveals whether an email is registered: forgot-password always answers
+  the same, and every reset failure is one `RESET_CODE_INVALID`. Reset codes are stored as an
+  HMAC, never returned by the API outside development, and never logged.
+- Known accepted limitation: signup reveals whether an email is registered (`EMAIL_IN_USE`).
+  Documented in `SECURITY_ASSESSMENT.md` and docs/SECURITY.md §6.
 
 ## Known environment notes
 

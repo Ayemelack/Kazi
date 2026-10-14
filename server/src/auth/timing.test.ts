@@ -6,6 +6,7 @@ import type Database from 'better-sqlite3';
 import { openDatabase } from '../db/index.js';
 import { createApp } from '../app.js';
 import { BCRYPT_COST, hashPassword, prepareDummyHash, verifyPassword } from './passwordHash.js';
+import { issueResetCode } from './service.js';
 
 // KZ-21. Thresholds are relative to a measured login, not absolute
 // milliseconds, so a slow or busy machine does not make these flaky.
@@ -119,18 +120,14 @@ test('/health answers during a burst of logins faster than one login takes', asy
 
 test('two resets racing with one code: exactly one succeeds', async () => {
   await signup('racer@market.cm');
-  const requested = await fetch(`${baseUrl}/auth/forgot-password`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'racer@market.cm', firstName: 'Ngum', lastName: 'Achu' }),
-  });
-  const { resetToken } = (await requested.json()) as { resetToken: string };
+  const code = issueResetCode(db, 'racer@market.cm')?.code;
+  assert.ok(code);
 
   // Both pass the "unused" check before either finishes hashing; the code is
   // claimed inside the transaction, so only one may change the password.
   const results = await Promise.all(
     ['mboaLedger2026', 'kribiLedger2026'].map(password =>
-      timed('/auth/reset-password', { token: resetToken, password }),
+      timed('/auth/reset-password', { email: 'racer@market.cm', code, password }),
     ),
   );
   assert.deepEqual(results.map(r => r.status).sort(), [200, 400]);

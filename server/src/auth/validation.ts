@@ -8,6 +8,8 @@ import {
   PASSWORD_MAX_BYTES,
   PASSWORD_MIN,
   PERSON_NAME_MAX,
+  RESET_CODE_LENGTH,
+  isResetCodeFormat,
   utf8ByteLength,
 } from '@kazi/shared';
 
@@ -67,14 +69,24 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Password is required.'),
 });
 
+// KZ-06: the email alone asks for a code; names are no longer part of the
+// reset (the code, sent to the address, is the proof).
 export const forgotPasswordSchema = z.object({
-  firstName: nameSchema,
-  lastName: nameSchema,
   email: emailSchema,
 });
 
+const resetCodeSchema = z
+  .string()
+  .trim()
+  .min(1, 'Reset code is required.')
+  .refine(isResetCodeFormat, {
+    message: `Enter the ${RESET_CODE_LENGTH}-digit code.`,
+    params: { rule: 'format' },
+  });
+
 export const resetPasswordSchema = z.object({
-  token: z.string().min(10, 'Reset code is required.'),
+  email: emailSchema,
+  code: resetCodeSchema,
   password: passwordSchema,
 });
 

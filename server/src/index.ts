@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { createApp } from './app.js';
 import { openDatabase, resolveDatabasePath } from './db/index.js';
+import { resetDeliveryFromEnv } from './auth/delivery.js';
 import { log } from './log.js';
 import { checkJwtSecret } from './secrets.js';
 
@@ -15,12 +16,25 @@ if (secretCheck.warning) {
   log.warn(secretCheck.warning);
 }
 
+// Password reset codes must reach the account holder and nobody else
+// (KZ-06): production needs a real email sender, and the development shortcut
+// that returns codes in responses is refused outside development and test.
+const resetDelivery = resetDeliveryFromEnv(process.env);
+if (!resetDelivery.ok) {
+  log.error(resetDelivery.error);
+  process.exit(1);
+}
+log.info(`Password reset codes go to ${resetDelivery.delivery.sender.description}.`);
+if (resetDelivery.delivery.devCodeInResponse) {
+  log.warn('ALLOW_DEV_RESET_CODE=1: forgot-password also returns the code in its response (development only).');
+}
+
 const port = Number(process.env.PORT ?? 4000);
 
 log.info(`Kazi API database: ${resolveDatabasePath()}`);
 
 const db = openDatabase();
-const app = createApp(db);
+const app = createApp(db, { resetDelivery: resetDelivery.delivery });
 
 const server = app.listen(port, () => {
   log.info(`Kazi API listening on http://localhost:${port}`);

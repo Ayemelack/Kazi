@@ -1,7 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { after, describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -11,14 +9,19 @@ import {
   checkJwtSecret,
   jwtSecretProblem,
 } from './secrets.js';
+import { boot, removeBootDir } from './testBoot.js';
 
 const SERVER_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const STRONG = 'k'.repeat(JWT_SECRET_MIN_BYTES);
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kazi-secrets-'));
+// Production also needs a way to send reset codes (KZ-06); no request is made
+// at boot.
+const EMAIL = {
+  EMAIL_PROVIDER: 'brevo',
+  EMAIL_API_KEY: 'test-key-not-real',
+  EMAIL_FROM: 'no-reply@kazi.example',
+};
 
-after(() => {
-  fs.rmSync(tmp, { recursive: true, force: true });
-});
+after(removeBootDir);
 
 describe('jwtSecretProblem', () => {
   test('accepts 32 bytes or more', () => {
@@ -63,41 +66,6 @@ describe('checkJwtSecret', () => {
   });
 });
 
-interface Boot {
-  code: number | null;
-  output: string;
-}
-
-// Starts the real entry point. It resolves with the exit code, or with null
-// once the server is listening (then it is stopped).
-function boot(env: Record<string, string>): Promise<Boot> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ['--import', 'tsx', 'src/index.ts'], {
-      cwd: SERVER_DIR,
-      env: {
-        ...process.env,
-        PORT: '0',
-        DATABASE_PATH: path.join(tmp, `boot-${Date.now()}-${Math.random()}.db`),
-        ...env,
-      },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    let output = '';
-    let listening = false;
-    const onData = (chunk: Buffer) => {
-      output += chunk.toString();
-      if (!listening && output.includes('Kazi API listening')) {
-        listening = true;
-        child.kill();
-      }
-    };
-    child.stdout.on('data', onData);
-    child.stderr.on('data', onData);
-    child.on('error', reject);
-    child.on('exit', code => resolve({ code: listening ? null : code, output }));
-  });
-}
-
 describe('boot (KZ-29)', { timeout: 120_000 }, () => {
   test('production with a short secret exits 1 with a clear message', async () => {
     const result = await boot({ NODE_ENV: 'production', JWT_SECRET: 'too-short-secret' });
@@ -115,7 +83,7 @@ describe('boot (KZ-29)', { timeout: 120_000 }, () => {
   });
 
   test('production with a strong secret starts', async () => {
-    const result = await boot({ NODE_ENV: 'production', JWT_SECRET: STRONG });
+    const result = await boot({ NODE_ENV: 'production', JWT_SECRET: STRONG, ...EMAIL });
     assert.equal(result.code, null, result.output);
   });
 

@@ -36,18 +36,20 @@ export interface AccountNamesInput {
   lastName?: string;
 }
 
+// KZ-06: the email alone asks for a code; the code from the email and the
+// new password finish the reset.
 export interface ForgotPasswordInput {
-  firstName: string;
-  lastName: string;
   email: string;
 }
 
 export interface ResetPasswordInput {
-  token: string;
+  email: string;
+  code: string;
   password: string;
 }
 
 export interface ForgotPasswordResult {
   message: string;
-  resetToken?: string;
+  /** Only from a development API started with ALLOW_DEV_RESET_CODE=1. */
+  devCode?: string;
 }

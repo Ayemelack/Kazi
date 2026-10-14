@@ -70,7 +70,7 @@ describe('validatePassword', () => {
   });
 
   it('reset uses the same list and patterns', () => {
-    expect(validateResetPassword({ password: 'Password123' }).password).toBe(
+    expect(validateResetPassword({ email: 'a@b.cm', code: '123456', password: 'Password123' }).password).toBe(
       'auth.errors.passwordTooCommon',
     );
   });

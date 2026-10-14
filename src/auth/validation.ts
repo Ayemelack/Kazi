@@ -6,6 +6,7 @@ import {
   PASSWORD_MAX_BYTES,
   PASSWORD_MIN,
   PERSON_NAME_MAX,
+  isResetCodeFormat,
   isTooCommonPassword,
   utf8ByteLength,
   type PersonalInfo,
@@ -26,7 +27,7 @@ export type AuthField =
   | 'email'
   | 'password'
   | 'confirmPassword'
-  | 'token';
+  | 'code';
 export type AuthFieldErrors = Partial<Record<AuthField, string>>;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -180,14 +181,6 @@ export function validateLogin(input: LogInInput): AuthFieldErrors {
 
 export function validateForgotPassword(input: ForgotPasswordInput): AuthFieldErrors {
   const errors: AuthFieldErrors = {};
-  const firstNameError = validateName(input.firstName);
-  if (firstNameError) {
-    errors.firstName = firstNameError;
-  }
-  const lastNameError = validateName(input.lastName);
-  if (lastNameError) {
-    errors.lastName = lastNameError;
-  }
   const emailError = validateEmail(input.email);
   if (emailError) {
     errors.email = emailError;
@@ -195,11 +188,22 @@ export function validateForgotPassword(input: ForgotPasswordInput): AuthFieldErr
   return errors;
 }
 
-export function validateResetPassword(
-  input: Pick<ResetPasswordInput, 'password'>,
-): AuthFieldErrors {
+// The code from the email: six digits (KZ-06). The field keeps only digits,
+// so spaces or dashes typed or pasted with it never reach this check.
+export function validateResetCode(value: string): string | null {
+  if (value.length === 0) {
+    return 'auth.errors.required';
+  }
+  return isResetCodeFormat(value) ? null : 'auth.errors.codeFormat';
+}
+
+export function validateResetPassword(input: ResetPasswordInput): AuthFieldErrors {
   const errors: AuthFieldErrors = {};
-  const passwordError = validatePassword(input.password);
+  const codeError = validateResetCode(input.code);
+  if (codeError) {
+    errors.code = codeError;
+  }
+  const passwordError = validatePassword(input.password, { email: input.email });
   if (passwordError) {
     errors.password = passwordError;
   }

@@ -138,7 +138,8 @@ closes.
 
 ## 7. Performance review checklist for every pull request
 
-- [ ] No synchronous crypto / file I/O in request handlers.
+- [ ] No slow synchronous crypto (bcrypt, scrypt, PBKDF2: use the worker pool, KZ-21) or file I/O
+      in request handlers. Microsecond HMACs on a few bytes (JWT checks, reset codes) are fine.
 - [ ] New queries use an index (`EXPLAIN QUERY PLAN` checked) and are paginated if unbounded.
 - [ ] No binary or unbounded data in list responses.
 - [ ] Lists in the app are virtualized; no new polling.

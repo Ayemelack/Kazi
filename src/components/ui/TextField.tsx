@@ -25,6 +25,8 @@ interface TextFieldProps {
   multiline?: boolean;
   maxLength?: number;
   autoCapitalize?: TextInputProps['autoCapitalize'];
+  autoComplete?: TextInputProps['autoComplete'];
+  textContentType?: TextInputProps['textContentType'];
   onBlur?: () => void;
   testID?: string;
 }
@@ -42,6 +44,8 @@ function TextField({
   multiline = false,
   maxLength,
   autoCapitalize,
+  autoComplete,
+  textContentType,
   onBlur,
   testID,
 }: TextFieldProps) {
@@ -85,6 +89,8 @@ function TextField({
           multiline={multiline}
           maxLength={maxLength}
           autoCapitalize={autoCapitalize ?? 'none'}
+          autoComplete={autoComplete}
+          textContentType={textContentType}
           autoCorrect={false}
           onFocus={() => setFocused(true)}
           onBlur={() => {

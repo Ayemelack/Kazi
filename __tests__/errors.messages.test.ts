@@ -74,16 +74,16 @@ describe('errorMessage', () => {
   });
 
   it('lets a screen word a code for its context', () => {
-    const err = new ApiError(400, 'x', 'INVALID_TOKEN');
-    expect(errorMessage(err, t, { INVALID_TOKEN: 'auth.errors.tokenInvalid' })).toBe(
-      en.auth.errors.tokenInvalid,
+    const err = new ApiError(429, 'x', 'TOO_MANY_REQUESTS');
+    expect(errorMessage(err, t, { TOO_MANY_REQUESTS: 'auth.errors.tooManyCodes' })).toBe(
+      en.auth.errors.tooManyCodes,
     );
-    expect(errorMessage(err, t)).toBe(en.errors.codes.INVALID_TOKEN);
+    expect(errorMessage(err, t)).toBe(en.errors.codes.TOO_MANY_REQUESTS);
   });
 
   it('translates app-raised messages', () => {
-    expect(errorMessage(new LocalError('auth.resetVerificationFailed'), t)).toBe(
-      en.auth.resetVerificationFailed,
+    expect(errorMessage(new LocalError('auth.errors.codeExpired'), t)).toBe(
+      en.auth.errors.codeExpired,
     );
   });
 

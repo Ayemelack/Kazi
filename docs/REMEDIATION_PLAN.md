@@ -144,21 +144,59 @@ Rules for every fix:
   always shows "could not verify" because there is no delivery channel.
 - **Fix:**
   1. Fail closed: return the code only when `ALLOW_DEV_RESET_CODE=1` **and** `NODE_ENV` is
-     `development` or `test`. Refuse to boot if `ALLOW_DEV_RESET_CODE=1` and `NODE_ENV=production`.
-  2. Delivery channel (decision D2): a `ResetCodeSender` interface with an SMS or email
-     implementation; send asynchronously after the code is stored.
-  3. Code: 6 digits, SHA-256 hashed, 15-minute expiry, max 5 verification attempts, then invalid.
-  4. Uniform response: "If the details match, we've sent a code" — same status, body and similar
-     timing whether or not the account exists.
-  5. App: Forgot Password → "enter the code we sent" screen → new password. Stop navigating with
-     the code in route params.
-- **Files:** `server/src/auth/{routes,service,jwt}.ts`, new `server/src/auth/delivery.ts`,
-  `server/src/index.ts`, `src/screens/auth/{ForgotPassword,ResetPassword}Screen.tsx`, locales.
+     `development` or `test`, checked at boot and again on each request. Refuse to boot if
+     `ALLOW_DEV_RESET_CODE=1` with any other `NODE_ENV` (production included). The old
+     `!== 'production'` logic is gone.
+  2. Delivery channel (decision D2: email): a `ResetCodeSender` interface (`send(to, code,
+     language)`) chosen at boot: `EmailSender` (en/fr/wes templates, HTTPS API call with a
+     5-second timeout) when `EMAIL_PROVIDER` is set, `ConsoleSender` only with `NODE_ENV`
+     `development`/`test`; anything else refuses to boot. The provider is still pending, so the
+     adapter is provider-agnostic: Brevo and Postmark request shapes plus a generic `http` relay.
+  3. Code: 6 digits from `crypto.randomInt`, stored as an HMAC-SHA256 keyed with
+     `HKDF(JWT_SECRET, info "kazi-reset-code")`, 15-minute expiry, dead after 5 wrong tries; a new
+     code replaces the account's older ones; single-use.
+  4. Uniform response: forgot-password always answers `202 { message: "If an account exists for
+     this email, we've sent it a reset code." }`; the lookup, code and sending run after the
+     response (`setImmediate`). 3 codes per email address per hour, counted for every address.
+     reset-password answers one `400 RESET_CODE_INVALID` for every failure.
+  5. App: Forgot Password asks only for the email → "enter the code we sent" + new password
+     screen. No code in route params. Names are no longer part of the reset.
+- **Spec corrections (2026-10-14, while building):**
+  - Expired and used-up codes can't get their own server error: an unknown email can never have
+    an expired code, so a distinct answer would reveal that the account exists. The server answers
+    `RESET_CODE_INVALID` for all of them; the app words it from what it knows (15 minutes since it
+    asked → "expired"; 5 refused tries → "used up"; otherwise "wrong").
+  - The password policy (which refuses passwords containing the account's names) now runs only
+    after the code matches; before, a wrong code plus a name-like password would have told an
+    attacker the account's name.
+  - The HMAC input is `"<user id>:<code>"`, so equal codes on two accounts are stored differently.
+  - The table is recreated (`0005_reset_codes`) rather than extended: the old key was the hash of
+    a long token, and a 6-digit code can repeat across accounts.
+  - An unset or unknown `NODE_ENV` counts as production for delivery (fail closed);
+    `server/.env.example` keeps `NODE_ENV=development` commented out for local machines.
+  - A new error code `RESET_CODE_INVALID` replaces the reset screen's reuse of the session codes
+    `INVALID_TOKEN` / `TOKEN_EXPIRED` (still used for sessions).
+- **Files (as built):** `server/src/auth/{routes,service,validation,jwt,resetCode,delivery,
+  emailTransport,resetEmail}.ts`, `server/src/middleware/rateLimit.ts` (`keyedLimiter`),
+  `server/src/{app,index}.ts`, `server/src/db/migrations/0005_reset_codes.ts`,
+  `shared/src/{reset,errors}.ts`, `src/auth/{resetFlow,validation,types}.ts`,
+  `src/screens/auth/{ForgotPassword,ResetPassword}Screen.tsx`, `src/navigation/RootNavigator.tsx`,
+  `src/components/ui/TextField.tsx` (one-time-code autofill), locales, `server/.env.example`.
 - **Acceptance:**
-  - [ ] No environment configuration causes the code to appear in a production response.
-  - [ ] End-to-end reset works on staging with the real channel.
-  - [ ] Sixth wrong code attempt invalidates the code.
-  - [ ] Response for unknown email and for known email are indistinguishable.
+  - [x] No environment configuration causes the code to appear in a production response.
+  - [ ] End-to-end reset works on staging with the real channel. 🟨 **Blocked:** the email
+        provider (decision D2) and the domain (D3) are pending. Setup and check steps:
+        [DEPLOYMENT.md §3 "Password-reset email"](DEPLOYMENT.md#password-reset-email-kz-06-decision-d2).
+  - [x] After 5 wrong tries the code is dead: the sixth try fails even with the right code.
+  - [x] Response for unknown email and for known email are indistinguishable (status, body,
+        headers; timing: the work happens after the response).
+  - [x] A new code kills the previous one; codes expire at 15 minutes (fake-clock test).
+  - [x] No code or email appears in the logs, including when delivery fails.
+  - [x] The API refuses to start in production without an email sender, and with
+        `ALLOW_DEV_RESET_CODE=1` anywhere but development/test.
+  - [x] App: email-only request, code + new password screen, translated messages for too many
+        requests and for wrong, expired and used-up codes in en/fr/wes; a debug build prefills
+        the dev code without route params.
 
 ### KZ-07
 **No way to delete or correct a transaction**

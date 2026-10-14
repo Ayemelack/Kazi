@@ -15,6 +15,10 @@ export const API_ERROR_CODES = [
   'INSUFFICIENT_STOCK',
   'ALREADY_PAID',
   'PASSWORD_TOO_COMMON',
+  // A reset code that is wrong, expired, used up or replaced, or an email with
+  // no account: one code for all of them, so the answer never reveals which
+  // (KZ-06).
+  'RESET_CODE_INVALID',
   'TOO_MANY_REQUESTS',
   'PUSH_NOT_CONFIGURED',
   'IDEMPOTENCY_CONFLICT',
@@ -56,6 +60,7 @@ export const VALIDATION_FIELDS = [
   'lastName',
   'email',
   'password',
+  'code',
   'token',
   'companyName',
   'businessType',

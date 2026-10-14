@@ -195,50 +195,41 @@ describe('auth validation', () => {
   });
 
   describe('validateForgotPassword', () => {
-    it('passes with a valid email and names', () => {
-      expect(
-        hasErrors(
-          validateForgotPassword({
-            firstName: 'Awa',
-            lastName: 'Nkono',
-            email: 'owner@jolie.cm',
-          }),
-        ),
-      ).toBe(false);
+    it('needs only a valid email (KZ-06: names are no longer asked for)', () => {
+      expect(hasErrors(validateForgotPassword({ email: 'owner@jolie.cm' }))).toBe(false);
     });
 
     it('flags an invalid email', () => {
-      expect(
-        validateForgotPassword({
-          firstName: 'Awa',
-          lastName: 'Nkono',
-          email: 'nope',
-        }).email,
-      ).toBe('auth.errors.emailInvalid');
-    });
-
-    it('flags an invalid name', () => {
-      expect(
-        validateForgotPassword({
-          firstName: 'Awa1967',
-          lastName: 'Nkono',
-          email: 'owner@jolie.cm',
-        }).firstName,
-      ).toBe('auth.errors.nameInvalid');
+      expect(validateForgotPassword({ email: 'nope' }).email).toBe('auth.errors.emailInvalid');
     });
   });
 
   describe('validateResetPassword', () => {
-    it('passes with a valid password', () => {
-      expect(hasErrors(validateResetPassword({ password: 'newpass456' }))).toBe(
-        false,
-      );
+    const base = { email: 'owner@jolie.cm', code: '042917', password: 'newpass456' };
+
+    it('passes with a 6-digit code and a valid password', () => {
+      expect(hasErrors(validateResetPassword(base))).toBe(false);
+    });
+
+    it('needs the 6-digit code', () => {
+      expect(validateResetPassword({ ...base, code: '' }).code).toBe('auth.errors.required');
+      for (const code of ['12345', '1234567', '12a456', '12 456']) {
+        expect(validateResetPassword({ ...base, code }).code).toBe('auth.errors.codeFormat');
+      }
     });
 
     it('validates the new password too', () => {
-      expect(validateResetPassword({ password: 'short' }).password).toBe(
+      expect(validateResetPassword({ ...base, password: 'short' }).password).toBe(
         'auth.errors.passwordMin',
       );
+    });
+
+    it('refuses a password containing the email local part', () => {
+      const password = 'Ngoumou2026x';
+      expect(validateResetPassword({ ...base, email: 'ngoumou@jolie.cm', password }).password).toBe(
+        'auth.errors.passwordTooCommon',
+      );
+      expect(validateResetPassword({ ...base, password }).password).toBeUndefined();
     });
   });
 });

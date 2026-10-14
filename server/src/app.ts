@@ -2,6 +2,7 @@ import cors from 'cors';
 import express, { type Express } from 'express';
 import type Database from 'better-sqlite3';
 import { createAuthRouter } from './auth/routes.js';
+import type { ResetDelivery } from './auth/delivery.js';
 import { createActivityRouter } from './activity/routes.js';
 import { createDebtsRouter } from './debts/routes.js';
 import { createFeedbackRouter } from './feedback/routes.js';
@@ -11,7 +12,15 @@ import { createSummaryRouter } from './summary/routes.js';
 import { createTransactionsRouter } from './transactions/routes.js';
 import { errorHandler } from './errors.js';
 
-export function createApp(db: Database.Database): Express {
+export interface AppOptions {
+  /**
+   * How password reset codes are delivered, chosen at boot by
+   * resetDeliveryFromEnv (KZ-06). Without it nothing is sent.
+   */
+  resetDelivery?: ResetDelivery;
+}
+
+export function createApp(db: Database.Database, options: AppOptions = {}): Express {
   const app = express();
   // Fingerprinting aid only: without this Express advertises "X-Powered-By:
   // Express" on every response, including error responses.
@@ -51,7 +60,7 @@ export function createApp(db: Database.Database): Express {
     res.status(200).json({ status: 'ok' });
   });
 
-  app.use('/auth', createAuthRouter(db));
+  app.use('/auth', createAuthRouter(db, options.resetDelivery));
   app.use('/items', createItemsRouter(db));
   app.use('/transactions', createTransactionsRouter(db));
   app.use('/debts', createDebtsRouter(db));

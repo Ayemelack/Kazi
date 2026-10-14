@@ -1,7 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto';
 import jwt from 'jsonwebtoken';
-
-const TOKEN_TTL_MS = 1000 * 60 * 30; // 30 minutes
 
 export interface TokenPayload {
   sub: string;
@@ -35,15 +32,4 @@ export function verifyAccessToken(token: string, secret: string): TokenPayload {
     throw new Error('Invalid token payload');
   }
   return { sub: decoded.sub, ver: decoded.ver };
-}
-
-// The reset code is unique, short-lived and single-use. Only its SHA-256 digest
-// is stored, so a database leak never exposes active reset codes.
-export function createResetToken(): { token: string; expiresAt: number } {
-  const token = randomBytes(24).toString('hex');
-  return { token, expiresAt: Date.now() + TOKEN_TTL_MS };
-}
-
-export function hashResetToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
 }

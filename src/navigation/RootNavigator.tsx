@@ -51,7 +51,9 @@ export type AuthStackParamList = {
   Login: undefined;
   Signup: undefined;
   ForgotPassword: undefined;
-  ResetPassword: { token: string } | undefined;
+  // The email the code was sent to, and when it was asked for (KZ-06). Never
+  // the code itself.
+  ResetPassword: { email: string; requestedAt?: number };
 };
 
 export type ProductsStackParamList = {

@@ -187,8 +187,37 @@ Each domain folder has the same three files:
   checks the version on every request, so a password reset invalidates old tokens.
 - **Target (KZ-13, decision D4):** 15-minute access token + rotating refresh token stored hashed in
   a `sessions` table; logout and "log out everywhere" revoke server-side.
-- Password reset: **Target (KZ-06):** 6-digit code, hashed, 15-minute expiry, 5 attempts,
-  delivered by SMS/email (decision D2), never returned in the HTTP response.
+- Password reset (KZ-06, decision D2: email):
+  - `POST /auth/forgot-password { email }` always answers `202` with one fixed body. The route
+    checks only the per-email limit (3 codes per address per hour, counted for every address, in
+    memory) and responds; the account lookup, the code and the email happen afterwards in
+    `setImmediate`, so neither the body nor the timing says whether the account exists.
+  - Code: 6 digits from `crypto.randomInt` (`auth/resetCode.ts`). `password_resets` stores
+    `HMAC-SHA256(key, "<user id>:<code>")` with `key = HKDF-SHA256(JWT_SECRET, info
+    "kazi-reset-code")`, plus `expires_at` (15 minutes), `attempts` and `used`. A new code
+    deletes the account's older ones.
+  - `POST /auth/reset-password { email, code, password }`: one query finds the newest usable code
+    for that email (unused, unexpired, under 5 wrong tries); the HMAC is compared in constant time
+    even when there is none. A mismatch adds a try (the fifth kills the code). Every failure is one
+    `400 RESET_CODE_INVALID`, whether the email is unknown or the code is wrong, expired, used,
+    replaced or dead. Only after the code matches is the password policy applied (it uses the
+    account's names, so checking it earlier would leak them); then the code is claimed, the
+    password changed, `token_version` bumped and the account's other codes deleted, in one
+    transaction.
+  - Delivery (`auth/delivery.ts`): `ResetCodeSender { send(to, code, language) }`, chosen once at
+    boot by `resetDeliveryFromEnv`: `EmailSender` (templates in en/fr/wes in `resetEmail.ts`,
+    sent through the HTTPS adapter in `emailTransport.ts` with a 5-second timeout: Brevo,
+    Postmark or a generic `http` relay) when `EMAIL_PROVIDER` is set; `ConsoleSender` only when
+    `NODE_ENV` is `development` or `test`; otherwise the server exits. A failed send is logged
+    with the account id and a reason only.
+  - Development shortcut: the code is also returned (`devCode`) only when the boot verdict allows
+    it **and**, on each request, `ALLOW_DEV_RESET_CODE=1` and `NODE_ENV` is `development` or
+    `test`. Boot fails if `ALLOW_DEV_RESET_CODE=1` with any other `NODE_ENV`.
+  - App: Forgot Password asks only for the email and opens the code screen with
+    `{ email, requestedAt }` (never the code). The code screen words `RESET_CODE_INVALID` from
+    what it knows: "expired" once 15 minutes have passed since it asked, "used up" after 5 refused
+    tries, "wrong" otherwise (`src/auth/resetFlow.ts`); "Send a new code" asks again. A debug
+    build prefills a `devCode` through an in-memory hand-off, never route params.
 
 ### 5.4 Error contract
 
@@ -207,7 +236,7 @@ Every error is `{ "error": { "code": "<CODE>", "message": "<English text>", "fie
   `errors.codes.<CODE>`, or `errors.validation.<rule>` with the label `errors.fields.<field>`;
   `NetworkError` → `errors.offline`; `SERVER_UNREACHABLE` (app-side code) →
   `errors.serverUnreachable`; anything else → `errors.generic`. A screen may override a code's
-  wording (the reset screen words `INVALID_TOKEN` as a bad reset code). Screens keep the error
+  wording (Forgot Password words `TOO_MANY_REQUESTS` as too many codes asked for). Screens keep the error
   object in state and translate it while rendering, so a language switch re-translates it.
   Tests require a key for every code, rule and field in all three locales.
 
@@ -299,6 +328,13 @@ table, never the values.
 
 `0004_drop_password_fingerprints` (KZ-05) drops `password_fingerprints` and its index: the
 "no two accounts may share a password" rule is gone (decision D1).
+
+`0005_reset_codes` (KZ-06) recreates `password_resets` for emailed codes: `id` (primary key),
+`user_id` (→ `users`, `ON DELETE CASCADE`), `code_hash` (`CHECK length = 64`), `expires_at`,
+`attempts` (`CHECK >= 0`), `used` (`CHECK IN (0, 1)`), `created_at`, and
+`idx_password_resets_user(user_id)`. The old table was keyed by the hash of a long token; a
+6-digit code can repeat across accounts, so it can't be the key. Old rows (30-minute tokens for a
+flow that no longer exists) are dropped, not converted.
 
 Rules for new migrations:
 
@@ -421,6 +457,7 @@ response: no second sale, no second stock movement (after KZ-11).
 | A11 | Numbered migrations recorded in `schema_migrations`, one transaction each, `foreign_key_check` before commit | Accepted (2026-10-10, session 1) | Each schema change runs exactly once, in order, all-or-nothing; pre-framework databases are baselined in place (§6.1) |
 | A13 | Pidgin is `wes` (ISO 639-3); dates use a formatting locale separate from the language code | Accepted (2026-10-11, KZ-24) | `pid` is Piaroa; a registered code beats a private-use tag; Intl has no `wes` data, so formatting uses `en-CM` (§7.3). A12 is reserved for the read cache (session 13) |
 | A14 | Password hashing runs bcryptjs on a worker-thread pool (CPUs − 1, between 1 and 4), started with the server | Accepted (2026-10-14, KZ-21) | bcryptjs async only yields every 100 ms and a cost-10 hash fits in one slice, so async alone still froze the event loop for each login (measured: 20 parallel compares blocked it for 2.35 s). Workers keep the pure-JS library (no native build, same `$2a$`/`$2b$` hashes); the native `bcrypt` package was the alternative |
+| A15 | Password reset by an emailed 6-digit code: stored as an HMAC, a uniform 202 with the work done after the response, one error for every failure, and a sender chosen at boot that fails closed | Accepted (2026-10-14, KZ-06) | The old flow returned the code in the response outside production and could not deliver in production. An HMAC keyed from `JWT_SECRET` keeps a leaked database from revealing live codes (a plain hash of 6 digits is reversed instantly). While the email provider (D2) is pending, a small HTTPS adapter supports Brevo, Postmark and a generic relay, so choosing one is configuration, not code |
 
 Add a row for every new architectural decision, and update the status when it changes.
 

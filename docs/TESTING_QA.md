@@ -5,7 +5,7 @@ pipeline that enforces it.
 
 ---
 
-## 1. Current state (updated 2026-10-14, session 4)
+## 1. Current state (updated 2026-10-14, session 5)
 
 **One command runs everything:** `npm run check` at the repository root — `shared/` typecheck +
 tests + build, then app typecheck + lint + Jest, then server typecheck + tests + build. On a fresh
@@ -13,9 +13,9 @@ clone install `shared/` first: `(cd shared && npm ci) && npm ci && (cd server &&
 
 | Suite | Runner | Command | Result |
 |---|---|---|---|
-| Shared (`shared/src/**/*.test.ts`) | `node --test` via `tsx` | `cd shared && npm run check` | ✅ 129 / 129; typecheck + build clean |
-| Server (`src/**/*.test.ts`, 19 files, 260 tests) | `node --test` via `tsx` (glob, so new files are never skipped) | `cd server && npm run check` (typecheck + test + build) | ✅ all pass |
-| App (22 suites, 251 tests) | Jest, `@react-native/jest-preset`, `testTimeout` 30 s | `npm test` | ✅ passes cold (KZ-30) |
+| Shared (`shared/src/**/*.test.ts`) | `node --test` via `tsx` | `cd shared && npm run check` | ✅ 131 / 131; typecheck + build clean |
+| Server (`src/**/*.test.ts`, 23 files, 302 tests; boot tests start the real entry point through `src/testBoot.ts`) | `node --test` via `tsx` (glob, so new files are never skipped) | `cd server && npm run check` (typecheck + test + build) | ✅ all pass |
+| App (23 suites, 271 tests) | Jest, `@react-native/jest-preset`, `testTimeout` 30 s | `npm test` | ✅ passes cold (KZ-30) |
 | App types | `tsc` | `npm run typecheck` | ✅ clean |
 | App lint | ESLint | `npm run lint` | ✅ clean |
 | CI | GitHub Actions | `.github/workflows/ci.yml` | Added (KZ-38); see [CI pipeline](#ci-pipeline) |
@@ -67,7 +67,7 @@ A task in [PROJECT_TRACKER.md](PROJECT_TRACKER.md) is Done only when all of thes
 | KZ-03 | Server: low-stock push sent after commit, not sent when below-threshold not crossed, push failure doesn't fail the sale (mock messaging) |
 | KZ-04 | Table-driven `parseMoneyInput` tests (valid and invalid inputs listed in the plan); server rejects fractional amounts |
 | KZ-05 | Same password on two accounts succeeds; common password refused; table gone after migration |
-| KZ-06 | Code never in response with `NODE_ENV=production`; boot refuses `ALLOW_DEV_RESET_CODE` in production; attempt limit; uniform responses |
+| KZ-06 | Code never in a response outside development (every `NODE_ENV` × `ALLOW_DEV_RESET_CODE` × email combination, plus real boots); boot refuses `ALLOW_DEV_RESET_CODE` and a missing sender in production; attempt limit; a new code kills the old; 15-minute expiry (fake clock); identical status/body/headers for known and unknown emails; no code or email in logs; email requests against a mocked HTTP client (`server/src/auth/{reset,delivery,delivery.boot}.test.ts`, `__tests__/reset.flow.test.tsx`) |
 | KZ-07 | `/activity` returns refs; History delete flow (component test); stock restored after delete |
 | KZ-08 | Separate buckets per forwarded IP with `TRUST_PROXY`; spoofed header ignored without it; per-email login limit; map pruning |
 | KZ-09 | Build script fails without an `https://` API URL (CI job) |
@@ -122,7 +122,8 @@ Run on one low-end Android phone, one recent Android phone and one iPhone, in En
 **Account**
 - [ ] Sign up → business profile → lands on Home.
 - [ ] Log out, log in; wrong password shows a translated error.
-- [ ] Forgot password: code arrives by the chosen channel (KZ-06), reset works, old session ends.
+- [ ] Forgot password: the code arrives by email in the account's language (KZ-06), reset works,
+      old session ends; an address with no account shows the same screen and gets no email.
 - [ ] Delete account asks for the password and removes all data.
 
 **Money**

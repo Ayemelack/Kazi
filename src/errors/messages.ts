@@ -8,9 +8,9 @@ import { ApiError, NetworkError } from './ApiError';
 // state and call this while rendering, so switching language re-translates an
 // error that is already on screen.
 
-// A screen may word a code for its own context, for example INVALID_TOKEN
-// means "this reset code is invalid" on the reset screen and "your session
-// ended" everywhere else.
+// A screen may word a code for its own context, for example TOO_MANY_REQUESTS
+// means "too many codes asked for" on Forgot Password and "too many tries"
+// everywhere else.
 export type ErrorKeyOverrides = Partial<Record<ApiErrorCode, string>>;
 
 // A failure the app detects itself (not a request error), kept as a

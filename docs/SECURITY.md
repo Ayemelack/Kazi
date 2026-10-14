@@ -37,8 +37,12 @@ The earlier adversarial test report is in `SECURITY_ASSESSMENT.md` at the reposi
   `user_id`. Tests cover cross-user isolation.
 - JWT algorithm pinned to HS256; `token_version` check on every request; deleted accounts rejected.
 - Passwords hashed with bcrypt (cost 10) on worker threads; an unknown email at login costs the
-  same compare against a dummy hash (KZ-21). Reset codes stored as SHA-256 hashes and single-use;
-  a code is claimed inside the reset transaction, so two concurrent resets can't both use it.
+  same compare against a dummy hash (KZ-21). Password reset (KZ-06): 6-digit emailed codes stored as
+  an HMAC (key derived from `JWT_SECRET`), 15 minutes, 5 tries, one live code per account,
+  single-use and claimed inside the reset transaction; forgot-password always answers the same
+  `202` and does its work after responding; every reset failure is one `RESET_CODE_INVALID`;
+  the server refuses to start without a real sender outside development, and never returns a code
+  outside development.
 - Common, patterned and personal passwords refused by the API with a 10 000-entry list (KZ-05);
   several accounts may share a password and nothing reveals whether one is in use.
 - Deleting the account needs the password (KZ-20). Production refuses a weak `JWT_SECRET` (KZ-29).
@@ -60,7 +64,7 @@ The earlier adversarial test report is in `SECURITY_ASSESSMENT.md` at the reposi
 | Gap | Risk | Task |
 |---|---|---|
 | ~~Password-uniqueness check reveals that a password is in use somewhere~~ | Fixed (KZ-05): rule and `password_fingerprints` removed; common-password list instead | KZ-05 ✅ |
-| Reset code returned in HTTP response unless `NODE_ENV=production` (fail-open) | High | KZ-06 |
+| ~~Reset code returned in HTTP response unless `NODE_ENV=production` (fail-open); no delivery in production~~ | Fixed (KZ-06): emailed codes; the response never carries a code outside development; boot fails closed. Staging end-to-end check waits on the email provider (D2) | KZ-06 ✅ (staging check 🟨) |
 | Rate limiter shares one bucket for all users behind a proxy; unbounded memory | High | KZ-08 |
 | Release APK signed with the public debug key | High | KZ-09 |
 | Logout doesn't revoke; 30-day tokens | Medium | KZ-13 |
@@ -91,8 +95,15 @@ The earlier adversarial test report is in `SECURITY_ASSESSMENT.md` at the reposi
   or store a plain password.
 - Sessions (after KZ-13): access token ≤ 15 min; refresh token rotated on use, stored hashed,
   revocable; reuse of a rotated refresh token revokes the session family.
-- Password reset (after KZ-06): 6-digit code, hashed, 15-min expiry, 5 attempts, delivered out of
-  band, uniform responses.
+- Password reset (KZ-06): 6-digit code from `crypto.randomInt`, stored only as
+  `HMAC-SHA256(HKDF(JWT_SECRET, "kazi-reset-code"), "<user id>:<code>")`, 15-minute expiry, dead
+  after 5 wrong tries, a new code replaces the old one, single-use; delivered by email (decision
+  D2), never in an HTTP response outside development (`ALLOW_DEV_RESET_CODE=1` with
+  `NODE_ENV=development`/`test` only; boot fails otherwise). forgot-password: same status, body
+  and headers for every address, with the lookup and sending after the response. reset-password:
+  one `RESET_CODE_INVALID` for unknown email, wrong, expired, used, replaced or dead code; the
+  constant-time compare runs even when there is no code; the password policy (which knows the
+  account's names) runs only after the code matches.
 - Destructive account actions (delete account, log out all devices) require the password.
 
 ### 5.2 Authorization
@@ -110,8 +121,10 @@ The earlier adversarial test report is in `SECURITY_ASSESSMENT.md` at the reposi
 - Errors: stable `code` for the client, no stack traces or SQL in responses.
 
 ### 5.4 Abuse protection
-- Rate limits: signup / forgot / reset 12 per 15 min per IP; login 25 per 15 min per IP plus a
-  per-email failure limit; authenticated writes per user (KZ-08). Always send `Retry-After`.
+- Rate limits: signup / forgot / reset 12 per 15 min per IP; reset codes 3 per email address per
+  hour, counted for every address so the limit reveals nothing (KZ-06); login 25 per 15 min per
+  IP plus a per-email failure limit; authenticated writes per user (KZ-08). Always send
+  `Retry-After`.
 - `trust proxy` set to the exact proxy configuration in production, never `true` blindly.
 
 ### 5.5 Transport
@@ -130,7 +143,10 @@ The earlier adversarial test report is in `SECURITY_ASSESSMENT.md` at the reposi
 
 ### 5.7 Logging and privacy
 - Log: method, route pattern, status, duration, user id, error code.
-- Never log: request bodies, passwords, tokens, reset codes, emails, debtor names, amounts.
+- Never log: request bodies, passwords, tokens, reset codes, emails, debtor names, amounts. The
+  one exception is `ConsoleSender`, which prints reset codes (with a masked address) and refuses
+  to exist unless `NODE_ENV` is `development` or `test`. A failed reset email is logged as
+  `user <id>` plus the provider and HTTP status, nothing else (tested).
 - Personal data is deleted with the account (FK cascades); backups age out on schedule (KZ-35).
 - Kazi must meet Cameroon's personal-data protection requirements and the Play Store / App Store
   account-deletion and privacy-policy rules — confirm the exact obligations with a lawyer before
@@ -159,7 +175,8 @@ Each entry needs an owner and a review date.
 | Risk | Why accepted | Mitigation | Review by |
 |---|---|---|---|
 | Signup returns `EMAIL_IN_USE` (email enumeration) | Users need to be told to sign in instead | Rate limits; per-email login limits (KZ-08) | 2027-01-31 |
-| Single-process rate limiting and admin sessions | One API instance | Move to a shared store before scaling out | When adding a 2nd instance |
+| Single-process rate limiting and admin sessions (including the per-email reset-code limit, which a restart clears) | One API instance | Move to a shared store before scaling out | When adding a 2nd instance |
+| Online guessing of one account's reset code (KZ-06) | 3 codes per address per hour × 5 tries = at most 15 guesses an hour at 1 in 1 000 000 each: about 0.04 % a day, but about 12 % over a year of non-stop attempts | Every code is an email to the owner (an attack floods their inbox); per-IP limits; KZ-08 (session 6) should add a daily per-address cap (e.g. 10 codes a day: about 2 % a year) | 2026-11-30 (KZ-08) |
 
 ---
 
@@ -190,7 +207,8 @@ Each entry needs an owner and a review date.
 All must be true before a production release (milestone M3 in the tracker):
 
 - [ ] KZ-05, KZ-06, KZ-08, KZ-09, KZ-13, KZ-15, KZ-19, KZ-20, KZ-29 are Done.
-- [ ] `NODE_ENV=production`, `TRUST_PROXY` set, `ALLOW_DEV_RESET_CODE` unset on the server.
+- [ ] `NODE_ENV=production`, `TRUST_PROXY` set, `ALLOW_DEV_RESET_CODE` unset on the server;
+      reset-code email configured and the staging end-to-end reset check passed (KZ-06).
 - [ ] API reachable only through the TLS proxy; port 4000 not exposed publicly.
 - [ ] Admin dashboard bound to `127.0.0.1`, reachable only through an SSH tunnel.
 - [ ] Release app signed with the upload key; R8 enabled; API URL is `https://`.

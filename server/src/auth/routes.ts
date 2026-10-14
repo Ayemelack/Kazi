@@ -32,18 +32,20 @@ export function createAuthRouter(db: Database.Database): Router {
   const slowDown = rateLimit({ windowMs: 15 * 60 * 1000, max: 12 });
   const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 25 });
 
-  router.post('/signup', slowDown, (req, res, next) => {
+  // Handlers that hash or compare passwords are async (KZ-21); Express 4 does
+  // not catch a rejected promise, so each one passes errors to next() itself.
+  router.post('/signup', slowDown, async (req, res, next) => {
     try {
-      const result = signUp(db, validate(signupSchema, req.body));
+      const result = await signUp(db, validate(signupSchema, req.body));
       res.status(201).json(result);
     } catch (err) {
       next(err);
     }
   });
 
-  router.post('/login', loginLimiter, (req, res, next) => {
+  router.post('/login', loginLimiter, async (req, res, next) => {
     try {
-      const result = logIn(db, validate(loginSchema, req.body));
+      const result = await logIn(db, validate(loginSchema, req.body));
       res.status(200).json(result);
     } catch (err) {
       next(err);
@@ -86,9 +88,9 @@ export function createAuthRouter(db: Database.Database): Router {
     }
   });
 
-  router.post('/reset-password', slowDown, (req, res, next) => {
+  router.post('/reset-password', slowDown, async (req, res, next) => {
     try {
-      resetPassword(db, validate(resetPasswordSchema, req.body));
+      await resetPassword(db, validate(resetPasswordSchema, req.body));
       res.status(200).json({ message: 'Password updated. You can now sign in.' });
     } catch (err) {
       next(err);

@@ -1,7 +1,12 @@
-import bcrypt from 'bcryptjs';
 import type Database from 'better-sqlite3';
 import { AppError } from '../errors.js';
 import { createResetToken, hashResetToken, signAccessToken } from './jwt.js';
+import {
+  hashPassword,
+  prepareDummyHash,
+  startHashWorkers,
+  verifyPassword,
+} from './passwordHash.js';
 import { assertPasswordNotTooCommon } from './passwordPolicy.js';
 import type {
   AccountInput,
@@ -47,7 +52,14 @@ interface ResetRow {
   used: number;
 }
 
-const SALT_ROUNDS = 10;
+// Started when the server loads this module, so neither the first burst of
+// logins nor the first unknown-email login pays for setting them up.
+startHashWorkers();
+void prepareDummyHash();
+
+function invalidCredentials(): AppError {
+  return new AppError(401, 'INVALID_CREDENTIALS', 'The email or password is incorrect.');
+}
 
 function toPublicUser(row: UserRow): PublicUser {
   return {
@@ -79,7 +91,7 @@ function isUniqueConstraintViolation(err: unknown): boolean {
   );
 }
 
-export function signUp(db: Database.Database, input: SignupInput): AuthResult {
+export async function signUp(db: Database.Database, input: SignupInput): Promise<AuthResult> {
   assertPasswordNotTooCommon(input.password, input);
 
   const existing = db
@@ -94,7 +106,7 @@ export function signUp(db: Database.Database, input: SignupInput): AuthResult {
     );
   }
 
-  const passwordHash = bcrypt.hashSync(input.password, SALT_ROUNDS);
+  const passwordHash = await hashPassword(input.password);
 
   let userId: number;
   try {
@@ -107,8 +119,8 @@ export function signUp(db: Database.Database, input: SignupInput): AuthResult {
     userId = Number(result.lastInsertRowid);
   } catch (err) {
     // Safety net for the email UNIQUE constraint. The pre-check above covers
-    // the normal path; this catches an adversarial race (for example a future
-    // multi-process deployment) and returns a clean conflict instead of
+    // the normal path; this catches a signup for the same email that finished
+    // while this one was hashing, and returns a clean conflict instead of
     // leaking a database error to the caller.
     if (isUniqueConstraintViolation(err)) {
       throw new AppError(
@@ -128,17 +140,19 @@ export function signUp(db: Database.Database, input: SignupInput): AuthResult {
   };
 }
 
-export function logIn(db: Database.Database, input: LoginInput): AuthResult {
+export async function logIn(db: Database.Database, input: LoginInput): Promise<AuthResult> {
   const user = db
     .prepare('SELECT * FROM users WHERE email = ?')
     .get(input.email.toLowerCase()) as unknown as UserRow | undefined;
 
-  if (!user || !bcrypt.compareSync(input.password, user.password_hash)) {
-    throw new AppError(
-      401,
-      'INVALID_CREDENTIALS',
-      'The email or password is incorrect.',
-    );
+  // An unknown email still costs one bcrypt compare, so the response time
+  // does not reveal whether the account exists (KZ-21).
+  const matches = await verifyPassword(
+    input.password,
+    user ? user.password_hash : await prepareDummyHash(),
+  );
+  if (!user || !matches) {
+    throw invalidCredentials();
   }
 
   return { token: signAccessToken(user.id, user.token_version, requiredSecret()), user: toPublicUser(user) };
@@ -248,10 +262,10 @@ export function requestPasswordReset(
   return token;
 }
 
-export function resetPassword(
+export async function resetPassword(
   db: Database.Database,
   input: ResetPasswordInput,
-): void {
+): Promise<void> {
   const reset = db
     .prepare('SELECT * FROM password_resets WHERE token = ?')
     .get(hashResetToken(input.token)) as unknown as ResetRow | undefined;
@@ -281,21 +295,25 @@ export function resetPassword(
     });
   }
 
-  const passwordHash = bcrypt.hashSync(input.password, SALT_ROUNDS);
+  const passwordHash = await hashPassword(input.password);
   const update = db.transaction(() => {
     // Bumping token_version invalidates every access token that was signed
     // before the reset, so a session token that leaked elsewhere cannot be
     // revived by changing the password. All other outstanding reset codes for
     // the account are purged so a previously issued code cannot be used after
-    // this one succeeds.
+    // this one succeeds. The code is claimed first: hashing is async, so a
+    // second request with the same code may have used it in the meantime.
+    const claimed = db
+      .prepare('UPDATE password_resets SET used = 1 WHERE token = ? AND used = 0')
+      .run(hashResetToken(input.token));
+    if (claimed.changes !== 1) {
+      throw new AppError(400, 'INVALID_TOKEN', 'This reset code is invalid. Request a new one.');
+    }
     db.prepare(
       `UPDATE users
        SET password_hash = ?, token_version = token_version + 1, updated_at = datetime('now')
        WHERE id = ?`,
     ).run(passwordHash, reset.user_id);
-    db.prepare('UPDATE password_resets SET used = 1 WHERE token = ?').run(
-      hashResetToken(input.token),
-    );
     db.prepare('DELETE FROM password_resets WHERE user_id = ? AND token != ?').run(
       reset.user_id,
       hashResetToken(input.token),

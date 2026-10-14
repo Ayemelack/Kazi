@@ -178,9 +178,11 @@ Each domain folder has the same three files:
 
 ### 5.3 Authentication and sessions
 
-- Passwords: bcrypt (cost 10). **Target (KZ-21):** async hashing so the event loop is never blocked.
-  Weak passwords are refused by `auth/passwordPolicy.ts` with the shared rules in
-  `shared/src/password.ts` and the list in `server/assets/common-passwords.txt` (KZ-05).
+- Passwords: bcrypt (cost 10), hashed and compared with bcryptjs on a small worker-thread pool
+  (`auth/passwordHash.ts`, ADR A14) so a login never blocks other requests; an unknown email is
+  compared against a dummy hash made once at start (KZ-21). Weak passwords are refused by
+  `auth/passwordPolicy.ts` with the shared rules in `shared/src/password.ts` and the list in
+  `server/assets/common-passwords.txt` (KZ-05).
 - Session: HS256 JWT, 30 days, carries `sub` and `ver` (`users.token_version`). `requireAuth`
   checks the version on every request, so a password reset invalidates old tokens.
 - **Target (KZ-13, decision D4):** 15-minute access token + rotating refresh token stored hashed in
@@ -418,6 +420,7 @@ response: no second sale, no second stock movement (after KZ-11).
 | A10 | One shared contracts package (`@kazi/shared`, built with tsc, `file:` links) | Accepted (2026-10-10, session 1) | App and API can't drift on limits, parsers and codes. Metro 0.87 (symlinks + `exports` on by default), Jest and NodeNext all resolved the link without workarounds, so the path-mapped-source fallback wasn't needed |
 | A11 | Numbered migrations recorded in `schema_migrations`, one transaction each, `foreign_key_check` before commit | Accepted (2026-10-10, session 1) | Each schema change runs exactly once, in order, all-or-nothing; pre-framework databases are baselined in place (§6.1) |
 | A13 | Pidgin is `wes` (ISO 639-3); dates use a formatting locale separate from the language code | Accepted (2026-10-11, KZ-24) | `pid` is Piaroa; a registered code beats a private-use tag; Intl has no `wes` data, so formatting uses `en-CM` (§7.3). A12 is reserved for the read cache (session 13) |
+| A14 | Password hashing runs bcryptjs on a worker-thread pool (CPUs − 1, between 1 and 4), started with the server | Accepted (2026-10-14, KZ-21) | bcryptjs async only yields every 100 ms and a cost-10 hash fits in one slice, so async alone still froze the event loop for each login (measured: 20 parallel compares blocked it for 2.35 s). Workers keep the pure-JS library (no native build, same `$2a$`/`$2b$` hashes); the native `bcrypt` package was the alternative |
 
 Add a row for every new architectural decision, and update the status when it changes.
 

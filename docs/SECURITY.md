@@ -36,7 +36,9 @@ The earlier adversarial test report is in `SECURITY_ASSESSMENT.md` at the reposi
 - Every resource route is behind `requireAuth`; every SQL query filters by the authenticated
   `user_id`. Tests cover cross-user isolation.
 - JWT algorithm pinned to HS256; `token_version` check on every request; deleted accounts rejected.
-- Passwords hashed with bcrypt; reset codes stored as SHA-256 hashes and single-use.
+- Passwords hashed with bcrypt (cost 10) on worker threads; an unknown email at login costs the
+  same compare against a dummy hash (KZ-21). Reset codes stored as SHA-256 hashes and single-use;
+  a code is claimed inside the reset transaction, so two concurrent resets can't both use it.
 - Common, patterned and personal passwords refused by the API with a 10 000-entry list (KZ-05);
   several accounts may share a password and nothing reveals whether one is in use.
 - All input validated with zod; `strictNumber` rejects hex, booleans, arrays and non-finite numbers.
@@ -64,7 +66,7 @@ The earlier adversarial test report is in `SECURITY_ASSESSMENT.md` at the reposi
 | Image bytes never checked against declared type | Medium | KZ-15 |
 | Vulnerable dependencies (`proxy-addr` critical, others high) | Medium | KZ-19 |
 | Account deletion without password re-entry | Low | KZ-20 |
-| Login timing reveals registered emails | Low | KZ-21 |
+| ~~Login timing reveals registered emails~~ | Fixed (KZ-21): unknown emails cost a compare against a dummy hash | KZ-21 ✅ |
 | ~~Weak `JWT_SECRET` accepted~~ | Fixed (KZ-29): production refuses < 32 bytes or the `.env.example` value | KZ-29 ✅ |
 | Malformed admin cookie → 500 | Low | KZ-27 |
 | No structured, PII-free request logging | Low | KZ-34 |
@@ -83,7 +85,9 @@ The earlier adversarial test report is in `SECURITY_ASSESSMENT.md` at the reposi
   characters (case-insensitive) → `PASSWORD_TOO_COMMON`. The app runs the same rules with the top
   1000 for instant feedback; the API is the authority. Never refuse a password because another
   account uses it.
-- Hashing: bcrypt cost ≥ 10, async only (KZ-21). Never log, return or store a plain password.
+- Hashing: bcrypt cost ≥ 10, async and off the request thread (KZ-21: bcryptjs on a worker pool,
+  `server/src/auth/passwordHash.ts`); an unknown email still costs one compare. Never log, return
+  or store a plain password.
 - Sessions (after KZ-13): access token ≤ 15 min; refresh token rotated on use, stored hashed,
   revocable; reuse of a rotated refresh token revokes the session family.
 - Password reset (after KZ-06): 6-digit code, hashed, 15-min expiry, 5 attempts, delivered out of

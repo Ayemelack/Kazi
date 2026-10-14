@@ -361,8 +361,11 @@ verifies it; the screen asks for it. Acceptance: [ ] wrong password → 401, acc
 ### KZ-21
 **Login timing and blocking hashing** — when the email is unknown, still run a bcrypt compare
 against a fixed dummy hash; switch to async `bcrypt.hash` / `bcrypt.compare` so the event loop is
-not blocked (~70–100 ms per call today). Acceptance: [ ] response time for unknown vs known email
-differs by < 20 ms at p50 over 100 tries. [ ] Health checks stay < 20 ms during a login burst.
+not blocked (~70–100 ms per call today). Acceptance: [x] response time for unknown vs known email
+differs by < 20 ms at p50 over 100 tries. [x] Health checks stay < 20 ms during a login burst.
+Spec corrected: bcryptjs's async API only yields every 100 ms and one cost-10 hash fits in a single
+slice, so "async" alone still blocked the event loop; the async calls run on a worker-thread pool
+(`server/src/auth/passwordHash.ts`, ADR A14). Measured numbers are in the tracker's update log.
 
 ### KZ-22
 **Explain disabled Save buttons** — show field errors after a field is touched (on blur) rather

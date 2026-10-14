@@ -420,7 +420,9 @@ with only To, cap at that day. Acceptance: [ ] "Older" never shows events from t
 
 ### KZ-29
 **Secret strength at boot** — refuse to start in production if `JWT_SECRET` is shorter than 32
-bytes or equals the `.env.example` value. Acceptance: [ ] boot fails with a clear message.
+bytes or equals the `.env.example` value. Acceptance: [x] boot fails with a clear message.
+`server/src/secrets.ts` (`checkJwtSecret`), called first in `server/src/index.ts`; outside
+production a weak secret only logs a warning, a missing one still stops the server.
 
 ### KZ-30
 **Flaky Jest suites** — set `testTimeout: 30000` for the screen suites, run CI with

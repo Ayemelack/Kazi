@@ -63,7 +63,7 @@ The earlier adversarial test report is in `SECURITY_ASSESSMENT.md` at the reposi
 | Vulnerable dependencies (`proxy-addr` critical, others high) | Medium | KZ-19 |
 | Account deletion without password re-entry | Low | KZ-20 |
 | Login timing reveals registered emails | Low | KZ-21 |
-| Weak `JWT_SECRET` accepted | Low | KZ-29 |
+| ~~Weak `JWT_SECRET` accepted~~ | Fixed (KZ-29): production refuses < 32 bytes or the `.env.example` value | KZ-29 ✅ |
 | Malformed admin cookie → 500 | Low | KZ-27 |
 | No structured, PII-free request logging | Low | KZ-34 |
 | No backups (availability and integrity) | Medium | KZ-35 |
@@ -108,7 +108,8 @@ The earlier adversarial test report is in `SECURITY_ASSESSMENT.md` at the reposi
   revisit if the threat model changes.
 
 ### 5.6 Secrets
-- `JWT_SECRET`: ≥ 32 random bytes, production refuses weak values (KZ-29). Generate with
+- `JWT_SECRET`: ≥ 32 random bytes; production refuses to start with a shorter value or the
+  `.env.example` placeholder, and prints why without the value (KZ-29). Generate with
   `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`.
 - Firebase service account, admin password, keystore and its passwords: never in git; stored in
   the host's secret store or CI secrets; access limited to the operator.

@@ -239,7 +239,8 @@ request, plus a dependency audit.
   returns `400` rather than a server error.
 - Auth, password-reset and push-send routes are rate-limited. API responses omit `X-Powered-By`;
   admin dashboard responses are `Cache-Control: no-store`.
-- `JWT_SECRET` must be set to a long random value in production (see `.env.example`).
+- `JWT_SECRET` must be at least 32 random bytes: with `NODE_ENV=production` the API refuses to
+  start with a shorter value or the `.env.example` placeholder (see `.env.example`).
 - The SQLite DB and `.env` are git-ignored — never commit them.
 - Transport is HTTP in development. Production should terminate TLS in front of the API.
 - Known accepted limitation: signup and forgot-password reveal whether an email is registered.

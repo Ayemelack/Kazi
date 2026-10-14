@@ -84,7 +84,7 @@ WantedBy=multi-user.target
 | Variable | Required in prod | Default | Notes |
 |---|---|---|---|
 | `NODE_ENV` | ✅ `production` | — | Enables production behaviour |
-| `JWT_SECRET` | ✅ | — | ≥ 32 random bytes; weak values refused after KZ-29 |
+| `JWT_SECRET` | ✅ | — | ≥ 32 random bytes. With `NODE_ENV=production` the API exits at boot if it is missing, shorter, or the `.env.example` value (KZ-29); elsewhere it only warns |
 | `PORT` | | `4000` | Bind behind the proxy |
 | `DATABASE_PATH` | | `server/data/kazi.db` | Absolute path on SSD recommended |
 | `TRUST_PROXY` | ✅ `1` | unset | **New (KZ-08)** — number of proxy hops |

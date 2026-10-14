@@ -200,6 +200,8 @@ const en = {
     rangeTo: 'To',
     rangeNotSet: 'Any date',
     clearRange: 'Clear dates',
+    rangeFromAfterTo: 'The From date must be on or before the To date.',
+    rangeFromThisWeek: '"Older" ends on {{date}}. Pick a From date on or before that day, or use "This week".',
     loadMore: 'Load more',
     summaryReceived: 'Received',
     summarySpent: 'Spent',

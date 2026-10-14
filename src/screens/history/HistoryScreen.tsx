@@ -33,6 +33,7 @@ import { errorMessage } from '../../errors/messages';
 import LoadingView from '../../components/ui/LoadingView';
 import { useToast } from '../../components/ui/Toast';
 import { listActivity } from '../../offline/api';
+import { olderRange } from '../../activity/olderRange';
 import type { ActivitySummary, ActivityType, HistoryPeriod } from '../../activity/types';
 import type { LocalActivity } from '../../offline/types';
 import { todayAsDateString } from '../../transactions/validation';
@@ -80,8 +81,20 @@ export default function HistoryScreen({ navigation }: ScreenProps) {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   // A date range under "Older" replaces the period filter: the server always
-  // honours an explicit range over a preset period.
+  // honours an explicit range over a preset period. The range never reaches
+  // into this week (KZ-28); an impossible one is shown under the From field and
+  // not sent.
   const hasRange = period === 'older' && (rangeFrom !== '' || rangeTo !== '');
+  const range = hasRange ? olderRange(todayAsDateString(), rangeFrom, rangeTo) : null;
+  const rangeInvalid = range !== null && !range.ok;
+  const rangeError =
+    range && !range.ok
+      ? range.error === 'fromAfterTo'
+        ? t('history.rangeFromAfterTo')
+        : t('history.rangeFromThisWeek', { date: range.lastOlderDay })
+      : undefined;
+  const startDate = range?.ok ? range.startDate : undefined;
+  const endDate = range?.ok ? range.endDate : undefined;
 
   // Changing period or range starts a new request while the previous one may
   // still be in flight; the newest one wins and older responses are dropped
@@ -101,11 +114,20 @@ export default function HistoryScreen({ navigation }: ScreenProps) {
       if (mode !== 'more') {
         setError(null);
       }
+      if (rangeInvalid) {
+        setEvents([]);
+        setSummary(null);
+        setHasMore(false);
+        setLoading(false);
+        setRefreshing(false);
+        setLoadingMore(false);
+        return;
+      }
       try {
         const result = await listActivity({
           period: hasRange ? undefined : period,
-          startDate: hasRange ? rangeFrom || undefined : undefined,
-          endDate: hasRange ? rangeTo || undefined : undefined,
+          startDate,
+          endDate,
           asOf: todayAsDateString(),
           limit: PAGE_SIZE,
           offset: nextOffset,
@@ -133,7 +155,7 @@ export default function HistoryScreen({ navigation }: ScreenProps) {
         }
       }
     },
-    [period, rangeFrom, rangeTo, hasRange, t, toast],
+    [period, startDate, endDate, hasRange, rangeInvalid, t, toast],
   );
 
   useFocusEffect(
@@ -187,6 +209,7 @@ export default function HistoryScreen({ navigation }: ScreenProps) {
               label={t('history.rangeFrom')}
               value={rangeFrom || t('history.rangeNotSet')}
               onChange={setRangeFrom}
+              error={rangeError}
             />
           </View>
           <View style={styles.rangeField}>
@@ -228,6 +251,8 @@ export default function HistoryScreen({ navigation }: ScreenProps) {
         <LoadingView />
       ) : error ? (
         <ErrorState message={errorMessage(error, t)} onRetry={() => load('initial')} />
+      ) : rangeInvalid ? (
+        <View style={styles.emptyWrap}>{filters}</View>
       ) : events.length === 0 ? (
         <View style={styles.emptyWrap}>
           {filters}

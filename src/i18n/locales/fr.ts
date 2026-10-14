@@ -202,6 +202,8 @@ const fr: TranslationSchema = {
     rangeTo: 'Au',
     rangeNotSet: 'N’importe quelle date',
     clearRange: 'Effacer les dates',
+    rangeFromAfterTo: 'La date « Du » doit être antérieure ou égale à la date « Au ».',
+    rangeFromThisWeek: '« Plus ancien » s’arrête au {{date}}. Choisissez une date « Du » jusqu’à ce jour, ou utilisez « Cette semaine ».',
     loadMore: 'Voir plus',
     summaryReceived: 'Reçu',
     summarySpent: 'Dépensé',

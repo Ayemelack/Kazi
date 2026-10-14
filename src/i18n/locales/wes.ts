@@ -207,6 +207,8 @@ const wes: TranslationSchema = {
     rangeTo: 'To',
     rangeNotSet: 'Any date',
     clearRange: 'Clear dates',
+    rangeFromAfterTo: 'The From date must be before the To date, or the same day.',
+    rangeFromThisWeek: '"Older" stop for {{date}}. Pick From date wey be dat day or before, or use "This week".',
     loadMore: 'Load more',
     summaryReceived: 'Received',
     summarySpent: 'Spent',

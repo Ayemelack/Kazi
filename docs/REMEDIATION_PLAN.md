@@ -493,7 +493,13 @@ and a valid session beside a malformed cookie still gets 200.
 
 ### KZ-28
 **History "Older" range** — with only From, cap `endDate` at the day before this week starts;
-with only To, cap at that day. Acceptance: [ ] "Older" never shows events from this week.
+with only To, cap at that day. Acceptance: [x] "Older" never shows events from this week.
+**Done (session 7):** `src/activity/olderRange.ts`. "This week" is today − 6 … today (the
+server's `this_week`), so "Older" ends on today − 7. Spec made precise: a To date inside this
+week is also capped at today − 7 (otherwise "with only To" could still show this week); From
+after To, or a From date inside this week, is a translated message under the From field
+(`history.rangeFromAfterTo` / `history.rangeFromThisWeek`), the list is not requested and no
+error screen is shown.
 
 ### KZ-29
 **Secret strength at boot** — refuse to start in production if `JWT_SECRET` is shorter than 32

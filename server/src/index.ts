@@ -5,6 +5,7 @@ import { resetDeliveryFromEnv } from './auth/delivery.js';
 import { log } from './log.js';
 import { checkJwtSecret } from './secrets.js';
 import { parseTrustProxy } from './trustProxy.js';
+import { testSendFromEnv } from './notifications/routes.js';
 
 // Fail fast instead of serving 500s on the first authenticated request, and
 // never run production with a guessable signing secret (KZ-29).
@@ -43,6 +44,18 @@ log.info(
     : `Client addresses: from X-Forwarded-For, trusting ${trustProxy.value} proxy hop(s).`,
 );
 
+// Push (KZ-03): low-stock alerts need a Firebase service account; without
+// one they are skipped. The manual send route is for testing only.
+log.info(
+  process.env.FIREBASE_SERVICE_ACCOUNT || process.env.GOOGLE_APPLICATION_CREDENTIALS
+    ? 'Push notifications: Firebase credentials set.'
+    : 'Push notifications: disabled (no Firebase credentials).',
+);
+const testSend = testSendFromEnv(process.env);
+if (testSend) {
+  log.warn('NOTIFICATIONS_TEST_SEND=1: POST /notifications/send is enabled (testing only).');
+}
+
 const port = Number(process.env.PORT ?? 4000);
 
 log.info(`Kazi API database: ${resolveDatabasePath()}`);
@@ -51,6 +64,7 @@ const db = openDatabase();
 const app = createApp(db, {
   resetDelivery: resetDelivery.delivery,
   trustProxy: trustProxy.value,
+  testSend,
 });
 
 const server = app.listen(port, () => {

@@ -80,7 +80,8 @@ Sustained throughput target: 200 requests/s mixed read/write without breaching p
 8. **Compression at the proxy.** gzip/brotli for JSON at the reverse proxy (see
    [DEPLOYMENT.md](DEPLOYMENT.md)), not in Node.
 9. **Side effects after commit.** Push notifications and other network calls run after the
-   transaction commits, with a timeout, and never delay the response (KZ-03).
+   transaction commits, with a timeout, and never delay the response (KZ-03: the low-stock alert
+   is queued with `setImmediate` from `stockOut` and gives FCM 5 seconds; see ARCHITECTURE §8.1).
 10. **Measure.** Every request logs its duration; queries over 50 ms are logged (KZ-34).
 
 ## 3. App rules

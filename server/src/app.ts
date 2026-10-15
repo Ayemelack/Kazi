@@ -8,6 +8,7 @@ import { createDebtsRouter } from './debts/routes.js';
 import { createFeedbackRouter } from './feedback/routes.js';
 import { createItemsRouter } from './items/routes.js';
 import { createNotificationsRouter } from './notifications/routes.js';
+import { setPushMessaging, type PushMessagingProvider } from './notifications/service.js';
 import { createSummaryRouter } from './summary/routes.js';
 import { createTransactionsRouter } from './transactions/routes.js';
 import { errorHandler } from './errors.js';
@@ -24,6 +25,17 @@ export interface AppOptions {
    * proxy hops, from TRUST_PROXY (KZ-08, see trustProxy.ts). Never `true`.
    */
   trustProxy?: false | number;
+  /**
+   * Serve POST /notifications/send, which pushes a caller-written message to
+   * the caller's own devices. Only for testing push delivery; from
+   * NOTIFICATIONS_TEST_SEND via testSendFromEnv (KZ-03). Default off.
+   */
+  testSend?: boolean;
+  /**
+   * Who sends pushes. Without it, Firebase Admin from the environment
+   * (FIREBASE_SERVICE_ACCOUNT / GOOGLE_APPLICATION_CREDENTIALS). Tests pass a fake.
+   */
+  pushMessaging?: PushMessagingProvider;
 }
 
 // Generous enough for any person using the app, low enough to stop a script
@@ -37,6 +49,9 @@ export function createApp(db: Database.Database, options: AppOptions = {}): Expr
   app.disable('x-powered-by');
   // Per-IP rate limits key on req.ip, which follows this setting.
   app.set('trust proxy', options.trustProxy ?? false);
+  if (options.pushMessaging) {
+    setPushMessaging(db, options.pushMessaging);
+  }
 
   // Every authenticated router counts writes (POST, PUT, PATCH, DELETE) per
   // user after requireAuth, so the bucket is the verified account, not an
@@ -88,7 +103,7 @@ export function createApp(db: Database.Database, options: AppOptions = {}): Expr
   app.use('/summary', createSummaryRouter(db));
   app.use('/activity', createActivityRouter(db));
   app.use('/feedback', createFeedbackRouter(db, userWrites));
-  app.use('/notifications', createNotificationsRouter(db, userWrites));
+  app.use('/notifications', createNotificationsRouter(db, userWrites, { testSend: options.testSend === true }));
 
   app.use((_req, res) => {
     res.status(404).json({

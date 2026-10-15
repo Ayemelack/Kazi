@@ -64,8 +64,8 @@ A task in [PROJECT_TRACKER.md](PROJECT_TRACKER.md) is Done only when all of thes
 | Task | Tests to add |
 |---|---|
 | KZ-01 | Connectivity module with NetInfo mock: online/offline events, `isOnline()` result; API client maps fetch failure to `NetworkError` only when offline |
-| KZ-02 | Background-handler setup survives a throwing `getMessaging()` (Jest); manual iOS launch check |
-| KZ-03 | Server: low-stock push sent after commit, not sent when below-threshold not crossed, push failure doesn't fail the sale (mock messaging) |
+| KZ-02 | Background-handler setup survives a throwing `getMessaging()` (Jest, `__tests__/push.startup.test.ts`); manual iOS launch check (DEPLOYMENT §6 step 7) |
+| KZ-03 | Server (`notifications/lowStock.test.ts`, fake messaging via `createApp({ pushMessaging })`): low-stock push sent once after commit on a crossing (sale, stock-out, purchase reversal), not when already below, not twice in 12 hours, in the account's language; FCM failure or timeout doesn't affect the sale; rolled-back crossing sends nothing; dead tokens removed. `POST /notifications/send` 404 without `NOTIFICATIONS_TEST_SEND`. App: placeholder `google-services.json` → push disabled (`__tests__/push.startup.test.ts`). Real delivery: DEPLOYMENT §6 step 9 |
 | KZ-04 | Table-driven `parseMoneyInput` tests (valid and invalid inputs listed in the plan); server rejects fractional amounts |
 | KZ-05 | Same password on two accounts succeeds; common password refused; table gone after migration |
 | KZ-06 | Code never in a response outside development (every `NODE_ENV` × `ALLOW_DEV_RESET_CODE` × email combination, plus real boots); boot refuses `ALLOW_DEV_RESET_CODE` and a missing sender in production; attempt limit; a new code kills the old; 15-minute expiry (fake clock); identical status/body/headers for known and unknown emails; no code or email in logs; email requests against a mocked HTTP client (`server/src/auth/{reset,delivery,delivery.boot}.test.ts`, `__tests__/reset.flow.test.tsx`) |

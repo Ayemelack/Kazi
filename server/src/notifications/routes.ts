@@ -14,7 +14,24 @@ import {
   validate,
 } from './validation.js';
 
-export function createNotificationsRouter(db: Database.Database, userWrites: RequestHandler): Router {
+/**
+ * POST /notifications/send is a testing aid (KZ-03): it is served only when
+ * NOTIFICATIONS_TEST_SEND=1 and NODE_ENV is not production. Anywhere else the
+ * route doesn't exist (404). The real sender is the low-stock alert.
+ */
+export function testSendFromEnv(env: NodeJS.ProcessEnv): boolean {
+  return env.NOTIFICATIONS_TEST_SEND === '1' && env.NODE_ENV !== 'production';
+}
+
+export interface NotificationsRouterOptions {
+  testSend: boolean;
+}
+
+export function createNotificationsRouter(
+  db: Database.Database,
+  userWrites: RequestHandler,
+  options: NotificationsRouterOptions = { testSend: false },
+): Router {
   const router = Router();
 
   router.use(requireAuth(db), userWrites);
@@ -38,6 +55,10 @@ export function createNotificationsRouter(db: Database.Database, userWrites: Req
       next(err);
     }
   });
+
+  if (!options.testSend) {
+    return router;
+  }
 
   // Every send fans out to the caller's own push tokens, so an authenticated
   // caller could otherwise burn the Firebase quota in a tight loop. Counted

@@ -298,7 +298,7 @@ erDiagram
 | Table | Key columns | Notes |
 |---|---|---|
 | `users` | email (unique, lower-case), password_hash, token_version, company_name, business_type, language | |
-| `items` | type (product/service), price (INTEGER FCFA ≥ 0), stock, track_stock, low_stock_threshold, image | **Target (KZ-14):** image moves to its own table |
+| `items` | type (product/service), price (INTEGER FCFA ≥ 0), stock, track_stock, low_stock_threshold, last_low_stock_alert_at (epoch ms, KZ-03), image | **Target (KZ-14):** image moves to its own table |
 | `stock_movements` | direction, quantity, new_quantity, reason | Audit trail of stock |
 | `transactions` | type (sale/purchase/capital), amount (INTEGER FCFA > 0), item_id, quantity, date (YYYY-MM-DD) | |
 | `debts` | name, amount (INTEGER FCFA > 0), date, status (open/paid), paid_at | |
@@ -348,6 +348,9 @@ table, never the values.
 `idx_password_resets_user(user_id)`. The old table was keyed by the hash of a long token; a
 6-digit code can repeat across accounts, so it can't be the key. Old rows (30-minute tokens for a
 flow that no longer exists) are dropped, not converted.
+
+`0006_low_stock_alert` (KZ-03) adds `items.last_low_stock_alert_at INTEGER` (epoch ms, NULL =
+never): when the API last sent a low-stock push for the item, for the once-per-12-hours rule.
 
 Rules for new migrations:
 
@@ -439,7 +442,22 @@ sequenceDiagram
   R->>DB: INSERT client_ops (response)
   R->>DB: COMMIT
   R-->>S: 201 { transaction }
+  Note over R: setImmediate (queued by stockOut if the sale crossed the threshold)
+  R->>DB: claim the 12-hour alert slot if the item is still low
+  R-)FCM: low-stock push (5 s timeout, failure only logged)
 ```
+
+**Low-stock alert (KZ-03, decision D6).** `stockOut` (sales, manual stock-outs and purchase
+reversals all go through it) checks whether the change takes a tracked item with a threshold
+above 0 from above its threshold to at or below it. If so it queues a job with `setImmediate`:
+better-sqlite3 is synchronous, so the job runs only after the request's outermost transaction
+has committed or rolled back, and never delays the response. The job (`notifications/lowStock.ts`)
+skips users without devices and servers without Firebase credentials, then in one `UPDATE`
+re-checks that the item is still low and that no alert went out in the last 12 hours
+(`last_low_stock_alert_at`), and only then sends one multicast to the owner's devices in the
+account's language (`users.language`). A rolled-back write leaves the stock above the threshold,
+so nothing is sent. FCM errors and the 5-second timeout are logged with the user id and an error
+code only; dead tokens are deleted as for any send.
 
 If the response is lost and the user taps Save again, the same `clientOpId` replays the stored
 response: no second sale, no second stock movement (KZ-11).

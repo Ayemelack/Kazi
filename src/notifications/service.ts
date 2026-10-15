@@ -6,6 +6,8 @@ import notifee, {
 } from '@notifee/react-native';
 import {
   getToken,
+  isAutoInitEnabled,
+  setAutoInitEnabled,
   onMessage,
   onTokenRefresh as subscribeTokenRefresh,
   setBackgroundMessageHandler,
@@ -59,6 +61,12 @@ export async function getAndRegisterToken(): Promise<string | null> {
     return null;
   }
   try {
+    // Auto-init ships off (firebase.json) so a placeholder build never asks
+    // FCM for a token; with a real project, turn it on so FCM keeps the token
+    // fresh by itself from now on.
+    if (!isAutoInitEnabled(messaging)) {
+      await setAutoInitEnabled(messaging, true);
+    }
     const token = await getToken(messaging);
     if (!token) {
       return null;

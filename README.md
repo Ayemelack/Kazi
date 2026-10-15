@@ -147,7 +147,7 @@ Authorized endpoints take `Authorization: Bearer <token>`. Errors always use the
 | `/summary` | `GET /?asOf=YYYY-MM-DD` — money received, spent and net for the caller's day and in total, money added, and the low-stock item count |
 | `/activity` | `GET /` — `period`, `from`/`to` range, `asOf`, `limit`/`offset`, per-type totals; each event names its source record (`refType`, `refId`) |
 | `/feedback` | `GET/POST /`, `GET/DELETE /:id` |
-| `/notifications` | `POST /push-tokens`, `DELETE /push-tokens`, `POST /send` |
+| `/notifications` | `POST /push-tokens`, `DELETE /push-tokens`; `POST /send` only with `NOTIFICATIONS_TEST_SEND=1` outside production (testing aid, KZ-03) |
 | `/health` | `GET /` — liveness probe (no auth) |
 
 Every query is scoped to the authenticated user, and business dates (`transactions.date`,

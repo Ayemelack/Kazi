@@ -8,6 +8,26 @@ import { getMessaging, type Messaging } from '@react-native-firebase/messaging';
 // messaging goes through pushMessaging(): when Firebase is unavailable it
 // returns null, push is switched off for the rest of the session, and the
 // reason is logged once in development builds.
+//
+// KZ-03: android/app/google-services.json is a committed placeholder until a
+// real Firebase project's file is dropped in (docs/DEPLOYMENT.md section 6).
+// A placeholder project counts as "push disabled": no token requests, no
+// permission prompt, no errors. Native FCM auto-init is off (firebase.json),
+// so the native side doesn't fetch a token on its own either; it is turned on
+// only once a real project's token is requested.
+
+/** True for the committed placeholder config (or any app without a real project). */
+export function isPlaceholderFirebaseProject(options: {
+  projectId?: string;
+  messagingSenderId?: string;
+}): boolean {
+  const projectId = options.projectId ?? '';
+  return (
+    projectId === '' ||
+    /placeholder/i.test(projectId) ||
+    /^0+$/.test(options.messagingSenderId ?? '')
+  );
+}
 
 let disabled = false;
 let messaging: Messaging | null = null;
@@ -37,6 +57,9 @@ export function pushMessaging(): Messaging | null {
     const app = getApps().find(candidate => candidate.name === '[DEFAULT]');
     if (!app) {
       return disablePush('no Firebase app is configured in this build');
+    }
+    if (isPlaceholderFirebaseProject(app.options)) {
+      return disablePush('this build has the placeholder Firebase config');
     }
     messaging = getMessaging(app);
     return messaging;

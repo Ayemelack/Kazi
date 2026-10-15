@@ -89,7 +89,8 @@ WantedBy=multi-user.target
 | `DATABASE_PATH` | | `server/data/kazi.db` | Absolute path on SSD recommended |
 | `TRUST_PROXY` | ✅ `1` | unset | Number of reverse proxies in front of the API (KZ-08): a whole number 0–10. Unset or `0`: `X-Forwarded-For` is ignored and limits use the connection address. Any other value (`true`, an address list, a typo) stops the API at boot. See "Rate limits and TRUST_PROXY" below |
 | `CORS_ORIGIN` | | unset (denied) | Only if a browser client is added |
-| `FIREBASE_SERVICE_ACCOUNT` or `GOOGLE_APPLICATION_CREDENTIALS` | ✅ for push | unset | Push disabled when unset |
+| `FIREBASE_SERVICE_ACCOUNT` or `GOOGLE_APPLICATION_CREDENTIALS` | ✅ for push | unset | Push disabled when unset: low-stock alerts are skipped. Boot logs `Push notifications: Firebase credentials set.` or `…: disabled (no Firebase credentials).` See §6 "Firebase and push setup" |
+| `NOTIFICATIONS_TEST_SEND` | ❌ must be unset | unset | `1` serves `POST /notifications/send` (push a message you write to your own devices) for testing delivery (KZ-03). Ignored when `NODE_ENV=production`; the route answers 404 otherwise. Boot warns while it is on |
 | `EMAIL_PROVIDER` | ✅ | unset | `brevo`, `postmark` or `http` (KZ-06). Without it the API starts only with `NODE_ENV=development` or `test`, where reset codes are printed to the console |
 | `EMAIL_API_KEY` | ✅ | — | Brevo API key, Postmark server token, or the bearer token of an `http` relay. Secret; never printed |
 | `EMAIL_FROM` | ✅ | — | Sender address, verified with the provider (SPF + DKIM on the domain) |
@@ -329,6 +330,31 @@ a Mac with Xcode, an iPhone and an Android phone. One Firebase project per envir
      build shows the missing-plist warning, the app launches and works, no permission prompt,
      and the device log shows `[Kazi] Firebase is not configured for this build`.
    Record both in the tracker update log and tick the KZ-02 criteria.
+8. **Android placeholder check.** With the committed placeholder `google-services.json` (project
+   id `kazi-notifications-placeholder`), the app treats push as disabled: no notification
+   permission prompt, no FCM token request (native auto-init is off in `firebase.json`; the app
+   turns it on only after it gets a real project's token) and no error. A debug build logs
+   `[push] disabled: this build has the placeholder Firebase config` once.
+9. **Real delivery check (KZ-03; also KZ-02's push criterion on iOS).** On staging, with the
+   environment's files dropped in (step 6) and the service account set (step 5):
+   - The API boot log shows `Push notifications: Firebase credentials set.`
+   - Sign in on an Android phone and an iPhone with the same account and allow notifications;
+     `SELECT platform, updated_at FROM push_tokens WHERE user_id = <id>` shows both devices.
+   - Create a product with stock tracking, stock 5, low-stock alert 2. Record a sale of 3: both
+     phones get "Low stock alert — <name>: only 2 left." in the account's language, with the app
+     in the foreground, in the background and closed. A second sale of 1 sends nothing (already
+     below). Restock to 5 and sell 3 again within 12 hours: nothing.
+   - FCM down: on the staging host add `10.255.255.1 fcm.googleapis.com` to `/etc/hosts` (a
+     non-routable address, so the send hangs). Reset the item's slot
+     (`UPDATE items SET last_low_stock_alert_at = NULL WHERE id = <item>`), restock and make a
+     crossing sale: it still answers 201 at its usual speed, and about 5 seconds later the journal
+     shows `Low-stock alert for user <id> was not delivered: INTERNAL`. Remove the hosts line.
+   - Optional manual send: set `NOTIFICATIONS_TEST_SEND=1` on staging only, restart, and
+     `POST /notifications/send {"title":"Test","body":"Hello"}` with the account's token; unset
+     it and restart afterwards.
+   - Uninstall the app on one phone, cause another alert (or a test send): the response reports
+     `removedUnregisteredTokens: 1` (test send) and that device's row is gone.
+   Record the results in the tracker update log and tick the KZ-02 and KZ-03 criteria.
 
 ---
 

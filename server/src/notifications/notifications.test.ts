@@ -4,6 +4,8 @@ import type { Server } from 'node:http';
 import type Database from 'better-sqlite3';
 import { openDatabase } from '../db/index.js';
 import { createApp } from '../app.js';
+import { testSendFromEnv } from './routes.js';
+import type { PushMessaging } from './service.js';
 
 let server: Server;
 let baseUrl: string;
@@ -17,7 +19,8 @@ before(async () => {
   delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
 
   db = openDatabase({ filename: ':memory:' });
-  const app = createApp(db);
+  // POST /send is a testing aid, off unless asked for (KZ-03).
+  const app = createApp(db, { testSend: true, trustProxy: 1 });
   server = app.listen(0);
   await new Promise<void>(resolve => server.once('listening', () => resolve()));
 
@@ -29,6 +32,10 @@ after(() => {
   server.close();
 });
 
+// Every test signs up a user; signup is limited per client address, so each
+// request comes from its own.
+let requests = 0;
+
 async function call(
   method: string,
   path: string,
@@ -39,6 +46,7 @@ async function call(
     method,
     headers: {
       'Content-Type': 'application/json',
+      'X-Forwarded-For': `10.8.${Math.floor(++requests / 250)}.${requests % 250}`,
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -149,4 +157,113 @@ test('rejects a send with an empty title', async () => {
   const result = await call('POST', '/notifications/send', { title: '', body: 'There' }, awaToken);
   assert.equal(result.status, 400);
   assert.equal((result.data.error as { code: string }).code, 'VALIDATION_ERROR');
+});
+test('POST /send exists only with NOTIFICATIONS_TEST_SEND=1 outside production', () => {
+  assert.equal(testSendFromEnv({ NOTIFICATIONS_TEST_SEND: '1', NODE_ENV: 'development' }), true);
+  assert.equal(testSendFromEnv({ NOTIFICATIONS_TEST_SEND: '1', NODE_ENV: 'test' }), true);
+  assert.equal(testSendFromEnv({ NOTIFICATIONS_TEST_SEND: '1' }), true);
+  assert.equal(testSendFromEnv({ NOTIFICATIONS_TEST_SEND: '1', NODE_ENV: 'production' }), false);
+  assert.equal(testSendFromEnv({ NODE_ENV: 'development' }), false);
+  assert.equal(testSendFromEnv({ NOTIFICATIONS_TEST_SEND: 'true', NODE_ENV: 'development' }), false);
+  assert.equal(testSendFromEnv({ NOTIFICATIONS_TEST_SEND: '0', NODE_ENV: 'development' }), false);
+});
+
+async function withApp<T>(
+  options: Parameters<typeof createApp>[1],
+  run: (url: string, appDb: Database.Database) => Promise<T>,
+): Promise<T> {
+  const appDb = openDatabase({ filename: ':memory:' });
+  const appServer = createApp(appDb, { ...options, trustProxy: 1 }).listen(0);
+  await new Promise<void>(resolve => appServer.once('listening', () => resolve()));
+  const address = appServer.address();
+  try {
+    return await run(`http://localhost:${typeof address === 'object' && address ? address.port : 4000}`, appDb);
+  } finally {
+    appServer.closeAllConnections();
+    appServer.close();
+    appDb.close();
+  }
+}
+
+let gateSignups = 0;
+
+async function signUpAt(url: string): Promise<string> {
+  // Signup is limited per address across the process; each gets its own.
+  const response = await fetch(`${url}/auth/signup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': `10.9.0.${++gateSignups}` },
+    body: JSON.stringify({ firstName: 'Fcm', lastName: 'Tester', email: 'gate@push.dev', password: 'pushLedger2026' }),
+  });
+  assert.equal(response.status, 201);
+  return ((await response.json()) as { token: string }).token;
+}
+
+test('without the flag POST /send answers 404 and never pushes; token routes still work', async () => {
+  let pushes = 0;
+  const messaging: PushMessaging = {
+    sendEachForMulticast: async () => {
+      pushes += 1;
+      throw new Error('must not be called');
+    },
+  };
+  await withApp({ pushMessaging: () => messaging }, async url => {
+    const token = await signUpAt(url);
+    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+    const registered = await fetch(`${url}/notifications/push-tokens`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ token: 'gate-token', platform: 'android' }),
+    });
+    assert.equal(registered.status, 200);
+    const send = await fetch(`${url}/notifications/send`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ title: 'Hi', body: 'There' }),
+    });
+    assert.equal(send.status, 404);
+    assert.equal(((await send.json()) as { error: { code: string } }).error.code, 'NOT_FOUND');
+  });
+  assert.equal(pushes, 0);
+});
+
+test('tokens FCM reports as dead are removed after a send; live ones stay', async () => {
+  const messaging: PushMessaging = {
+    sendEachForMulticast: async message => ({
+      responses: message.tokens.map(token =>
+        token === 'dead-token'
+          ? { success: false, error: { code: 'messaging/registration-token-not-registered' } }
+          : token === 'flaky-token'
+            ? { success: false, error: { code: 'messaging/internal-error' } }
+            : { success: true, messageId: 'm1' },
+      ),
+      successCount: 1,
+      failureCount: 2,
+    }) as Awaited<ReturnType<PushMessaging['sendEachForMulticast']>>,
+  };
+  await withApp({ testSend: true, pushMessaging: () => messaging }, async (url, appDb) => {
+    const token = await signUpAt(url);
+    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+    for (const device of ['live-token', 'dead-token', 'flaky-token']) {
+      await fetch(`${url}/notifications/push-tokens`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ token: device, platform: 'android' }),
+      });
+    }
+    const send = await fetch(`${url}/notifications/send`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ title: 'Hi', body: 'There' }),
+    });
+    assert.equal(send.status, 200);
+    assert.deepEqual(((await send.json()) as { result: unknown }).result, {
+      sent: 1,
+      failed: 2,
+      removedUnregisteredTokens: 1,
+    });
+    const left = (appDb.prepare('SELECT token FROM push_tokens ORDER BY token').all() as { token: string }[]).map(
+      row => row.token,
+    );
+    assert.deepEqual(left, ['flaky-token', 'live-token']);
+  });
 });

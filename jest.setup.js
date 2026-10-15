@@ -60,6 +60,8 @@ jest.mock('@react-native-firebase/messaging', () => ({
   __esModule: true,
   getMessaging: jest.fn(() => ({})),
   getToken: jest.fn(async () => 'test-fcm-token'),
+  isAutoInitEnabled: jest.fn(() => false),
+  setAutoInitEnabled: jest.fn(async () => undefined),
   onMessage: jest.fn(),
   onTokenRefresh: jest.fn(),
   setBackgroundMessageHandler: jest.fn(),

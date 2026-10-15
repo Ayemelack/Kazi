@@ -96,6 +96,20 @@ Rules for every fix:
         owner's devices.
   - [ ] FCM being down does not slow or fail the sale (push is fire-and-forget with a timeout).
   - [ ] Dead tokens are removed (existing behaviour, keep the test).
+- **Status (2026-10-15, session 8):** code done, 🟨 Blocked on real-delivery verification, which
+  needs the Firebase projects, both apps' config files, the APNs key and the service account
+  (steps 1–9 in [DEPLOYMENT.md §6](DEPLOYMENT.md#firebase-and-push-setup-kz-02-kz-03)). Fix step 1
+  is now a human step: the placeholder `google-services.json` stays committed and the app treats
+  it as "push disabled" (no permission prompt, no token request; native FCM auto-init off in
+  `firebase.json` until a real project's token is requested). Trigger per D6: `stockOut` (sale,
+  manual stock-out, purchase reversal) queues a low-stock alert with `setImmediate` when a
+  tracked item crosses from above its threshold to at or below it; it runs after the commit,
+  re-checks the item, claims `items.last_low_stock_alert_at` (migration 0006, once per item per
+  12 hours), sends in `users.language` with a 5-second timeout and only logs failures. `POST
+  /notifications/send` exists only with `NOTIFICATIONS_TEST_SEND=1` outside production. The
+  criteria are covered by `notifications/lowStock.test.ts` with fake messaging (one multicast to
+  every device, sale unaffected by failure or timeout, dead-token cleanup) but stay unticked until
+  seen with real FCM.
 
 ### KZ-04
 **Money input "1,000" / "1.000" is saved as 1 FCFA**

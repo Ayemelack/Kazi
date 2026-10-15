@@ -20,10 +20,10 @@ let server: Server | undefined;
 let db: Database.Database | undefined;
 let baseUrl = '';
 
-async function start(trustProxy: false | number): Promise<void> {
+async function start(trustProxy: false | number, options: { testSend?: boolean } = {}): Promise<void> {
   process.env.JWT_SECRET = 'test-secret-not-for-production';
   db = openDatabase({ filename: ':memory:' });
-  server = createApp(db, { trustProxy }).listen(0);
+  server = createApp(db, { trustProxy, ...options }).listen(0);
   await new Promise<void>(resolve => server!.once('listening', () => resolve()));
   const address = server.address();
   baseUrl = `http://localhost:${typeof address === 'object' && address ? address.port : 4000}`;
@@ -276,7 +276,8 @@ test(`authenticated writes: ${USER_WRITES_PER_MINUTE} a minute per user, across 
 });
 
 test('POST /notifications/send stays limited, per user', async () => {
-  await start(1);
+  // The route exists only as a testing aid since KZ-03 (NOTIFICATIONS_TEST_SEND).
+  await start(1, { testSend: true });
   const token = await signup('pusher@market.cm');
   const result = await allowedBefore429(
     () => call('POST', '/notifications/send', { body: { title: 'Hi', body: 'Test' }, token, from: nextAddress() }),

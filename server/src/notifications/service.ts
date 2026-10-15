@@ -1,9 +1,38 @@
 import type Database from 'better-sqlite3';
+import type { BatchResponse, MulticastMessage } from 'firebase-admin/messaging';
 import { AppError } from '../errors.js';
 import { firebaseMessaging } from './firebase.js';
 import type { RegisterPushTokenInput, SendNotificationInput } from './validation.js';
 
 export const KAZI_PUSH_CHANNEL = 'kazi';
+
+// How long a send may wait for FCM before it counts as failed (KZ-03). FCM's
+// own request is not cancelled; the API just stops waiting for it.
+export const PUSH_TIMEOUT_MS = 5_000;
+
+/** The one FCM call the API makes; tests substitute a fake. */
+export interface PushMessaging {
+  sendEachForMulticast(message: MulticastMessage): Promise<BatchResponse>;
+}
+export type PushMessagingProvider = () => PushMessaging;
+
+// Per database (one per app), so a test's fake never leaks into another app.
+// Without an entry, sends use Firebase Admin configured from the environment,
+// which throws PUSH_NOT_CONFIGURED when no service account is set.
+const messagingProviders = new WeakMap<Database.Database, PushMessagingProvider>();
+
+export function setPushMessaging(db: Database.Database, provider: PushMessagingProvider): void {
+  messagingProviders.set(db, provider);
+}
+
+export function pushMessagingFor(db: Database.Database): PushMessaging {
+  return (messagingProviders.get(db) ?? firebaseMessaging)();
+}
+
+export interface PushContent extends SendNotificationInput {
+  /** Extra string fields for the app, e.g. what the push is about. */
+  data?: Record<string, string>;
+}
 
 // Firebase error codes that mean a token is dead and should be dropped.
 const UNREGISTERED_ERROR_CODES = new Set([
@@ -108,7 +137,8 @@ export function listPushTokens(db: Database.Database, userId: number): string[] 
 export async function sendNotificationToUser(
   db: Database.Database,
   userId: number,
-  input: SendNotificationInput,
+  input: PushContent,
+  timeoutMs = PUSH_TIMEOUT_MS,
 ): Promise<PushSendResult> {
   const rows = db
     .prepare('SELECT id, token FROM push_tokens WHERE user_id = ?')
@@ -118,19 +148,23 @@ export async function sendNotificationToUser(
     return { sent: 0, failed: 0, removedUnregisteredTokens: 0 };
   }
 
-  const messaging = firebaseMessaging();
+  const messaging = pushMessagingFor(db);
 
   let response;
   try {
-    response = await messaging.sendEachForMulticast({
-      tokens: rows.map(row => row.token),
-      data: {
-        title: input.title,
-        body: input.body,
-        channel: KAZI_PUSH_CHANNEL,
-      },
-      android: { priority: 'high' },
-    });
+    response = await withTimeout(
+      messaging.sendEachForMulticast({
+        tokens: rows.map(row => row.token),
+        data: {
+          ...input.data,
+          title: input.title,
+          body: input.body,
+          channel: KAZI_PUSH_CHANNEL,
+        },
+        android: { priority: 'high' },
+      }),
+      timeoutMs,
+    );
   } catch (err) {
     throw new AppError(502, 'INTERNAL', 'Push notification delivery failed.');
   }
@@ -155,4 +189,13 @@ export async function sendNotificationToUser(
 
 function isUnregisteredError(code?: string): boolean {
   return UNREGISTERED_ERROR_CODES.has(code ?? '');
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error(`timed out after ${ms} ms`)), ms);
+    timer.unref();
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }

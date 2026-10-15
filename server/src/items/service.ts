@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3';
 import { AppError } from '../errors.js';
 import { deleteActivityRefs, logActivity } from '../activity/service.js';
+import { crossesLowStock, queueLowStockAlert } from '../notifications/lowStock.js';
 import type {
   CreateItemInput,
   StockMovementInput,
@@ -283,6 +284,12 @@ export function stockOut(
       .run(itemId, userId, input.quantity, newQuantity, input.reason ?? null);
     return { newQuantity, movementId: result.lastInsertRowid };
   })();
+
+  // Every stock-out (sale, manual, purchase reversal) passes here. The alert
+  // runs after the caller's transaction and never affects this write (KZ-03).
+  if (crossesLowStock(row, row.stock, movement.newQuantity)) {
+    queueLowStockAlert(db, userId, itemId);
+  }
 
   const movementRow = db
     .prepare('SELECT * FROM stock_movements WHERE id = ?')

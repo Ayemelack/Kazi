@@ -130,7 +130,9 @@ The earlier adversarial test report is in `SECURITY_ASSESSMENT.md` at the reposi
     password reset; account deletion the same per user; reset codes 3 per hour and 10 per day per
     email, counted for every address (KZ-06, KZ-08);
   - per user: 120 authenticated writes (POST, PUT, PATCH, DELETE) a minute across all routes;
-    `POST /notifications/send` 10 a minute.
+    `POST /notifications/send` 10 a minute. That route exists only with
+    `NOTIFICATIONS_TEST_SEND=1` and `NODE_ENV` other than `production` (a testing aid, KZ-03);
+    otherwise it answers 404.
 - Every 429 is `TOO_MANY_REQUESTS` with `Retry-After` (whole seconds).
 - `trust proxy` comes from `TRUST_PROXY`, a hop count only (KZ-08); `true`, address lists and
   anything else stop the API at boot. Production behind one proxy: `1` (DEPLOYMENT §3).
@@ -165,8 +167,10 @@ The earlier adversarial test report is in `SECURITY_ASSESSMENT.md` at the reposi
 - Session token only in Keychain/Keystore; nothing sensitive in AsyncStorage beyond the display
   profile.
 - Release builds: R8 on (KZ-33), `allowBackup=false`, no debug menu, no `console.log` of data.
-- Permissions: request only Internet, notifications and photo library. Remove the empty
-  `NSLocationWhenInUseUsageDescription` key from `Info.plist` (Kazi does not use location).
+- Permissions: request only Internet, notifications and photo library. The empty
+  `NSLocationWhenInUseUsageDescription` key was removed from `Info.plist` (KZ-02; Kazi does not
+  use location). Notification permission is asked only when the build has a real Firebase project
+  (KZ-03).
 
 ### 5.9 Dependencies
 - Lockfiles committed; `npm ci` in CI.

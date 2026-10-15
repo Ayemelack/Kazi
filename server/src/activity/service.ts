@@ -41,6 +41,11 @@ export interface ActivityEvent {
   quantity?: number;
   eventDate?: string;
   createdAt: string;
+  // The record this event came from (KZ-07), so History can open it: a
+  // transaction for sale / spend / capital, a debt, or an item. Absent only
+  // for legacy rows written before the link existed.
+  refType?: ActivityRefType;
+  refId?: number;
 }
 
 export interface ActivityFilterOptions {
@@ -75,6 +80,8 @@ interface ActivityRow {
   quantity: number | null;
   event_date: string | null;
   created_at: string;
+  ref_type: ActivityRefType | null;
+  ref_id: number | null;
 }
 
 function toEvent(row: ActivityRow): ActivityEvent {
@@ -94,6 +101,10 @@ function toEvent(row: ActivityRow): ActivityEvent {
   }
   if (row.event_date !== null) {
     event.eventDate = row.event_date;
+  }
+  if (row.ref_type !== null && row.ref_id !== null) {
+    event.refType = row.ref_type;
+    event.refId = row.ref_id;
   }
   return event;
 }

@@ -11,6 +11,10 @@ export type ActivityType =
 
 export type HistoryPeriod = 'today' | 'yesterday' | 'this_week' | 'older' | 'all';
 
+// What an event points back at (KZ-07): History opens a transaction's detail
+// sheet, or the debt in the Debts list.
+export type ActivityRefType = 'transaction' | 'debt' | 'item';
+
 export interface ActivityEvent {
   id: number;
   type: ActivityType;
@@ -19,6 +23,8 @@ export interface ActivityEvent {
   quantity?: number;
   eventDate?: string;
   createdAt: string;
+  refType?: ActivityRefType;
+  refId?: number;
 }
 
 export interface ActivitySummary {

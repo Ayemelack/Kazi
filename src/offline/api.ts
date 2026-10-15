@@ -18,6 +18,7 @@ import {
 import {
   createTransaction as createTransactionRequest,
   deleteTransaction as deleteTransactionRequest,
+  getTransaction as getTransactionRequest,
   listTransactions as listTransactionsRequest,
 } from '../transactions/api';
 import {
@@ -69,6 +70,12 @@ export async function listDebts(): Promise<{ debts: Debt[] }> {
 
 export async function listTransactions(): Promise<{ transactions: Transaction[] }> {
   return listTransactionsRequest();
+}
+
+export async function getTransaction(
+  transactionId: number,
+): Promise<{ transaction: Transaction }> {
+  return getTransactionRequest(transactionId);
 }
 
 // ---- Writes ------------------------------------------------------------

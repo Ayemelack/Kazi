@@ -18,6 +18,7 @@ import type { TransactionType } from '../../transactions/types';
 import type { Item } from '../../items/types';
 import { useFormErrors } from '../../forms/useFormErrors';
 import { useSubmission } from '../../forms/useSubmission';
+import { deleteCorrectedOriginal } from '../../transactions/correction';
 import type { HistoryStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 import ItemPickerDialog from './ItemPickerDialog';
@@ -79,15 +80,31 @@ export default function TransactionFormScreen({ navigation, route }: ScreenProps
   const resetForm = form.reset;
   const submission = useSubmission();
 
+  // KZ-07: when correcting, the form starts from the old record's values and
+  // deletes that record once the new one is saved.
+  const correction = route.params?.correct;
+
   useEffect(() => {
     setType(route.params?.initialType ?? 'sale');
-    setAmount('');
-    setDescription('');
-    setDate(todayAsDateString());
+    setAmount(correction ? String(correction.amount) : '');
+    setDescription(correction?.description ?? '');
+    setDate(correction?.date ?? todayAsDateString());
     setSelectedItem(null);
-    setQuantity('');
+    setQuantity(correction?.quantity !== undefined ? String(correction.quantity) : '');
     resetForm();
-  }, [route.params?.initialType, resetForm]);
+  }, [route.params?.initialType, correction, resetForm]);
+
+  // The corrected record's item, once the item list has loaded.
+  const correctionItemId = correction?.itemId;
+  useEffect(() => {
+    if (correctionItemId === undefined || selectedItem !== null) {
+      return;
+    }
+    const match = items.find(item => item.id === correctionItemId);
+    if (match) {
+      setSelectedItem(match);
+    }
+  }, [correctionItemId, items, selectedItem]);
 
   useFocusEffect(
     useCallback(() => {
@@ -123,7 +140,16 @@ export default function TransactionFormScreen({ navigation, route }: ScreenProps
       };
       await createTransaction({ ...input, clientOpId: submission.opId(input) });
       submission.succeeded();
-      toast.show('success', t('transactions.saved'));
+      if (correction) {
+        // Only now, with the new record saved, is the old one removed.
+        const removed = await deleteCorrectedOriginal(correction.transactionId);
+        toast.show(
+          removed ? 'success' : 'error',
+          t(removed ? 'transactions.corrected' : 'transactions.correctOldNotRemoved'),
+        );
+      } else {
+        toast.show('success', t('transactions.saved'));
+      }
       navigation.goBack();
     } catch (err) {
       form.fail(err);
@@ -143,7 +169,15 @@ export default function TransactionFormScreen({ navigation, route }: ScreenProps
 
   return (
     <Screen scroll>
-      <AppHeader title={t('transactions.addTitle')} onBack={() => navigation.goBack()} />
+      <AppHeader
+        title={t(correction ? 'transactions.correctTitle' : 'transactions.addTitle')}
+        onBack={() => navigation.goBack()}
+      />
+      {correction ? (
+        <Text testID="transaction-correct-note" style={styles.correctNote}>
+          {t('transactions.correctNote')}
+        </Text>
+      ) : null}
       <Text style={styles.fieldLabel}>{t('transactions.typeLabel')}</Text>
       <View style={styles.typeRow}>
         {TYPES.map(option => {
@@ -306,6 +340,14 @@ const styles = StyleSheet.create({
     ...typography.label,
     color: colors.textSecondary,
     marginBottom: spacing.sm,
+  },
+  correctNote: {
+    ...typography.caption,
+    color: colors.primaryDark,
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
   },
   typeRow: {
     flexDirection: 'row',

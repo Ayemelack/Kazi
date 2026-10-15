@@ -212,9 +212,19 @@ Rules for every fix:
 - **Files:** `server/src/activity/service.ts`, `src/activity/types.ts`,
   `src/screens/history/HistoryScreen.tsx`, new `TransactionDetailSheet.tsx`, locales.
 - **Acceptance:**
-  - [ ] Deleting a sale of a tracked item restores stock and removes the History row.
-  - [ ] Home and History totals update after delete.
-  - [ ] Another user's transaction id returns 404 (existing isolation test still passes).
+  - [x] Deleting a sale of a tracked item restores stock and removes the History row.
+  - [x] Home and History totals update after delete.
+  - [x] Another user's transaction id returns 404 (existing isolation test still passes).
+- **Done (session 7):** the sheet loads the record with `GET /transactions/:id` (amount, date,
+  item, quantity, description). Correct opens TransactionForm / AddMoney prefilled
+  (`params.correct`), saves the new record first with its own `clientOpId` (KZ-11) and only then
+  deletes the old one (`src/transactions/correction.ts`; an old record already gone counts as
+  removed; a failed delete says the new record is saved and the old one must be deleted from
+  History). Debt rows open Debts with that debt highlighted; product rows and legacy rows without a
+  reference open nothing. Decision D5: deleting a purchase now reverses its full quantity even if
+  stock goes negative (`stockOut(…, { allowNegative: true })`); session 11 (KZ-23) decides the
+  rule for sales and manual stock-outs and can reuse that option. Also fixed: `ToastProvider`
+  gave a new context value on every render, so each toast re-ran History's focus load.
 
 ### KZ-08
 **Rate limiter ignores proxies and never frees memory**

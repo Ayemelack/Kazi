@@ -266,8 +266,10 @@ Every money or catalog change writes an `activity` row in the same transaction, 
 `ref_type`/`ref_id` pointing back at the source record. Deleting the source deletes its activity
 rows, so History totals always agree with the source tables.
 
-**Target (KZ-07):** `GET /activity` returns `refType` and `refId` so the app can open and delete
-the source record from History.
+Since KZ-07 `GET /activity` returns `refType` (`transaction`, `debt`, `item`) and `refId` per event
+(absent only on legacy rows), so History opens the source record: a transaction's detail sheet
+(Delete, Correct), or the debt in the Debts list. Correct is save-new-then-delete-old, so a failed
+save never loses the original.
 
 ### 5.7 Admin dashboard
 

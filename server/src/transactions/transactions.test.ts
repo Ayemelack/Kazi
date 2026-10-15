@@ -219,7 +219,7 @@ test('deleting a sale restores stock', async () => {
   assert.equal((after.data as { item: Item }).item.stock, 5);
 });
 
-test('deleting a purchase removes the added stock (clamped at zero)', async () => {
+test('deleting a purchase removes the added stock', async () => {
   const item = await createTrackedItem(2);
   const created = await call('POST', '/transactions', {
     type: 'purchase',
@@ -237,6 +237,48 @@ test('deleting a purchase removes the added stock (clamped at zero)', async () =
 
   const after = await call('GET', `/items/${item.id}`);
   assert.equal((after.data as { item: Item }).item.stock, 2);
+});
+
+// Decision D5 (stock may go negative): the whole purchase is reversed even when
+// part of it was already sold. The old behaviour clamped at zero, which left
+// stock that was never bought.
+test('deleting a purchase reverses the full quantity even if stock goes negative', async () => {
+  const item = await createTrackedItem(2);
+  const purchase = await call('POST', '/transactions', {
+    type: 'purchase',
+    amount: 60000,
+    date: '2026-09-12',
+    itemId: item.id,
+    quantity: 10,
+  });
+  const purchaseId = (purchase.data as { transaction: Transaction }).transaction.id;
+  const sale = await call('POST', '/transactions', {
+    type: 'sale',
+    amount: 99000,
+    date: '2026-09-13',
+    itemId: item.id,
+    quantity: 11,
+  });
+  assert.equal(sale.status, 201);
+  assert.equal(((await call('GET', `/items/${item.id}`)).data as { item: Item }).item.stock, 1);
+
+  const removed = await call('DELETE', `/transactions/${purchaseId}`);
+  assert.equal(removed.status, 204);
+
+  const after = await call('GET', `/items/${item.id}`);
+  assert.equal((after.data as { item: Item }).item.stock, -9);
+  const movements = (await call('GET', `/items/${item.id}/movements`)).data as {
+    movements: { direction: string; quantity: number; newQuantity: number; reason?: string }[];
+  };
+  assert.deepEqual(
+    {
+      direction: movements.movements[0]?.direction,
+      quantity: movements.movements[0]?.quantity,
+      newQuantity: movements.movements[0]?.newQuantity,
+      reason: movements.movements[0]?.reason,
+    },
+    { direction: 'out', quantity: 10, newQuantity: -9, reason: 'Purchase removed' },
+  );
 });
 
 test('records money added (capital) with no stock effect', async () => {

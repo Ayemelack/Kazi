@@ -19,6 +19,17 @@ export interface Transaction {
   createdAt: string;
 }
 
+// The record a form is correcting (KZ-07): the form starts from these values
+// and, once its new record is saved, deletes this one.
+export interface TransactionCorrection {
+  transactionId: number;
+  amount: number;
+  date: string;
+  description?: string;
+  itemId?: number;
+  quantity?: number;
+}
+
 export interface TransactionInput {
   type: TransactionType;
   amount: number;

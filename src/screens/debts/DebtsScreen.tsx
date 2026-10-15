@@ -23,7 +23,10 @@ import { useSubmission } from '../../forms/useSubmission';
 
 type ScreenProps = NativeStackScreenProps<HistoryStackParamList, 'Debts'>;
 
-export default function DebtsScreen({ navigation }: ScreenProps) {
+export default function DebtsScreen({ navigation, route }: ScreenProps) {
+  // Opened from a History debt row (KZ-07): that debt is highlighted so its
+  // actions (mark paid, delete) are the obvious next step.
+  const highlightId = route.params?.debtId;
   const { t } = useTranslation();
   const toast = useToast();
   const [debts, setDebts] = useState<Debt[]>([]);
@@ -152,6 +155,7 @@ export default function DebtsScreen({ navigation }: ScreenProps) {
             <DebtRow
               key={debt.id}
               debt={debt}
+              highlighted={debt.id === highlightId}
               paying={payBusy && payTarget?.id === debt.id}
               onPay={() => setPayTarget(debt)}
               onDelete={() => setDeleting(debt)}
@@ -166,6 +170,7 @@ export default function DebtsScreen({ navigation }: ScreenProps) {
                   <DebtRow
                     key={debt.id}
                     debt={debt}
+                    highlighted={debt.id === highlightId}
                     paying={false}
                     onPay={() => {}}
                     onDelete={() => setDeleting(debt)}
@@ -222,11 +227,13 @@ function paidOnText(debt: Debt, t: TFunction): string {
 
 function DebtRow({
   debt,
+  highlighted = false,
   paying,
   onPay,
   onDelete,
 }: {
   debt: Debt;
+  highlighted?: boolean;
   paying: boolean;
   onPay: () => void;
   onDelete: () => void;
@@ -235,7 +242,7 @@ function DebtRow({
   const paid = debt.status === 'paid';
 
   return (
-    <Card>
+    <Card style={highlighted ? styles.highlighted : undefined}>
       <View style={styles.rowContent}>
         <View style={[styles.avatar, paid && styles.avatarPaid]}>
           <Text style={styles.avatarText}>
@@ -311,6 +318,10 @@ const styles = StyleSheet.create({
   sectionLabel: {
     ...typography.label,
     color: colors.textMuted,
+  },
+  highlighted: {
+    borderWidth: 2,
+    borderColor: colors.primary,
   },
   rowContent: {
     flexDirection: 'row',

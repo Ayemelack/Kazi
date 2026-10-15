@@ -1,4 +1,4 @@
-import type { ActivityType } from '../activity/types';
+import type { ActivityRefType, ActivityType } from '../activity/types';
 
 // Local sync status of a record. Kept simple and user facing:
 // synced = on the server, pending/waiting = stored on this phone.
@@ -17,4 +17,6 @@ export interface LocalActivity {
   quantity?: number;
   eventDate?: string;
   createdAt: string;
+  refType?: ActivityRefType;
+  refId?: number;
 }

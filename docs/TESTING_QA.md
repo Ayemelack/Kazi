@@ -13,9 +13,9 @@ clone install `shared/` first: `(cd shared && npm ci) && npm ci && (cd server &&
 
 | Suite | Runner | Command | Result |
 |---|---|---|---|
-| Shared (`shared/src/**/*.test.ts`) | `node --test` via `tsx` | `cd shared && npm run check` | ✅ 131 / 131; typecheck + build clean |
-| Server (`src/**/*.test.ts`, 27 files, 336 tests; boot tests start the real entry point through `src/testBoot.ts`; `src/admin/admin.test.ts` boots the admin dashboard) | `node --test` via `tsx` (glob, so new files are never skipped) | `cd server && npm run check` (typecheck + test + build) | ✅ all pass |
-| App (23 suites, 271 tests) | Jest, `@react-native/jest-preset`, `testTimeout` 30 s | `npm test` | ✅ passes cold (KZ-30) |
+| Shared (`shared/src/**/*.test.ts`) | `node --test` via `tsx` | `cd shared && npm run check` | ✅ 135 / 135; typecheck + build clean |
+| Server (`src/**/*.test.ts`, 28 files, 345 tests; boot tests start the real entry point through `src/testBoot.ts`; `src/admin/admin.test.ts` boots the admin dashboard) | `node --test` via `tsx` (glob, so new files are never skipped) | `cd server && npm run check` (typecheck + test + build) | ✅ all pass |
+| App (25 suites, 307 tests) | Jest, `@react-native/jest-preset`, `testTimeout` 30 s | `npm test` | ✅ passes cold (KZ-30) |
 | App types | `tsc` | `npm run typecheck` | ✅ clean |
 | App lint | ESLint | `npm run lint` | ✅ clean |
 | Dependency audit | `scripts/audit-gate.js` over `npm audit --omit=dev` (root, `server/`, `shared/`) | `npm run audit` | ✅ no high/critical except the documented tooling exceptions (SECURITY.md §6) |

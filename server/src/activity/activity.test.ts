@@ -460,3 +460,71 @@ test('another account sees none of this history in any period', async () => {
   assert.equal(ranged.status, 200);
   assert.equal(ranged.body.events.length, 0);
 });
+
+// KZ-07: every event names the record it came from, so History can open and
+// delete it; deleting through that reference restores stock and totals.
+test('events carry refType and refId, and deleting through them restores stock and totals', async () => {
+  const token = await signup('refs@market.cm', 'mboaLedger2026');
+  const stranger = await signup('refs-other@market.cm', 'mboaLedger2026');
+  const day = '2026-10-14';
+
+  const item = await call('POST', '/items', {
+    name: 'Palm oil',
+    type: 'product',
+    price: 1500,
+    trackStock: true,
+    lowStockThreshold: 1,
+  }, token);
+  const itemId = (item.data.item as { id: number }).id;
+  await call('POST', `/items/${itemId}/stock-in`, { quantity: 10 }, token);
+
+  const sale = await call('POST', '/transactions', {
+    type: 'sale', amount: 4500, date: day, itemId, quantity: 3,
+  }, token);
+  const saleId = (sale.data.transaction as { id: number }).id;
+  const spend = await call('POST', '/transactions', {
+    type: 'purchase', amount: 800, date: day, description: 'Transport',
+  }, token);
+  const spendId = (spend.data.transaction as { id: number }).id;
+  const capital = await call('POST', '/transactions', { type: 'capital', amount: 20000, date: day }, token);
+  const capitalId = (capital.data.transaction as { id: number }).id;
+  const debt = await call('POST', '/debts', { name: 'Ma Ngono', amount: 3000, date: day }, token);
+  const debtId = (debt.data.debt as { id: number }).id;
+  await call('POST', `/debts/${debtId}/pay`, { date: day }, token);
+
+  const all = await call('GET', '/activity?period=all&limit=50', undefined, token);
+  const events = (all.data as { events: { type: string; refType?: string; refId?: number }[] }).events;
+  const refs = (type: string) => events.filter(event => event.type === type).map(event => [event.refType, event.refId]);
+  assert.deepEqual(refs('sale'), [['transaction', saleId]]);
+  assert.deepEqual(refs('spend'), [['transaction', spendId]]);
+  assert.deepEqual(refs('capital'), [['transaction', capitalId]]);
+  assert.deepEqual(refs('debt_added'), [['debt', debtId]]);
+  assert.deepEqual(refs('debt_paid'), [['debt', debtId]]);
+  assert.deepEqual(refs('product_added'), [['item', itemId]]);
+
+  const stockOf = async () =>
+    ((await call('GET', `/items/${itemId}`, undefined, token)).data.item as { stock: number }).stock;
+  assert.equal(await stockOf(), 7);
+
+  // Someone else can't delete it through the reference.
+  const foreign = await call('DELETE', `/transactions/${saleId}`, undefined, stranger);
+  assert.equal(foreign.status, 404);
+  assert.equal(await stockOf(), 7);
+
+  const today = async () => (await activity(token, `?period=today&asOf=${day}`)).body;
+  const homeToday = async () =>
+    ((await call('GET', `/summary?asOf=${day}`, undefined, token)).data.summary as SummaryData);
+  assert.equal((await today()).summary.received, 4500);
+  assert.equal((await homeToday()).todayReceived, 4500);
+
+  const removed = await call('DELETE', `/transactions/${saleId}`, undefined, token);
+  assert.equal(removed.status, 204);
+  assert.equal(await stockOf(), 10);
+  const after = await today();
+  assert.equal(after.summary.received, 0);
+  assert.equal(after.summary.made, -800);
+  assert.ok(after.events.every(event => event.type !== 'sale'));
+  const home = await homeToday();
+  assert.equal(home.todayReceived, 0);
+  assert.equal(home.todayNet, -800);
+});

@@ -182,9 +182,9 @@ export function deleteTransaction(
   db.transaction(() => {
     if (transaction.item_id !== null && transaction.quantity !== null) {
       const itemRow = db
-        .prepare('SELECT id, stock, track_stock FROM items WHERE id = ? AND user_id = ?')
+        .prepare('SELECT id, track_stock FROM items WHERE id = ? AND user_id = ?')
         .get(transaction.item_id, userId) as unknown as
-        | { id: number; stock: number; track_stock: number }
+        | { id: number; track_stock: number }
         | undefined;
 
       if (itemRow && itemRow.track_stock === 1) {
@@ -194,13 +194,16 @@ export function deleteTransaction(
             reason: 'Sale removed',
           });
         } else {
-          const quantity = Math.min(transaction.quantity, itemRow.stock);
-          if (quantity > 0) {
-            stockOut(db, userId, itemRow.id, {
-              quantity,
-              reason: 'Purchase removed',
-            });
-          }
+          // Reverse the whole purchase even if some of it was sold since, so
+          // the stock is exactly what it would be had the purchase never been
+          // recorded; it may go below zero (decision D5).
+          stockOut(
+            db,
+            userId,
+            itemRow.id,
+            { quantity: transaction.quantity, reason: 'Purchase removed' },
+            { allowNegative: true },
+          );
         }
       }
     }

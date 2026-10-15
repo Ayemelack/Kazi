@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -89,9 +90,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   );
 
   const Icon = toast ? ICONS[toast.type] : Info;
+  // Stable, so screens that list `toast` in a callback's dependencies (History's
+  // focus loader) don't reload every time a toast appears or hides.
+  const value = useMemo(() => ({ show }), [show]);
 
   return (
-    <ToastContext.Provider value={{ show }}>
+    <ToastContext.Provider value={value}>
       {children}
       {toast ? (
         <Animated.View

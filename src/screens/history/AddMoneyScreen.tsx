@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
@@ -21,6 +21,7 @@ import {
 import { formatMoney } from '@kazi/shared';
 import { useFormErrors } from '../../forms/useFormErrors';
 import { useSubmission } from '../../forms/useSubmission';
+import { deleteCorrectedOriginal } from '../../transactions/correction';
 import type { HistoryStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 
@@ -28,13 +29,16 @@ type ScreenProps = NativeStackScreenProps<HistoryStackParamList, 'AddMoney'>;
 
 const FIELDS = ['amount', 'date'] as const;
 
-export default function AddMoneyScreen({ navigation }: ScreenProps) {
+export default function AddMoneyScreen({ navigation, route }: ScreenProps) {
   const { t } = useTranslation();
   const toast = useToast();
+  // KZ-07: correcting money added starts from the old record and deletes it
+  // once the new one is saved.
+  const correction = route.params?.correct;
 
-  const [amount, setAmount] = useState('');
-  const [date, setDate] = useState(todayAsDateString());
-  const [description, setDescription] = useState('');
+  const [amount, setAmount] = useState(correction ? String(correction.amount) : '');
+  const [date, setDate] = useState(correction?.date ?? todayAsDateString());
+  const [description, setDescription] = useState(correction?.description ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [totalCapital, setTotalCapital] = useState<number | null>(null);
   const form = useFormErrors(FIELDS, {
@@ -42,6 +46,16 @@ export default function AddMoneyScreen({ navigation }: ScreenProps) {
     date: validateTransactionDate(date),
   });
   const submission = useSubmission();
+  const resetForm = form.reset;
+
+  // A later Correct can reach this screen while it is still mounted (another
+  // tab was open on top of it), so follow the newest record to correct.
+  useEffect(() => {
+    setAmount(correction ? String(correction.amount) : '');
+    setDate(correction?.date ?? todayAsDateString());
+    setDescription(correction?.description ?? '');
+    resetForm();
+  }, [correction, resetForm]);
 
   useFocusEffect(
     useCallback(() => {
@@ -74,7 +88,15 @@ export default function AddMoneyScreen({ navigation }: ScreenProps) {
       };
       await createTransaction({ ...input, clientOpId: submission.opId(input) });
       submission.succeeded();
-      toast.show('success', t('transactions.saved'));
+      if (correction) {
+        const removed = await deleteCorrectedOriginal(correction.transactionId);
+        toast.show(
+          removed ? 'success' : 'error',
+          t(removed ? 'transactions.corrected' : 'transactions.correctOldNotRemoved'),
+        );
+      } else {
+        toast.show('success', t('transactions.saved'));
+      }
       navigation.goBack();
     } catch (err) {
       form.fail(err);
@@ -85,8 +107,13 @@ export default function AddMoneyScreen({ navigation }: ScreenProps) {
 
   return (
     <Screen scroll>
-      <AppHeader title={t('transactions.addMoneyTitle')} onBack={() => navigation.goBack()} />
-      <Text style={styles.hint}>{t('transactions.addMoneyHint')}</Text>
+      <AppHeader
+        title={t(correction ? 'transactions.correctTitle' : 'transactions.addMoneyTitle')}
+        onBack={() => navigation.goBack()}
+      />
+      <Text testID={correction ? 'add-money-correct-note' : undefined} style={styles.hint}>
+        {t(correction ? 'transactions.correctNote' : 'transactions.addMoneyHint')}
+      </Text>
       {totalCapital !== null && totalCapital > 0 ? (
         <View style={styles.capitalRow}>
           <Text style={styles.capitalLabel}>{t('history.labels.capital')}</Text>

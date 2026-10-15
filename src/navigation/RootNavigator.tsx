@@ -33,6 +33,7 @@ import PrivacyScreen from '../screens/more/PrivacyScreen';
 import TermsScreen from '../screens/more/TermsScreen';
 import DeleteAccountScreen from '../screens/more/DeleteAccountScreen';
 import { colors } from '../theme';
+import type { TransactionCorrection } from '../transactions/types';
 
 export type MainTabParamList = {
   Home: undefined;
@@ -63,9 +64,14 @@ export type ProductsStackParamList = {
 
 export type HistoryStackParamList = {
   HistoryList: undefined;
-  TransactionForm: { initialType?: 'sale' | 'purchase' } | undefined;
-  AddMoney: undefined;
-  Debts: undefined;
+  // `correct`: the record being corrected (KZ-07); the form is prefilled
+  // from it and deletes it after the new record is saved.
+  TransactionForm:
+    | { initialType?: 'sale' | 'purchase'; correct?: TransactionCorrection }
+    | undefined;
+  AddMoney: { correct?: TransactionCorrection } | undefined;
+  // `debtId`: the debt to highlight, when opened from a History row.
+  Debts: { debtId?: number } | undefined;
   DebtForm: undefined;
 };
 

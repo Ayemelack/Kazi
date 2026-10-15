@@ -32,8 +32,13 @@ import ErrorState from '../../components/ui/ErrorState';
 import { errorMessage } from '../../errors/messages';
 import LoadingView from '../../components/ui/LoadingView';
 import { useToast } from '../../components/ui/Toast';
-import { listActivity } from '../../offline/api';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { ApiError } from '../../errors/ApiError';
+import { deleteTransaction, listActivity } from '../../offline/api';
 import { olderRange } from '../../activity/olderRange';
+import { correctionOf } from '../../transactions/correction';
+import type { Transaction } from '../../transactions/types';
+import TransactionDetailSheet from './TransactionDetailSheet';
 import type { ActivitySummary, ActivityType, HistoryPeriod } from '../../activity/types';
 import type { LocalActivity } from '../../offline/types';
 import { todayAsDateString } from '../../transactions/validation';
@@ -79,6 +84,11 @@ export default function HistoryScreen({ navigation }: ScreenProps) {
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  // KZ-07: the transaction whose details are open, and the one waiting for
+  // the delete confirmation.
+  const [detailId, setDetailId] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState<Transaction | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   // A date range under "Older" replaces the period filter: the server always
   // honours an explicit range over a preset period. The range never reaches
@@ -198,6 +208,53 @@ export default function HistoryScreen({ navigation }: ScreenProps) {
     }
   };
 
+  // Money rows open their transaction; debt rows open the debt in the Debts
+  // list, where it can be paid or deleted. Product rows have nothing to open.
+  const openEvent = (event: LocalActivity) => {
+    if (event.refId === undefined) {
+      return;
+    }
+    if (event.refType === 'transaction') {
+      setDetailId(event.refId);
+    } else if (event.refType === 'debt') {
+      navigation.navigate('Debts', { debtId: event.refId });
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (deleteBusy || !deleting) {
+      return;
+    }
+    setDeleteBusy(true);
+    try {
+      await deleteTransaction(deleting.id);
+      toast.show('success', t('transactions.deleted'));
+    } catch (err) {
+      // Already gone (deleted on another phone): the reload shows that.
+      if (!(err instanceof ApiError && err.status === 404)) {
+        toast.show('error', errorMessage(err, t));
+      }
+    } finally {
+      setDeleteBusy(false);
+      setDeleting(null);
+    }
+    // Totals and rows come from the server again; Home refetches on focus.
+    load('refresh');
+  };
+
+  const correct = (transaction: Transaction) => {
+    setDetailId(null);
+    const correction = correctionOf(transaction);
+    if (transaction.type === 'capital') {
+      navigation.navigate('AddMoney', { correct: correction });
+    } else {
+      navigation.navigate('TransactionForm', {
+        initialType: transaction.type,
+        correct: correction,
+      });
+    }
+  };
+
   const filters = (
     <>
       <PeriodChips selected={period} onSelect={selectPeriod} />
@@ -280,7 +337,11 @@ export default function HistoryScreen({ navigation }: ScreenProps) {
               <Text style={styles.groupHeader}>{group.label}</Text>
               <View style={styles.groupRows}>
                 {group.events.map(event => (
-                  <ActivityRow key={event.id} event={event} />
+                  <ActivityRow
+                    key={event.id}
+                    event={event}
+                    onPress={opensSomething(event) ? () => openEvent(event) : undefined}
+                  />
                 ))}
               </View>
             </View>
@@ -303,6 +364,29 @@ export default function HistoryScreen({ navigation }: ScreenProps) {
         visible={sheetOpen}
         onClose={() => setSheetOpen(false)}
         onChoose={choose}
+      />
+
+      <TransactionDetailSheet
+        transactionId={detailId}
+        onClose={() => setDetailId(null)}
+        onDelete={transaction => {
+          setDetailId(null);
+          setDeleting(transaction);
+        }}
+        onCorrect={correct}
+      />
+
+      <ConfirmDialog
+        visible={deleting !== null}
+        title={t('transactions.deleteConfirmTitle')}
+        message={t('transactions.deleteConfirmMessage')}
+        confirmLabel={t('transactions.delete')}
+        cancelLabel={t('common.cancel')}
+        tone="danger"
+        loading={deleteBusy}
+        confirmTestID="transaction-delete-confirm"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleting(null)}
       />
     </Screen>
   );
@@ -440,7 +524,18 @@ function shiftDay(value: string, days: number): string {
   return `${y}-${m}-${d}`;
 }
 
-function ActivityRow({ event }: { event: LocalActivity }) {
+function opensSomething(event: LocalActivity): boolean {
+  if (event.refId === undefined) {
+    return false;
+  }
+  return (
+    (event.refType === 'transaction' &&
+      (event.type === 'sale' || event.type === 'spend' || event.type === 'capital')) ||
+    (event.refType === 'debt' && (event.type === 'debt_added' || event.type === 'debt_paid'))
+  );
+}
+
+function ActivityRow({ event, onPress }: { event: LocalActivity; onPress?: () => void }) {
   const { t } = useTranslation();
   const config = typeLookup[event.type];
   const Icon = config.icon;
@@ -449,7 +544,7 @@ function ActivityRow({ event }: { event: LocalActivity }) {
   const quantity = event.quantity ? ` ×${event.quantity}` : '';
   const pending = event.syncStatus !== 'synced';
 
-  return (
+  const card = (
     <Card>
       <View style={styles.rowContent}>
         <View style={[styles.iconWrap, { backgroundColor: config.bg }]}>
@@ -478,6 +573,20 @@ function ActivityRow({ event }: { event: LocalActivity }) {
         ) : null}
       </View>
     </Card>
+  );
+
+  if (!onPress) {
+    return card;
+  }
+  return (
+    <Pressable
+      testID={`history-row-${event.id}`}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => pressed && styles.rowPressed}
+    >
+      {card}
+    </Pressable>
   );
 }
 
@@ -720,6 +829,9 @@ const styles = StyleSheet.create({
   },
   rowAmount: {
     ...typography.heading,
+  },
+  rowPressed: {
+    opacity: 0.85,
   },
   backdrop: {
     flex: 1,

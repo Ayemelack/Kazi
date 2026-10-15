@@ -246,15 +246,23 @@ export function stockIn(
   return { item: toItem(requireOwnedItem(db, userId, itemId)), movement: toMovement(movementRow) };
 }
 
+export interface StockOutOptions {
+  // Take the full quantity even if stock goes below zero. Used when a
+  // purchase is deleted (decision D5: stock may be negative); session 11
+  // (KZ-23) decides the rule for sales and manual stock-outs.
+  allowNegative?: boolean;
+}
+
 export function stockOut(
   db: Database.Database,
   userId: number,
   itemId: number,
   input: StockMovementInput,
+  options: StockOutOptions = {},
 ): { item: Item; movement: StockMovement } {
   const row = requireOwnedItem(db, userId, itemId);
 
-  if (row.stock - input.quantity < 0) {
+  if (!options.allowNegative && row.stock - input.quantity < 0) {
     throw new AppError(
       400,
       'INSUFFICIENT_STOCK',

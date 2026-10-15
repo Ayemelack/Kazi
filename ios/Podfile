@@ -8,11 +8,18 @@ require Pod::Executable.execute_command('node', ['-p',
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
 
-linkage = ENV['USE_FRAMEWORKS']
-if linkage != nil
-  Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
-  use_frameworks! :linkage => linkage.to_sym
-end
+# React Native Firebase (KZ-02). The Firebase iOS SDK pods need frameworks.
+# RNFB 26 resolves Firebase through Swift Package Manager by default, which
+# only works with dynamic frameworks and gives each RNFB pod its own private
+# FirebaseCore. Kazi uses CocoaPods with static frameworks instead (RNFB's
+# supported alternative, see node_modules/@react-native-firebase/app/README.md):
+# one FirebaseCore shared by RNFB and AppDelegate's FirebaseApp.configure(),
+# and no dynamic-framework launch cost. Both flags must be set before any
+# target block. The New Architecture (required by RNFB 26) is RN 0.87's
+# default and stays on.
+$RNFirebaseDisableSPM = true
+$RNFirebaseAsStaticFramework = true
+use_frameworks! :linkage => :static
 
 target 'Kazi' do
   config = use_native_modules!

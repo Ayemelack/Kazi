@@ -265,13 +265,70 @@ whenever possible so rollback doesn't need a data restore.
    photos), account-deletion URL / in-app path (More → Delete account).
 
 ### iOS
-1. Firebase and APNs configured (KZ-02); Push and Background Modes capabilities on.
-2. Remove the empty `NSLocationWhenInUseUsageDescription` from `Info.plist`; keep
-   `PrivacyInfo.xcprivacy` accurate.
+1. Firebase and APNs configured (KZ-02, steps below). The repository already has what doesn't
+   need an Apple account: `ios/Kazi/Kazi.entitlements` (`aps-environment`, the Push
+   Notifications capability; Xcode switches it to `production` when it signs for the App Store),
+   `UIBackgroundModes` = `remote-notification` in `Info.plist` (Background Modes → Remote
+   notifications), and the Podfile settings React Native Firebase 26 needs (below).
+2. Keep `PrivacyInfo.xcprivacy` accurate. (The empty `NSLocationWhenInUseUsageDescription` was
+   removed in KZ-02; Kazi uses no location.)
 3. `cd ios && bundle exec pod install` after every native dependency change (for example
-   `@react-native-community/netinfo`, added in KZ-01); Android autolinks it at build time.
+   `@react-native-community/netinfo`, added in KZ-01); Android autolinks it at build time. The
+   first install after KZ-02 switches the project to static frameworks and rewrites
+   `Kazi.xcodeproj` (`libPods-Kazi.a` becomes `Pods_Kazi.framework`); commit that change and the
+   new `Podfile.lock`.
 4. Archive in Xcode (Release), upload to App Store Connect, TestFlight QA, submit.
 5. App Privacy answers must match the Play data-safety form.
+
+**Podfile (KZ-02).** `$RNFirebaseDisableSPM = true`, `$RNFirebaseAsStaticFramework = true` and
+`use_frameworks! :linkage => :static`, before the target block. RNFB 26 otherwise pulls Firebase
+through Swift Package Manager, which needs dynamic frameworks and gives each RNFB pod a private
+FirebaseCore; CocoaPods with static frameworks is its supported alternative. RNFB 26 requires the
+New Architecture, which is React Native 0.87's default — don't turn it off.
+
+**Startup safety (KZ-02).** `AppDelegate.swift` calls `FirebaseApp.configure(options:)` only when
+the bundle contains a `GoogleService-Info.plist` with an app id and sender id whose `BUNDLE_ID` is
+`com.kazi.app`; otherwise it logs `Firebase is not configured for this build` and the app runs
+with push disabled. A build phase (`[Kazi] Copy GoogleService-Info.plist if present`) copies
+`ios/Kazi/GoogleService-Info.plist` into the app when the file exists and prints a build warning
+when it doesn't, so a build without it still succeeds. In JavaScript every messaging call goes
+through `src/notifications/firebase.ts`, which switches push off for the session (logging once in
+development) instead of throwing.
+
+### Firebase and push setup (KZ-02, KZ-03)
+
+The 🟨 Blocked device checks. Needs a Google account for Firebase, the Apple Developer account,
+a Mac with Xcode, an iPhone and an Android phone. One Firebase project per environment
+(`kazi-staging`, `kazi-prod`); never point a staging build at the production project.
+
+1. **Firebase projects.** In the [Firebase console](https://console.firebase.google.com) create
+   the project (Analytics not needed). Cloud Messaging is on by default.
+2. **Android app.** Project settings → Add app → Android, package name `com.kazi.app`. Download
+   `google-services.json`.
+3. **iOS app.** Add app → iOS, bundle id `com.kazi.app`. Download `GoogleService-Info.plist`.
+4. **APNs key.** In the Apple Developer account → Certificates, IDs & Profiles → Keys → create a
+   key with "Apple Push Notifications service (APNs)", download the `.p8` (only once; store it
+   with the other Apple secrets) and note its Key ID and the Team ID. In Identifiers →
+   `com.kazi.app`, enable Push Notifications. In Firebase → Project settings → Cloud Messaging →
+   Apple app configuration, upload the `.p8` with the Key ID and Team ID.
+5. **Service account (server).** Firebase → Project settings → Service accounts → Generate new
+   private key. Put the JSON on the API host as `/etc/kazi/firebase.json` (root, `0600`) and set
+   `GOOGLE_APPLICATION_CREDENTIALS=/etc/kazi/firebase.json` in `/etc/kazi/api.env`, or set
+   `FIREBASE_SERVICE_ACCOUNT` to the file's base64 (`base64 -w0 firebase.json`). Never commit it.
+   Restart the API.
+6. **Drop in the app files, per build.** Keep each environment's `google-services.json` and
+   `GoogleService-Info.plist` with the release secrets (they are public client identifiers, but
+   per environment, so they are not committed). Before building an environment, copy its files
+   to `android/app/google-services.json` (over the placeholder) and
+   `ios/Kazi/GoogleService-Info.plist` (git-ignored). In CI, write them from secret files in the
+   build job. After a local build, `git checkout android/app/google-services.json` puts the
+   placeholder back.
+7. **iOS launch check (KZ-02).** On the simulator and a real iPhone, Release configuration:
+   - With the plist: the app launches; after sign-in it asks for notification permission.
+   - Without it (delete `ios/Kazi/GoogleService-Info.plist`, clean build folder, build): the
+     build shows the missing-plist warning, the app launches and works, no permission prompt,
+     and the device log shows `[Kazi] Firebase is not configured for this build`.
+   Record both in the tracker update log and tick the KZ-02 criteria.
 
 ---
 

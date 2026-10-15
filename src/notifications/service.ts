@@ -5,7 +5,6 @@ import notifee, {
   EventType,
 } from '@notifee/react-native';
 import {
-  getMessaging,
   getToken,
   onMessage,
   onTokenRefresh as subscribeTokenRefresh,
@@ -13,6 +12,7 @@ import {
   type RemoteMessage,
 } from '@react-native-firebase/messaging';
 import { apiRequest } from '../api/client';
+import { pushMessaging, withPushMessaging } from './firebase';
 
 const KAZI_CHANNEL_ID = 'kazi';
 const KAZI_CHANNEL_NAME = 'Kazi';
@@ -54,8 +54,12 @@ export async function requestNotificationPermission(): Promise<boolean> {
 }
 
 export async function getAndRegisterToken(): Promise<string | null> {
+  const messaging = pushMessaging();
+  if (!messaging) {
+    return null;
+  }
   try {
-    const token = await getToken(getMessaging());
+    const token = await getToken(messaging);
     if (!token) {
       return null;
     }
@@ -82,21 +86,22 @@ export function onTokenRefresh(): void {
   if (tokenRefreshRegistered) {
     return;
   }
-  tokenRefreshRegistered = true;
-  subscribeTokenRefresh(getMessaging(), async token => {
-    if (currentToken && currentToken !== token) {
-      try {
-        await apiRequest('/notifications/push-tokens', {
-          method: 'DELETE',
-          body: { token: currentToken },
-        });
-      } catch {
-        // Old token removal is best-effort.
+  tokenRefreshRegistered = withPushMessaging(messaging =>
+    subscribeTokenRefresh(messaging, async token => {
+      if (currentToken && currentToken !== token) {
+        try {
+          await apiRequest('/notifications/push-tokens', {
+            method: 'DELETE',
+            body: { token: currentToken },
+          });
+        } catch {
+          // Old token removal is best-effort.
+        }
       }
-    }
-    currentToken = token;
-    await registerTokenWithBackend(token);
-  });
+      currentToken = token;
+      await registerTokenWithBackend(token);
+    }),
+  );
 }
 
 export async function unregisterCurrentToken(): Promise<void> {
@@ -127,49 +132,57 @@ export function setupForegroundHandler(): void {
   });
 }
 
+// Called from index.js at module load: it must never throw (KZ-02).
 export function setupBackgroundHandler(): void {
-  setBackgroundMessageHandler(getMessaging(), async remoteMessage => {
-    const { title, body } = extractNotification(remoteMessage);
-    if (!title || !body) {
-      return;
-    }
-    await ensureNotificationChannel();
-    await notifee.displayNotification({
-      title,
-      body,
-      android: {
-        channelId: KAZI_CHANNEL_ID,
-        importance: AndroidImportance.HIGH,
-        pressAction: { id: 'default' },
-      },
-    });
-  });
+  withPushMessaging(messaging =>
+    setBackgroundMessageHandler(messaging, async remoteMessage => {
+      const { title, body } = extractNotification(remoteMessage);
+      if (!title || !body) {
+        return;
+      }
+      await ensureNotificationChannel();
+      await notifee.displayNotification({
+        title,
+        body,
+        android: {
+          channelId: KAZI_CHANNEL_ID,
+          importance: AndroidImportance.HIGH,
+          pressAction: { id: 'default' },
+        },
+      });
+    }),
+  );
 }
 
 export function setupForegroundMessageListener(): void {
   if (foregroundMessageRegistered) {
     return;
   }
-  foregroundMessageRegistered = true;
-  onMessage(getMessaging(), async remoteMessage => {
-    const { title, body } = extractNotification(remoteMessage);
-    if (!title || !body) {
-      return;
-    }
-    await ensureNotificationChannel();
-    await notifee.displayNotification({
-      title,
-      body,
-      android: {
-        channelId: KAZI_CHANNEL_ID,
-        importance: AndroidImportance.HIGH,
-        pressAction: { id: 'default' },
-      },
-    });
-  });
+  foregroundMessageRegistered = withPushMessaging(messaging =>
+    onMessage(messaging, async remoteMessage => {
+      const { title, body } = extractNotification(remoteMessage);
+      if (!title || !body) {
+        return;
+      }
+      await ensureNotificationChannel();
+      await notifee.displayNotification({
+        title,
+        body,
+        android: {
+          channelId: KAZI_CHANNEL_ID,
+          importance: AndroidImportance.HIGH,
+          pressAction: { id: 'default' },
+        },
+      });
+    }),
+  );
 }
 
 export async function initializeNotifications(): Promise<void> {
+  // Without Firebase there is nothing to deliver, so don't ask for permission.
+  if (!pushMessaging()) {
+    return;
+  }
   const granted = await requestNotificationPermission();
   if (!granted) {
     return;
@@ -181,9 +194,10 @@ export async function initializeNotifications(): Promise<void> {
   await getAndRegisterToken();
 }
 
-function extractNotification(
-  remoteMessage: RemoteMessage,
-): { title?: string; body?: string } {
+function extractNotification(remoteMessage: RemoteMessage): {
+  title?: string;
+  body?: string;
+} {
   if (remoteMessage.data) {
     return {
       title: remoteMessage.data.title as string | undefined,

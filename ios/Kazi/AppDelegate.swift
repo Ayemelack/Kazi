@@ -1,4 +1,5 @@
 import UIKit
+import FirebaseCore
 import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
@@ -14,6 +15,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
+    configureFirebaseIfPresent()
+
     let delegate = ReactNativeDelegate()
     let factory = RCTReactNativeFactory(delegate: delegate)
     delegate.dependencyProvider = RCTAppDependencyProvider()
@@ -30,6 +33,29 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     )
 
     return true
+  }
+
+  // KZ-02: configure Firebase only when this build carries a usable
+  // GoogleService-Info.plist (it is per environment and copied in at build
+  // time, see docs/DEPLOYMENT.md section 6). FirebaseApp.configure raises an
+  // Objective-C exception, which Swift cannot catch, when the file is missing
+  // or lacks its app or sender id, so those are checked first. Without
+  // Firebase the app runs normally with push disabled; the JavaScript side
+  // sees no default app and never touches messaging.
+  private func configureFirebaseIfPresent() {
+    if FirebaseApp.app() != nil {
+      return
+    }
+    guard let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
+          let options = FirebaseOptions(contentsOfFile: path),
+          !options.googleAppID.isEmpty,
+          !options.gcmSenderID.isEmpty,
+          options.bundleID == Bundle.main.bundleIdentifier
+    else {
+      NSLog("[Kazi] Firebase is not configured for this build; push notifications are disabled.")
+      return
+    }
+    FirebaseApp.configure(options: options)
   }
 }
 

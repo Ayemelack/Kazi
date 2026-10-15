@@ -49,6 +49,13 @@ jest.mock('@notifee/react-native', () => ({
   EventType: { PRESS: 1 },
 }));
 
+jest.mock('@react-native-firebase/app', () => ({
+  __esModule: true,
+  getApps: jest.fn(() => [
+    { name: '[DEFAULT]', options: { projectId: 'kazi-test', messagingSenderId: '123456789012' } },
+  ]),
+}));
+
 jest.mock('@react-native-firebase/messaging', () => ({
   __esModule: true,
   getMessaging: jest.fn(() => ({})),

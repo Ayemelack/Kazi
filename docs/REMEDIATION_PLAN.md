@@ -60,6 +60,19 @@ Rules for every fix:
   - [ ] Release build launches on a real iPhone and on the simulator.
   - [ ] With Firebase deliberately misconfigured, the app still starts (push simply disabled).
   - [ ] A test push reaches the iPhone in foreground and background.
+- **Status (2026-10-15, session 8):** code done, 🟨 Blocked on a Mac, the Apple Developer account
+  and the Firebase project (steps in [DEPLOYMENT.md §6](DEPLOYMENT.md#firebase-and-push-setup-kz-02-kz-03)).
+  Done in the repository: `AppDelegate` configures Firebase only when a valid
+  `GoogleService-Info.plist` for `com.kazi.app` is bundled; a build phase copies the plist only if
+  present (git-ignored, per environment); `Kazi.entitlements` (`aps-environment`) +
+  `UIBackgroundModes` `remote-notification`; Podfile on CocoaPods + static frameworks
+  (`$RNFirebaseDisableSPM`, `$RNFirebaseAsStaticFramework`), as RNFB 26 documents for non-SPM
+  setups; empty `NSLocationWhenInUseUsageDescription` removed. In JavaScript every messaging call
+  goes through `src/notifications/firebase.ts` (no default app or any throw → push off for the
+  session, logged once in development), and `index.js` wraps the module-load call. The "still
+  starts when misconfigured" criterion is covered by `__tests__/push.startup.test.ts` but stays
+  unticked until it is seen on a device. Not built: no Mac here, so neither `pod install` nor an
+  Xcode build has run against these changes.
 
 ### KZ-03
 **Push notifications are not wired end to end**

@@ -60,6 +60,10 @@ yarn-error.log
 **/Pods/
 /vendor/bundle/
 
+# Firebase iOS config: per environment, copied in before a build (KZ-02,
+# docs/DEPLOYMENT.md section 6)
+ios/Kazi/GoogleService-Info.plist
+
 # Temporary files created by Metro to check the health of the file watcher
 .metro-health-check*
 

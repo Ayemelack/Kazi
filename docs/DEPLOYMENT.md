@@ -183,6 +183,7 @@ If the provider rejects a send (bad key, unverified sender), the API still answe
 | `ADMIN_CREDENTIALS_PATH` | `server/data/admin-auth.json` | Mode `0600` |
 | `ADMIN_SESSION_TTL_MS` | 12 h | |
 | `ADMIN_TLS` | `auto` | Through an SSH tunnel, `off` is acceptable |
+| `ADMIN_ANNOUNCEMENTS` | unset | `1` lets signed-in admins post and clear the in-app announcement (`POST`/`DELETE /api/announcements`) through a second, writable database handle used for nothing else. Unset: the dashboard stays read-only and those calls answer 403 (decision D8, pending). The banner says which mode it is in |
 | `ADMIN_COOKIE_SECURE`, `ADMIN_TLS_CERT`, `ADMIN_TLS_KEY`, `ADMIN_TLS_OPENSSL`, `ADMIN_TLS_HOSTS` | | See `server/src/admin/index.ts` |
 
 Start: `npm run admin` (after KZ-18). Access: `ssh -L 4100:127.0.0.1:4100 user@server`, then open

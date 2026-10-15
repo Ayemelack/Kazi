@@ -35,6 +35,25 @@ jest.mock('react-native-safe-area-context', () => {
 const Tab = createBottomTabNavigator<Record<string, object | undefined>>();
 const navigationRef = createNavigationContainerRef<Record<string, object | undefined>>();
 
+const mountedRenderers: ReactTestRenderer.ReactTestRenderer[] = [];
+
+function createRenderer(element: React.ReactElement): ReactTestRenderer.ReactTestRenderer {
+  let renderer: ReactTestRenderer.ReactTestRenderer | undefined;
+  act(() => {
+    renderer = ReactTestRenderer.create(element);
+  });
+  mountedRenderers.push(renderer!);
+  return renderer!;
+}
+
+afterEach(() => {
+  act(() => {
+    for (const renderer of mountedRenderers.splice(0)) {
+      renderer.unmount();
+    }
+  });
+});
+
 function HomeScreen() {
   return <Text>Home</Text>;
 }
@@ -127,9 +146,11 @@ describe('TransactionFormScreen item loading', () => {
 
     const nav = navigationRef as unknown as { navigate: (name: string) => void };
 
+    let renderer: ReactTestRenderer.ReactTestRenderer | undefined;
     await act(async () => {
-      ReactTestRenderer.create(<Harness />);
+      renderer = ReactTestRenderer.create(<Harness />);
     });
+    mountedRenderers.push(renderer!);
     await flush();
 
     expect(listItems).toHaveBeenCalledTimes(1);
@@ -156,11 +177,7 @@ describe('TransactionFormScreen transaction classification', () => {
   });
 
   function render(initialType: 'sale' | 'purchase'): ReactTestRenderer.ReactTestRenderer {
-    let renderer: ReactTestRenderer.ReactTestRenderer | undefined;
-    act(() => {
-      renderer = ReactTestRenderer.create(<Harness initialType={initialType} />);
-    });
-    return renderer!;
+    return createRenderer(<Harness initialType={initialType} />);
   }
 
   it('saves the transaction under the type shown by the form', async () => {
@@ -266,11 +283,7 @@ describe('TransactionFormScreen expense description', () => {
   });
 
   function render(initialType: 'sale' | 'purchase'): ReactTestRenderer.ReactTestRenderer {
-    let renderer: ReactTestRenderer.ReactTestRenderer | undefined;
-    act(() => {
-      renderer = ReactTestRenderer.create(<Harness initialType={initialType} />);
-    });
-    return renderer!;
+    return createRenderer(<Harness initialType={initialType} />);
   }
 
   function findText(renderer: ReactTestRenderer.ReactTestRenderer, text: string) {

@@ -352,6 +352,8 @@ flow that no longer exists) are dropped, not converted.
 `0006_low_stock_alert` (KZ-03) adds `items.last_low_stock_alert_at INTEGER` (epoch ms, NULL =
 never): when the API last sent a low-stock push for the item, for the once-per-12-hours rule.
 
+`0007_announcements` (merged from main, 2026-10-15) creates `announcements` (one slot, id 1: `body_en`, `body_fr`, `body_pid` — the Pidgin text, language code `wes` — `min_version`, `max_version`, `active`). main created it in the old pre-framework boot code, so the migration keeps `IF NOT EXISTS` and main's exact statement text: a database made by that code is baselined and ends with the same schema as a fresh one (`0007_announcements.test.ts`).
+
 Rules for new migrations:
 
 - Never edit a migration that has shipped; add a new file with the next number.
@@ -493,7 +495,7 @@ response: no second sale, no second stock movement (KZ-11).
 | A2 | SQLite (WAL) on one server | Accepted | Very low ops cost; plenty for the expected scale. Revisit at roughly 50 writes/s sustained or when a second API instance is needed |
 | A3 | Idempotency ledger for writes | Accepted | Makes retries on flaky mobile networks safe |
 | A4 | Activity log written in the same transaction as the source record | Accepted | History can never disagree with the source tables |
-| A5 | Separate read-only admin process | Accepted | App users can never reach admin data; admin cannot write |
+| A5 | Separate read-only admin process | Accepted | App users can never reach admin data; admin cannot write. Exception pending decision D8: with `ADMIN_ANNOUNCEMENTS=1` it opens a second, writable handle used only for the announcement slot (off by default) |
 | A6 | Whole-number FCFA everywhere | Accepted (2026-10-11, KZ-04, KZ-25) | Removes the decimal-separator ambiguity that corrupts amounts |
 | A7 | Short-lived access token + refresh token | Proposed (KZ-13, D4) | Real logout and revocation |
 | A8 | Images stored and served separately from item JSON | Proposed (KZ-14) | Keeps list payloads small on 3G |

@@ -18,6 +18,8 @@ import { pushMessaging, withPushMessaging } from './firebase';
 
 const KAZI_CHANNEL_ID = 'kazi';
 const KAZI_CHANNEL_NAME = 'Kazi';
+// The Android channel local notifications use too (daily reminder).
+export const KAZI_NOTIFICATION_CHANNEL = KAZI_CHANNEL_ID;
 let currentToken: string | null = null;
 let foregroundEventRegistered = false;
 let foregroundMessageRegistered = false;

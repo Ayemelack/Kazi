@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import {
+  Bell,
   Building2,
   ChevronRight,
   FileText,
@@ -10,6 +11,7 @@ import {
   LogOut,
   ShieldCheck,
   Trash2,
+  X,
   type LucideIcon,
 } from 'lucide-react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -20,6 +22,8 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { useToast } from '../../components/ui/Toast';
 import { APP_LANGUAGES, isAppLanguage } from '@kazi/shared';
 import { useAuth } from '../../auth/AuthContext';
+import { useAnnouncement } from '../../announcements/useAnnouncement';
+import { announcementBodyFor } from '../../announcements/logic';
 import type { MoreStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 
@@ -40,6 +44,7 @@ const MENU_ITEMS: {
   screen: keyof MoreStackParamList;
 }[] = [
   { key: 'business', labelKey: 'more.myBusiness', icon: Building2, iconColor: colors.primaryDark, iconBg: colors.primarySoft, screen: 'MyBusiness' },
+  { key: 'reminder', labelKey: 'more.reminder', icon: Bell, iconColor: colors.primaryDark, iconBg: colors.primarySoft, screen: 'Reminder' },
   { key: 'feedback', labelKey: 'more.feedback', icon: HeartHandshake, iconColor: colors.primaryDark, iconBg: colors.primarySoft, screen: 'Feedback' },
   { key: 'support', labelKey: 'more.support', icon: LifeBuoy, iconColor: colors.primaryDark, iconBg: colors.primarySoft, screen: 'Support' },
   { key: 'privacy', labelKey: 'more.privacy', icon: ShieldCheck, iconColor: colors.primaryDark, iconBg: colors.primarySoft, screen: 'Privacy' },
@@ -54,6 +59,7 @@ export default function MoreScreen({ navigation }: ScreenProps) {
   const current = isAppLanguage(i18n.language) ? i18n.language : 'en';
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const { announcement, dismiss } = useAnnouncement();
 
   const confirmSignOut = async () => {
     if (signingOut) return;
@@ -91,6 +97,25 @@ export default function MoreScreen({ navigation }: ScreenProps) {
             </View>
           </View>
         </Card>
+
+        {announcement && (
+          <Card style={styles.announcementCard}>
+            <View style={styles.announcementRow}>
+              <Text style={styles.announcementText} testID="announcement-body">
+                {announcementBodyFor(announcement, current)}
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('moreScreen.dismissAnnouncement')}
+                testID="announcement-dismiss"
+                onPress={() => dismiss(announcement)}
+                style={({ pressed }) => [styles.announcementDismiss, pressed && styles.rowPressed]}
+              >
+                <X size={16} color={colors.textMuted} />
+              </Pressable>
+            </View>
+          </Card>
+        )}
 
         {MENU_ITEMS.map(item => (
           <Pressable
@@ -192,6 +217,25 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSecondary,
     marginTop: 2,
+  },
+  announcementCard: {
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  announcementRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  announcementText: {
+    flex: 1,
+    ...typography.body,
+    color: colors.textPrimary,
+  },
+  announcementDismiss: {
+    padding: spacing.xs,
+    borderRadius: radius.md,
   },
   menuRow: {
     flexDirection: 'row',

@@ -200,7 +200,7 @@ const fr: TranslationSchema = {
       productUpdated: 'Produit modifié',
     },
     periods: {
-      today: 'Aujourd’hui',
+      today: "Aujourd'hui",
       yesterday: 'Hier',
       thisWeek: 'Cette semaine',
       older: 'Plus ancien',
@@ -280,14 +280,29 @@ const fr: TranslationSchema = {
     english: 'English',
     french: 'Français',
     pidgin: 'Pidgin Kamto',
+    dismissAnnouncement: 'Fermer',
   },
   more: {
     myBusiness: 'Mon entreprise',
+    reminder: 'Rappel quotidien',
     feedback: 'Votre avis',
     support: 'Contacter l’assistance',
     privacy: 'Politique de confidentialité',
     terms: 'Conditions d’utilisation',
     deleteAccount: 'Supprimer mon compte',
+  },
+  reminder: {
+    title: 'Rappel quotidien',
+    description: 'Recevez un petit rappel par jour pour enregistrer votre activité.',
+    timeLabel: 'Heure du rappel',
+    hour: 'Heure',
+    minute: 'Minute',
+    note: 'Ce n’est qu’un petit rappel amical. Vous pouvez le désactiver à tout moment.',
+    permissionDenied:
+      'Kazi a besoin de l’autorisation des notifications pour envoyer un rappel. Vous pouvez l’activer dans les réglages de votre téléphone.',
+    saveError: 'Impossible de mettre à jour votre rappel. Veuillez réessayer.',
+    notificationTitle: 'Rappel Kazi',
+    notificationBody: "Avez-vous enregistré les transactions de votre journée ?",
   },
   feedback: {
     title: 'Aidez-nous à améliorer Kazi',

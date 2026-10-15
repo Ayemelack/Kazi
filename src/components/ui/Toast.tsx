@@ -84,6 +84,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     () => () => {
       if (timer.current) {
         clearTimeout(timer.current);
+        timer.current = null;
       }
     },
     [],

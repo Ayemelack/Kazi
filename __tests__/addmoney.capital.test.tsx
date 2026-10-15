@@ -39,6 +39,15 @@ function HomeScreen() {
   return <Text>Home</Text>;
 }
 
+// jest/unmountAfterEach.js (KZ-30) unmounts every rendered tree after each test.
+function createRenderer(element: React.ReactElement): ReactTestRenderer.ReactTestRenderer {
+  let renderer: ReactTestRenderer.ReactTestRenderer | undefined;
+  act(() => {
+    renderer = ReactTestRenderer.create(element);
+  });
+  return renderer!;
+}
+
 function AddMoneyRoute(props: object) {
   const { navigation, route } = props as { navigation: object; route: object };
   return <AddMoneyScreen navigation={navigation as never} route={route as never} />;
@@ -59,11 +68,7 @@ function Harness() {
 }
 
 function renderScreen() {
-  let renderer: ReactTestRenderer.ReactTestRenderer | undefined;
-  act(() => {
-    renderer = ReactTestRenderer.create(<Harness />);
-  });
-  return { renderer: renderer! };
+  return { renderer: createRenderer(<Harness />) };
 }
 
 async function flush(): Promise<void> {

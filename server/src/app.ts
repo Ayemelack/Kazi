@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express, { type Express } from 'express';
 import type Database from 'better-sqlite3';
+import { createAnnouncementsRouter } from './announcements/routes.js';
 import { createAuthRouter } from './auth/routes.js';
 import type { ResetDelivery } from './auth/delivery.js';
 import { createActivityRouter } from './activity/routes.js';
@@ -96,6 +97,7 @@ export function createApp(db: Database.Database, options: AppOptions = {}): Expr
     res.status(200).json({ status: 'ok' });
   });
 
+  app.use('/announcements', createAnnouncementsRouter(db));
   app.use('/auth', createAuthRouter(db, userWrites, options.resetDelivery));
   app.use('/items', createItemsRouter(db, userWrites));
   app.use('/transactions', createTransactionsRouter(db, userWrites));

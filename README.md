@@ -148,6 +148,7 @@ Authorized endpoints take `Authorization: Bearer <token>`. Errors always use the
 | `/activity` | `GET /` — `period`, `from`/`to` range, `asOf`, `limit`/`offset`, per-type totals; each event names its source record (`refType`, `refId`) |
 | `/feedback` | `GET/POST /`, `GET/DELETE /:id` |
 | `/notifications` | `POST /push-tokens`, `DELETE /push-tokens`; `POST /send` only with `NOTIFICATIONS_TEST_SEND=1` outside production (testing aid, KZ-03) |
+| `/announcements` | `GET /` — the active in-app announcement, or `null` (no auth; text and version range only) |
 | `/health` | `GET /` — liveness probe (no auth) |
 
 Every query is scoped to the authenticated user, and business dates (`transactions.date`,

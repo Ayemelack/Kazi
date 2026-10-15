@@ -8,7 +8,16 @@ import { businessDateSchema } from '../validation/date.js';
 import { strictNumber } from '../validation/number.js';
 
 export const historyPeriodSchema = z
-  .enum(['today', 'yesterday', 'this_week', 'older', 'all'])
+  .enum([
+    'today',
+    'yesterday',
+    'this_week',
+    'last_week',
+    'this_month',
+    'last_month',
+    'older',
+    'all',
+  ])
   .optional();
 
 const optionalDateSchema = businessDateSchema.optional();

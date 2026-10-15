@@ -3,7 +3,13 @@ import { isAppLanguage } from '@kazi/shared';
 import { AppError } from '../errors.js';
 import { log } from '../log.js';
 import { lowStockMessage } from './lowStockMessage.js';
-import { PUSH_TIMEOUT_MS, pushMessagingFor, sendNotificationToUser } from './service.js';
+import {
+  PUSH_TIMEOUT_MS,
+  PushTimeoutError,
+  deliverPush,
+  pushMessagingFor,
+  type PushSendResult,
+} from './service.js';
 
 // KZ-03 (decision D6): the low-stock push. When a sale, a manual stock-out or
 // a purchase reversal takes a tracked item from above its threshold to at or
@@ -15,6 +21,12 @@ import { PUSH_TIMEOUT_MS, pushMessagingFor, sendNotificationToUser } from './ser
 // only after the request's outermost transaction has committed or rolled back.
 // The job re-reads the item, so a rolled-back write (stock back above the
 // threshold) sends nothing.
+//
+// The 12-hour slot is claimed before the send, so a crash or restart mid-send
+// can never cause a second alert. If FCM refuses the send or no device accepts
+// it, the slot is released so the next crossing alerts again. After a timeout
+// it is kept: FCM may still deliver, and a second alert is worse than none.
+// On SIGTERM the API waits for queued alerts (index.ts, settleLowStockAlerts).
 
 export const LOW_STOCK_ALERT_INTERVAL_MS = 12 * 60 * 60 * 1000;
 
@@ -108,20 +120,54 @@ export async function sendLowStockAlert(
   }
 
   const language = isAppLanguage(row.language) ? row.language : 'en';
-  await sendNotificationToUser(db, userId, {
-    ...lowStockMessage(row.name, row.stock, language),
-    data: { type: 'low_stock', itemId: String(itemId) },
-  }, timeoutMs);
+  let result: PushSendResult;
+  try {
+    result = await deliverPush(
+      db,
+      userId,
+      {
+        ...lowStockMessage(row.name, row.stock, language),
+        data: { type: 'low_stock', itemId: String(itemId) },
+      },
+      timeoutMs,
+    );
+  } catch (error) {
+    if (!(error instanceof PushTimeoutError)) {
+      releaseAlertSlot(db, userId, itemId, now);
+    }
+    throw error;
+  }
+  if (result.sent === 0) {
+    releaseAlertSlot(db, userId, itemId, now);
+    throw new NoDeviceAcceptedError();
+  }
   return 'sent';
 }
 
-// Error codes and messages only: never the item, the user's data or a token.
+class NoDeviceAcceptedError extends Error {
+  override name = 'NoDeviceAccepted';
+  readonly code = 'no-device-accepted';
+}
+
+// Only the claim this job made: a later job's claim is left alone.
+function releaseAlertSlot(db: Database.Database, userId: number, itemId: number, claimedAt: number): void {
+  db.prepare(
+    'UPDATE items SET last_low_stock_alert_at = NULL WHERE id = ? AND user_id = ? AND last_low_stock_alert_at = ?',
+  ).run(itemId, userId, claimedAt);
+}
+
+// Error codes only (ours or FCM's, e.g. messaging/internal-error): never the
+// item, the user's data, a token or FCM's free-text message.
 function describe(error: unknown): string {
   if (error instanceof AppError) {
     return error.code;
   }
-  if (error instanceof Error) {
-    return error.name;
+  if (error instanceof PushTimeoutError) {
+    return 'timeout';
   }
-  return 'unknown error';
+  const code = (error as { code?: unknown } | null)?.code;
+  if (typeof code === 'string' && /^[a-z0-9/_-]{1,80}$/i.test(code)) {
+    return code;
+  }
+  return error instanceof Error ? error.name : 'unknown error';
 }

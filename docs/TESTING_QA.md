@@ -165,7 +165,7 @@ Run on one low-end Android phone, one recent Android phone and one iPhone, in En
 | `server` | push, PR, manual | `npm run typecheck` · `npm test` · `npm run build` |
 | `audit` | push, PR, weekly, manual | **Blocking** (KZ-19): `node scripts/audit-gate.js <dir>` for root, `server/` and `shared/` runs `npm audit --omit=dev` and fails on any high/critical advisory not excepted in `scripts/audit-exceptions.json` (each exception documented in SECURITY.md §6, with a review date after which it fails again). Locally: `npm run audit` |
 | `android-release` | manual only (placeholder) | Session 9 (KZ-09/KZ-33): `./gradlew bundleRelease` with signing secrets and `KAZI_API_URL` |
-| `ios-build` | manual only (placeholder) | Session 9: macOS runner, `pod install` · `xcodebuild archive` |
+| `ios-build` | manual only (macOS minutes) | KZ-02: `bundle exec pod install` · unsigned Release simulator `xcodebuild` · install and launch on a simulator **without** `GoogleService-Info.plist`; fails unless the app is still running after 30 s and logged that Firebase is not configured. Session 9 adds the signed `xcodebuild archive` |
 
 Branch protection on `main` (owner action in GitHub → Settings → Branches): require the `app`,
 `server` and `audit` checks to pass, and one review, before merge.

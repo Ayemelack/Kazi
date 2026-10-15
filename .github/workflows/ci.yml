@@ -124,14 +124,53 @@ jobs:
           echo "secrets, KAZI_API_URL and ./gradlew bundleRelease."
 
   ios-build:
-    name: iOS archive (placeholder)
+    name: iOS simulator build + launch without Firebase
     if: github.event_name == 'workflow_dispatch'
-    # Session 9 switches this to macos-latest; an echo needs no macOS minutes.
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # KZ-02: proves the iOS setup builds (Podfile flags, entitlements, the
+    # GoogleService-Info.plist copy phase) and that the app starts with no
+    # Firebase config. Unsigned simulator build, so it needs no Apple account.
+    # Manual only (macOS minutes). Session 9 adds the signed archive.
+    runs-on: macos-15
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
-      - name: Not configured yet
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            shared/package-lock.json
+      - name: Install shared (builds shared/dist)
+        run: npm ci
+        working-directory: shared
+      - name: Install app
+        run: npm ci
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+      - name: Install pods
+        run: bundle exec pod install
+        working-directory: ios
+      - name: Build (Release, simulator, unsigned)
         run: |
-          echo "ios-build is a placeholder. Session 9 adds pod install and xcodebuild archive"
-          echo "once Firebase (KZ-02) and Apple signing are set up."
+          set -o pipefail
+          xcodebuild -workspace ios/Kazi.xcworkspace -scheme Kazi -configuration Release             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator'             -derivedDataPath ios/build CODE_SIGNING_ALLOWED=NO build | tail -n 300
+      - name: Launch without GoogleService-Info.plist
+        run: |
+          set -euo pipefail
+          APP=ios/build/Build/Products/Release-iphonesimulator/Kazi.app
+          test ! -f "$APP/GoogleService-Info.plist"
+          UDID=$(xcrun simctl list devices available | grep -m1 -E '^ +iPhone' | grep -oE '[0-9A-F]{8}(-[0-9A-F]{4}){3}-[0-9A-F]{12}')
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" "$APP"
+          xcrun simctl launch "$UDID" com.kazi.app
+          sleep 30
+          if ! xcrun simctl spawn "$UDID" launchctl list | grep -q 'UIKitApplication:com.kazi.app'; then
+            echo "::error::Kazi is not running 30 s after launch without Firebase"
+            exit 1
+          fi
+          xcrun simctl spawn "$UDID" log show --last 5m --style compact             --predicate 'eventMessage CONTAINS "Firebase is not configured for this build"'             | grep -q 'Firebase is not configured for this build'
+          echo "Kazi launched and kept running with push disabled."

@@ -134,7 +134,17 @@ export function listPushTokens(db: Database.Database, userId: number): string[] 
  * channel. Tokens that FCM reports as unregistered are removed so the device
  * never silently receives pushes to a dead token.
  */
-export async function sendNotificationToUser(
+/** FCM didn't answer in time. The push may still be delivered later. */
+export class PushTimeoutError extends Error {
+  override name = 'PushTimeoutError';
+}
+
+/**
+ * Sends a push and reports what happened: an AppError when push isn't
+ * configured, PushTimeoutError on a timeout, FCM's own error when it refuses
+ * the request. The route-facing sendNotificationToUser hides the last two.
+ */
+export async function deliverPush(
   db: Database.Database,
   userId: number,
   input: PushContent,
@@ -150,24 +160,19 @@ export async function sendNotificationToUser(
 
   const messaging = pushMessagingFor(db);
 
-  let response;
-  try {
-    response = await withTimeout(
-      messaging.sendEachForMulticast({
-        tokens: rows.map(row => row.token),
-        data: {
-          ...input.data,
-          title: input.title,
-          body: input.body,
-          channel: KAZI_PUSH_CHANNEL,
-        },
-        android: { priority: 'high' },
-      }),
-      timeoutMs,
-    );
-  } catch (err) {
-    throw new AppError(502, 'INTERNAL', 'Push notification delivery failed.');
-  }
+  const response = await withTimeout(
+    messaging.sendEachForMulticast({
+      tokens: rows.map(row => row.token),
+      data: {
+        ...input.data,
+        title: input.title,
+        body: input.body,
+        channel: KAZI_PUSH_CHANNEL,
+      },
+      android: { priority: 'high' },
+    }),
+    timeoutMs,
+  );
 
   let removed = 0;
   response.responses.forEach((result, index) => {
@@ -187,6 +192,22 @@ export async function sendNotificationToUser(
   };
 }
 
+export async function sendNotificationToUser(
+  db: Database.Database,
+  userId: number,
+  input: PushContent,
+  timeoutMs = PUSH_TIMEOUT_MS,
+): Promise<PushSendResult> {
+  try {
+    return await deliverPush(db, userId, input, timeoutMs);
+  } catch (err) {
+    if (err instanceof AppError) {
+      throw err;
+    }
+    throw new AppError(502, 'INTERNAL', 'Push notification delivery failed.');
+  }
+}
+
 function isUnregisteredError(code?: string): boolean {
   return UNREGISTERED_ERROR_CODES.has(code ?? '');
 }
@@ -194,7 +215,7 @@ function isUnregisteredError(code?: string): boolean {
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
   const timeout = new Promise<never>((_resolve, reject) => {
-    timer = setTimeout(() => reject(new Error(`timed out after ${ms} ms`)), ms);
+    timer = setTimeout(() => reject(new PushTimeoutError(`timed out after ${ms} ms`)), ms);
     timer.unref();
   });
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));

@@ -459,6 +459,18 @@ account's language (`users.language`). A rolled-back write leaves the stock abov
 so nothing is sent. FCM errors and the 5-second timeout are logged with the user id and an error
 code only; dead tokens are deleted as for any send.
 
+Failure rules: the slot is claimed before the send, so a crash or restart mid-send can't produce a
+second alert. If FCM refuses the request, or answers but no device accepted the message, the job
+releases its own claim (`last_low_stock_alert_at` back to NULL only if it still holds the job's
+timestamp), so the next crossing alerts again. After a timeout the claim is kept, because FCM may
+still deliver late and a duplicate is worse than a miss. On SIGTERM/SIGINT (`server/src/shutdown.ts`)
+the API stops accepting connections, lets in-flight requests finish, waits for queued alerts
+(`settleLowStockAlerts`), closes the database and exits 0; a second signal or 15 s exits 1. A
+`kill -9` or power loss can still drop an alert that was queued but not yet claimed. That's
+accepted for a convenience alert: Home's low-stock count stays correct either way. `stock` is
+written only by `stockIn` and `stockOut`, and a source-guard test enforces it so a new path can't
+skip the alert.
+
 If the response is lost and the user taps Save again, the same `clientOpId` replays the stored
 response: no second sale, no second stock movement (KZ-11).
 

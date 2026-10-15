@@ -6,6 +6,8 @@ import { log } from './log.js';
 import { checkJwtSecret } from './secrets.js';
 import { parseTrustProxy } from './trustProxy.js';
 import { testSendFromEnv } from './notifications/routes.js';
+import { settleLowStockAlerts } from './notifications/lowStock.js';
+import { gracefulShutdown } from './shutdown.js';
 
 // Fail fast instead of serving 500s on the first authenticated request, and
 // never run production with a guessable signing secret (KZ-29).
@@ -75,3 +77,14 @@ server.on('error', (err: NodeJS.ErrnoException) => {
   log.error(`Kazi API could not start on port ${port}: ${err.message}`);
   process.exit(1);
 });
+
+// Graceful stop: finish requests and queued push alerts, then close the
+// database (shutdown.ts).
+const shutdown = gracefulShutdown({
+  server,
+  settle: settleLowStockAlerts,
+  close: () => db.close(),
+  exit: code => process.exit(code),
+});
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);

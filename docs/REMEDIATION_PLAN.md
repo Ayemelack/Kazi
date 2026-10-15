@@ -487,6 +487,11 @@ Pidgin.
 it red, and log a warning activity). Allow "starting stock" on the create-product form (one
 stock-in movement with reason "Opening stock"). Acceptance: [ ] chosen policy covered by API
 tests; [ ] new product can be created with stock in one step.
+**Constraint from KZ-03:** every stock decrease must keep going through `stockOut` in
+`server/src/items/service.ts`; that is where the low-stock alert (decision D6) is detected and
+queued. If a sale's negative-stock rule needs a new path, reuse `stockOut(…, { allowNegative })`
+rather than writing `UPDATE items SET stock` elsewhere. `notifications/lowStock.test.ts` fails if
+a sale, a manual stock-out or a purchase reversal stops alerting.
 
 ### KZ-24
 **Language code and server sync** — rename `pid` to a valid tag (migration of the stored

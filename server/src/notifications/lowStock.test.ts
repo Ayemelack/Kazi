@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { after, afterEach, before, beforeEach, mock, test } from 'node:test';
 import type { Server } from 'node:http';
 import type Database from 'better-sqlite3';
@@ -19,7 +22,7 @@ import type { PushMessaging } from './service.js';
 // sends one push to the owner's devices, after the write, at most once per
 // item per 12 hours, and a push problem never touches the write.
 
-type Behaviour = 'ok' | 'fail' | 'hang' | 'dead-token';
+type Behaviour = 'ok' | 'fail' | 'hang' | 'dead-token' | 'all-refused';
 
 let behaviour: Behaviour = 'ok';
 let sent: MulticastMessage[] = [];
@@ -34,12 +37,14 @@ const fakeMessaging: PushMessaging = {
       return new Promise<BatchResponse>(() => {});
     }
     const responses = message.tokens.map((token, index) =>
-      behaviour === 'dead-token' && index === 0
-        ? {
-            success: false,
-            error: { code: 'messaging/registration-token-not-registered' },
-          }
-        : { success: true, messageId: `m-${token}` },
+      behaviour === 'all-refused'
+        ? { success: false, error: { code: 'messaging/third-party-auth-error' } }
+        : behaviour === 'dead-token' && index === 0
+          ? {
+              success: false,
+              error: { code: 'messaging/registration-token-not-registered' },
+            }
+          : { success: true, messageId: `m-${token}` },
     ) as BatchResponse['responses'];
     const successCount = responses.filter(r => r.success).length;
     return Promise.resolve({ responses, successCount, failureCount: responses.length - successCount });
@@ -154,6 +159,36 @@ function stockOf(itemId: number): number {
 function lastAlertAt(itemId: number): number | null {
   return (db.prepare('SELECT last_low_stock_alert_at AS at FROM items WHERE id = ?').get(itemId) as { at: number | null }).at;
 }
+
+test('stock is written only by stockIn and stockOut, so every decrease can alert', () => {
+  // The low-stock alert is detected in stockOut. A new path that lowers stock
+  // with its own UPDATE would silently skip it (see REMEDIATION_PLAN KZ-23).
+  const src = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const files = (dir: string): string[] =>
+    fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) return files(full);
+      return entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts') ? [full] : [];
+    });
+  const writes: string[] = [];
+  for (const file of files(src)) {
+    fs.readFileSync(file, 'utf8')
+      .split('\n')
+      .forEach((line, index) => {
+        if (/\bstock\s*=\s*(\?|stock\b|-?\d)/.test(line)) {
+          writes.push(`${path.relative(src, file).split(path.sep).join('/')}:${index + 1}`);
+        }
+      });
+  }
+  const source = fs.readFileSync(path.join(src, 'items', 'service.ts'), 'utf8').split('\n');
+  const owner = (hit: string) => {
+    const line = Number(hit.split(':')[1]);
+    const above = source.slice(0, line).reverse();
+    return above.find(l => /^export function /.test(l))?.match(/^export function (\w+)/)?.[1];
+  };
+  assert.ok(writes.every(hit => hit.startsWith('items/service.ts:')), writes.join(', '));
+  assert.deepEqual(writes.map(owner).sort(), ['stockIn', 'stockOut']);
+});
 
 test('crossesLowStock: only a tracked item going from above the threshold to at or below it', () => {
   const tracked = { track_stock: 1, low_stock_threshold: 3 };
@@ -291,7 +326,7 @@ test('the alert is in the account\'s language', async () => {
   assert.equal(byItem.get(String(wesItem))?.body, 'Garri don finish for stock.');
 });
 
-test('FCM failing does not affect the sale, and is logged without user data', async () => {
+test('FCM failing does not affect the sale, is logged without user data, and frees the slot', async () => {
   behaviour = 'fail';
   const awa = await owner();
   const itemId = await trackedItem(awa, 10, 3);
@@ -306,8 +341,35 @@ test('FCM failing does not affect the sale, and is logged without user data', as
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM transactions WHERE item_id = ?').get(itemId) as { n: number }).n, 1);
   const lines = warn.mock.calls.map(c => c.arguments.join(' '));
   assert.equal(lines.length, 1);
-  assert.match(lines[0] ?? '', new RegExp(`^Low-stock alert for user ${awa.userId} was not delivered: INTERNAL$`));
-  assert.ok(!lines[0]?.includes('Rice') && !lines[0]?.includes('device-'));
+  assert.match(
+    lines[0] ?? '',
+    new RegExp(`^Low-stock alert for user ${awa.userId} was not delivered: messaging/internal-error$`),
+  );
+  assert.ok(!lines[0]?.includes('Rice') && !lines[0]?.includes('device-') && !lines[0]?.includes('FCM unavailable'));
+
+  // Nothing was delivered, so the slot is free: the next crossing alerts.
+  assert.equal(lastAlertAt(itemId), null);
+  behaviour = 'ok';
+  await call('POST', `/items/${itemId}/stock-in`, { quantity: 10 }, awa.token);
+  await sale(awa, itemId, 10);
+  await settleLowStockAlerts();
+  assert.equal(sent.length, 2);
+  assert.ok(lastAlertAt(itemId));
+});
+
+test('when every device is refused the slot is freed and the failure logged', async () => {
+  behaviour = 'all-refused';
+  const awa = await owner();
+  const itemId = await trackedItem(awa, 10, 3);
+  assert.equal((await sale(awa, itemId, 7)).status, 201);
+  await settleLowStockAlerts();
+  assert.equal(sent.length, 1);
+  assert.equal(lastAlertAt(itemId), null);
+  assert.equal(
+    warn.mock.calls.map(c => c.arguments.join(' '))[0],
+    `Low-stock alert for user ${awa.userId} was not delivered: no-device-accepted`,
+  );
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM push_tokens WHERE user_id = ?').get(awa.userId) as { n: number }).n, 2, 'not dead tokens: kept');
 });
 
 test('a hanging FCM never delays the sale; the push gives up after its timeout', async () => {
@@ -322,11 +384,16 @@ test('a hanging FCM never delays the sale; the push gives up after its timeout',
   assert.ok(elapsed < 2_000, `sale took ${Math.round(elapsed)} ms`);
   assert.equal(stockOf(itemId), 3);
 
-  // The queued alert times out after 5 seconds and is logged.
+  // The queued alert times out after 5 seconds and is logged. FCM may still
+  // deliver it, so the slot stays claimed: no second alert within 12 hours.
   const settledAt = performance.now();
   await settleLowStockAlerts();
   assert.ok(performance.now() - settledAt >= 4_000, 'the alert waited for its timeout');
-  assert.equal(warn.mock.callCount(), 1);
+  assert.deepEqual(
+    warn.mock.calls.map(c => c.arguments.join(' ')),
+    [`Low-stock alert for user ${awa.userId} was not delivered: timeout`],
+  );
+  assert.ok(lastAlertAt(itemId));
 });
 
 test('sendLowStockAlert rejects when FCM does not answer within the timeout', async () => {
@@ -334,7 +401,8 @@ test('sendLowStockAlert rejects when FCM does not answer within the timeout', as
   const awa = await owner();
   const itemId = await trackedItem(awa, 10, 3);
   db.prepare('UPDATE items SET stock = 1 WHERE id = ?').run(itemId);
-  await assert.rejects(sendLowStockAlert(db, awa.userId, itemId, Date.now(), 50), { code: 'INTERNAL' });
+  await assert.rejects(sendLowStockAlert(db, awa.userId, itemId, Date.now(), 50), { name: 'PushTimeoutError' });
+  assert.ok(lastAlertAt(itemId), 'a timed-out alert keeps its slot');
 });
 
 test('a crossing inside a transaction that rolls back sends nothing', async () => {

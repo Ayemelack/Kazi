@@ -64,6 +64,9 @@ EnvironmentFile=/etc/kazi/api.env
 ExecStart=/usr/bin/node dist/index.js
 Restart=always
 RestartSec=3
+# SIGTERM: finish requests and queued push alerts, close the DB (≤ 15 s).
+KillSignal=SIGTERM
+TimeoutStopSec=30
 NoNewPrivileges=true
 ProtectSystem=strict
 ReadWritePaths=/opt/kazi/server/data
@@ -330,6 +333,13 @@ a Mac with Xcode, an iPhone and an Android phone. One Firebase project per envir
      build shows the missing-plist warning, the app launches and works, no permission prompt,
      and the device log shows `[Kazi] Firebase is not configured for this build`.
    Record both in the tracker update log and tick the KZ-02 criteria.
+
+   **Before you have a Mac:** GitHub Actions → CI → Run workflow runs the `ios-build` job on a
+   macOS runner. It runs `pod install`, makes an unsigned Release simulator build, launches the
+   app with no `GoogleService-Info.plist`, and fails unless the app is still running 30 s later
+   and logged `Firebase is not configured for this build`. That covers the simulator half of the
+   launch criteria. Commit the `Podfile.lock` and project changes from a local `pod install` once
+   a Mac is available; the job doesn't push anything back.
 8. **Android placeholder check.** With the committed placeholder `google-services.json` (project
    id `kazi-notifications-placeholder`), the app treats push as disabled: no notification
    permission prompt, no FCM token request (native auto-init is off in `firebase.json`; the app

@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LifeBuoy, Mail, MessageCircle } from 'lucide-react-native';
@@ -11,8 +11,14 @@ import { colors, radius, spacing, typography } from '../../theme';
 
 type ScreenProps = NativeStackScreenProps<MoreStackParamList, 'Support'>;
 
+const SUPPORT_EMAIL = 'support@kazi.app';
+
 function SupportScreen({ navigation }: ScreenProps) {
   const { t } = useTranslation();
+
+  const openEmail = () => {
+    Linking.openURL(`mailto:${SUPPORT_EMAIL}`).catch(() => {});
+  };
 
   return (
     <Screen scroll>
@@ -36,13 +42,19 @@ function SupportScreen({ navigation }: ScreenProps) {
         </Card>
 
         <Card>
-          <View style={styles.contactRow}>
+          <Pressable
+            testID="support-email"
+            accessibilityRole="link"
+            accessibilityLabel={`${t('support.email')}: ${SUPPORT_EMAIL}`}
+            onPress={openEmail}
+            style={({ pressed }) => [styles.contactRow, pressed && styles.rowPressed]}
+          >
             <View style={styles.contactIcon}>
               <Mail size={18} color={colors.primaryDark} />
             </View>
             <Text style={styles.contactLabel}>{t('support.email')}</Text>
-            <Text style={styles.contactValue}>support@kazi.app</Text>
-          </View>
+            <Text style={[styles.contactValue, styles.contactLink]}>{SUPPORT_EMAIL}</Text>
+          </Pressable>
           <View style={styles.divider} />
           <View style={styles.contactRow}>
             <View style={styles.contactIcon}>
@@ -117,6 +129,13 @@ const styles = StyleSheet.create({
   contactValue: {
     ...typography.heading,
     color: colors.textPrimary,
+  },
+  contactLink: {
+    color: colors.primary,
+    textDecorationLine: 'underline',
+  },
+  rowPressed: {
+    opacity: 0.6,
   },
   divider: {
     height: 1,

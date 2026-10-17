@@ -51,6 +51,11 @@ jest.mock('react-native-keychain', () => {
       return true;
     }),
     getSupportedBiometryType: jest.fn(async () => null),
+    __reset: () => {
+      Object.keys(store).forEach(key => {
+        delete store[key];
+      });
+    },
   };
 });
 

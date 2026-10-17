@@ -7,7 +7,7 @@ module.exports = {
   setupFiles: ['./jest.setup.js'],
   // KZ-30: preload React Native's lazily required modules outside any test's
   // timeout, and unmount rendered trees after each test so their timers stop.
-  setupFilesAfterEnv: ['./jest/preloadReactNative.js', './jest/unmountAfterEach.js'],
+  setupFilesAfterEnv: ['./jest/resetKeychainStore.js', './jest/preloadReactNative.js', './jest/unmountAfterEach.js'],
   // Headroom for slow, loaded machines; a cold transform cache no longer lands
   // inside a test (see jest/preloadReactNative.js).
   testTimeout: 30000,

@@ -8,6 +8,7 @@ import {
   FileText,
   HeartHandshake,
   LifeBuoy,
+  Lock,
   LogOut,
   ShieldCheck,
   Trash2,
@@ -48,6 +49,7 @@ const MENU_ITEMS: {
   { key: 'feedback', labelKey: 'more.feedback', icon: HeartHandshake, iconColor: colors.primaryDark, iconBg: colors.primarySoft, screen: 'Feedback' },
   { key: 'support', labelKey: 'more.support', icon: LifeBuoy, iconColor: colors.primaryDark, iconBg: colors.primarySoft, screen: 'Support' },
   { key: 'privacy', labelKey: 'more.privacy', icon: ShieldCheck, iconColor: colors.primaryDark, iconBg: colors.primarySoft, screen: 'Privacy' },
+  { key: 'applock', labelKey: 'more.appLock', icon: Lock, iconColor: colors.primaryDark, iconBg: colors.primarySoft, screen: 'AppLock' },
   { key: 'terms', labelKey: 'more.terms', icon: FileText, iconColor: colors.primaryDark, iconBg: colors.primarySoft, screen: 'Terms' },
   { key: 'delete', labelKey: 'more.deleteAccount', icon: Trash2, iconColor: colors.error, iconBg: colors.errorSoft, screen: 'DeleteAccount' },
 ];

@@ -14,12 +14,45 @@ jest.mock('react-native-localize', () => ({
   findBestAvailableLanguage: () => ({ languageTag: 'en-US', isRTL: false }),
 }));
 
-jest.mock('react-native-keychain', () => ({
-  ACCESSIBLE: { WHEN_UNLOCKED_THIS_DEVICE_ONLY: '1' },
-  setGenericPassword: jest.fn(async () => ({ service: 'kazi', storage: 'keychain' })),
-  getGenericPassword: jest.fn(async () => false),
-  resetGenericPassword: jest.fn(async () => true),
-}));
+jest.mock('react-native-keychain', () => {
+  const store = {};
+  return {
+    ACCESSIBLE: { WHEN_UNLOCKED_THIS_DEVICE_ONLY: '1' },
+    ACCESS_CONTROL: {
+      BIOMETRY_ANY: 'BiometryAny',
+      BIOMETRY_CURRENT_SET: 'BiometryCurrentSet',
+      DEVICE_PASSCODE: 'DevicePasscode',
+    },
+    AUTHENTICATION_TYPE: {
+      BIOMETRICS: 'AuthenticationWithBiometrics',
+      DEVICE_PASSCODE_OR_BIOMETRICS: 'AuthenticationWithDevicePasscode',
+    },
+    BIOMETRY_TYPE: {
+      TOUCH_ID: 'TouchId',
+      FACE_ID: 'FaceId',
+      FINGERPRINT: 'Fingerprint',
+      FACE: 'Face',
+      IRIS: 'Iris',
+      OPTIC_ID: 'OpticId',
+    },
+    setGenericPassword: jest.fn(async (username, password, options = {}) => {
+      store[options.service || 'default'] = { username, password };
+      return { service: options.service || 'default', storage: 'keychain' };
+    }),
+    getGenericPassword: jest.fn(async (options = {}) => {
+      const entry = store[options.service || 'default'];
+      return entry ? { ...entry, service: options.service || 'default', storage: 'keychain' } : false;
+    }),
+    hasGenericPassword: jest.fn(async (options = {}) =>
+      Boolean(store[options.service || 'default']),
+    ),
+    resetGenericPassword: jest.fn(async (options = {}) => {
+      delete store[options.service || 'default'];
+      return true;
+    }),
+    getSupportedBiometryType: jest.fn(async () => null),
+  };
+});
 
 jest.mock('@react-native-async-storage/async-storage', () => {
   const store = {};

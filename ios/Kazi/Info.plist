@@ -34,6 +34,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Kazi uses Face ID to unlock the app when App Lock is turned on.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Kazi uses your photos to add a picture to your products and services.</string>
 	<key>UIBackgroundModes</key>

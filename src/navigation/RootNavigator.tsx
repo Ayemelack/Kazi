@@ -1,4 +1,5 @@
 import React from 'react';
+import { StyleSheet, View } from 'react-native';
 import {
   NavigationContainer,
   DefaultTheme,
@@ -33,6 +34,9 @@ import SupportScreen from '../screens/more/SupportScreen';
 import PrivacyScreen from '../screens/more/PrivacyScreen';
 import TermsScreen from '../screens/more/TermsScreen';
 import DeleteAccountScreen from '../screens/more/DeleteAccountScreen';
+import AppLockScreen from '../screens/more/AppLockScreen';
+import AppLockUnlockScreen from '../screens/applock/AppLockUnlockScreen';
+import { AppLockProvider, useAppLock } from '../applock/AppLockContext';
 import { colors } from '../theme';
 import type { TransactionCorrection } from '../transactions/types';
 
@@ -80,6 +84,7 @@ export type MoreStackParamList = {
   MoreHome: undefined;
   MyBusiness: undefined;
   Reminder: undefined;
+  AppLock: undefined;
   Feedback: undefined;
   Support: undefined;
   Privacy: undefined;
@@ -150,6 +155,7 @@ function MoreNavigator() {
       <MoreStackNav.Screen name="MoreHome" component={MoreScreen} />
       <MoreStackNav.Screen name="MyBusiness" component={MyBusinessScreen} />
       <MoreStackNav.Screen name="Reminder" component={ReminderScreen} />
+      <MoreStackNav.Screen name="AppLock" component={AppLockScreen} />
       <MoreStackNav.Screen name="Feedback" component={FeedbackScreen} />
       <MoreStackNav.Screen name="Support" component={SupportScreen} />
       <MoreStackNav.Screen name="Privacy" component={PrivacyScreen} />
@@ -226,6 +232,21 @@ function AuthFlow() {
   );
 }
 
+function AppLockGate() {
+  const { ready, enabled, locked } = useAppLock();
+  const { status } = useAuth();
+
+  if (!ready || status !== 'authenticated' || !enabled || !locked) {
+    return null;
+  }
+
+  return (
+    <View style={styles.lockOverlay} testID="applock-overlay">
+      <AppLockUnlockScreen />
+    </View>
+  );
+}
+
 function RootNavigator() {
   const { status } = useAuth();
 
@@ -234,10 +255,29 @@ function RootNavigator() {
   }
 
   return (
-    <NavigationContainer theme={navigationTheme}>
-      {status === 'authenticated' ? <AppStack /> : <AuthFlow />}
-    </NavigationContainer>
+    <AppLockProvider>
+      <View style={styles.root}>
+        <NavigationContainer theme={navigationTheme}>
+          {status === 'authenticated' ? <AppStack /> : <AuthFlow />}
+        </NavigationContainer>
+        <AppLockGate />
+      </View>
+    </AppLockProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  lockOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.background,
+  },
+});
 
 export default RootNavigator;

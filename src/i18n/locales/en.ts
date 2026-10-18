@@ -362,6 +362,8 @@ const en = {
     saveError: 'Could not update your reminder. Please try again.',
     notificationTitle: 'Kazi reminder',
     notificationBody: "Have you recorded today's business transactions?",
+    notificationSummary: '{{date}}: received {{received}}, spent {{spent}}',
+    notificationDebts: 'Money owed to you: {{amount}}',
   },
   notifications: {
     pushLabel: 'Push notifications',

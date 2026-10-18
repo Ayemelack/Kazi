@@ -21,6 +21,7 @@ import {
   type ReminderSettings,
 } from '../../notifications/reminder';
 import { requestNotificationPermission } from '../../notifications/service';
+import { buildDailyReminderContent } from '../../notifications/reminderContent';
 import type { MoreStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 
@@ -41,13 +42,7 @@ export default function ReminderScreen({ navigation }: ScreenProps) {
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const content = useCallback(
-    () => ({
-      title: t('reminder.notificationTitle'),
-      body: t('reminder.notificationBody'),
-    }),
-    [t],
-  );
+  const content = useCallback(() => buildDailyReminderContent(t), [t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,25 +51,23 @@ export default function ReminderScreen({ navigation }: ScreenProps) {
       if (cancelled) return;
       setSettings(loaded);
       if (loaded.enabled) {
-        // Keep the saved reminder in sync with the current time/language.
-        await applyDailyReminder(loaded, {
-          title: t('reminder.notificationTitle'),
-          body: t('reminder.notificationBody'),
-        }).catch(() => {});
+        // Keep the saved reminder in sync with the current time, language and
+        // the latest figures the API gave us.
+        await applyDailyReminder(loaded, await content()).catch(() => {});
       }
       if (!cancelled) setReady(true);
     })();
     return () => {
       cancelled = true;
     };
-  }, [t]);
+  }, [content]);
 
   const persist = useCallback(
     async (next: ReminderSettings) => {
       setSettings(next);
       setSaving(true);
       try {
-        await applyDailyReminder(next, content());
+        await applyDailyReminder(next, await content());
       } catch {
         toast.show('error', t('reminder.saveError'));
       } finally {

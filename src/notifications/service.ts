@@ -17,6 +17,7 @@ import { KAZI_PUSH_CHANNEL_ID, parsePushData, type ParsedPush } from '@kazi/shar
 import { apiRequest } from '../api/client';
 import { pushMessaging, withPushMessaging } from './firebase';
 import { handlePushOpened } from './pushNavigation';
+import { refreshDailyReminder } from './reminder';
 
 // The same channel the API names in every push (shared contract).
 const KAZI_CHANNEL_ID = KAZI_PUSH_CHANNEL_ID;
@@ -213,6 +214,10 @@ export function setupBackgroundHandler(): void {
           channelId: KAZI_CHANNEL_ID,
           importance: AndroidImportance.HIGH,
           pressAction: { id: 'default' },
+          // Android hides the time unless asked to show it. `when` stays the
+          // default (the moment the push was displayed), so the time a user
+          // sees is the genuine delivery time, never a schedule or a constant.
+          showTimestamp: true,
         },
       });
     }),
@@ -238,6 +243,7 @@ export function setupForegroundMessageListener(): void {
           channelId: KAZI_CHANNEL_ID,
           importance: AndroidImportance.HIGH,
           pressAction: { id: 'default' },
+          showTimestamp: true,
         },
       });
     }),
@@ -245,6 +251,9 @@ export function setupForegroundMessageListener(): void {
 }
 
 export async function initializeNotifications(): Promise<void> {
+  // The daily reminder is local, so its content is refreshed even in a build
+  // where push is not configured. Failures must never stop the rest of setup.
+  await refreshDailyReminder().catch(() => {});
   // Without Firebase there is nothing to deliver, so don't ask for permission.
   if (!pushMessaging()) {
     return;

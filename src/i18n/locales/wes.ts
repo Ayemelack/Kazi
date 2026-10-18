@@ -372,6 +372,8 @@ const wes: TranslationSchema = {
     saveError: 'We no fit update your reminder. Please try again.',
     notificationTitle: 'Kazi reminder',
     notificationBody: "You don record today's business transactions?",
+    notificationSummary: '{{date}}: you receive {{received}}, you spend {{spent}}',
+    notificationDebts: 'Money wey people owe you: {{amount}}',
   },
   notifications: {
     pushLabel: 'Push notifications',

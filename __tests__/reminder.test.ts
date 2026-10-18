@@ -6,7 +6,22 @@ import {
   loadReminderSettings,
   nextReminderDate,
   normalizeReminderSettings,
+  refreshDailyReminder,
+  saveReminderSettings,
 } from '../src/notifications/reminder';
+
+// Refreshing composes fresh content from the API; these tests only care about
+// how that content is scheduled, so both requests stay offline.
+jest.mock('../src/summary/api', () => ({
+  fetchSummary: jest.fn(async () => {
+    throw new Error('offline');
+  }),
+}));
+jest.mock('../src/debts/api', () => ({
+  listDebts: jest.fn(async () => {
+    throw new Error('offline');
+  }),
+}));
 
 const CONTENT = { title: 'Kazi reminder', body: 'Have you recorded?' };
 
@@ -79,5 +94,42 @@ describe('applyDailyReminder', () => {
 
     expect(notifee.cancelNotification).toHaveBeenCalledWith(REMINDER_NOTIFICATION_ID);
     expect(notifee.createTriggerNotification).not.toHaveBeenCalled();
+  });
+
+  it('shows the genuine post time, never the scheduled trigger time', async () => {
+    const before = Date.now();
+    await applyDailyReminder({ enabled: true, hour: 18, minute: 30 }, CONTENT);
+
+    const [notification, trigger] = (notifee.createTriggerNotification as jest.Mock).mock
+      .calls[0];
+    expect(notification.android.showTimestamp).toBe(true);
+    expect(notification.android.timestamp).toBeUndefined();
+    expect(trigger.timestamp).toBeGreaterThanOrEqual(before);
+  });
+});
+
+describe('refreshDailyReminder', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    await saveReminderSettings(DEFAULT_REMINDER_SETTINGS);
+  });
+
+  it('leaves a disabled reminder alone', async () => {
+    await refreshDailyReminder();
+
+    expect(notifee.createTriggerNotification).not.toHaveBeenCalled();
+    expect(notifee.cancelNotification).not.toHaveBeenCalled();
+  });
+
+  it('reschedules an enabled reminder with freshly composed content', async () => {
+    await saveReminderSettings({ enabled: true, hour: 8, minute: 15 });
+
+    await refreshDailyReminder();
+
+    expect(notifee.createTriggerNotification).toHaveBeenCalledTimes(1);
+    const [notification] = (notifee.createTriggerNotification as jest.Mock).mock.calls[0];
+    expect(notification.id).toBe(REMINDER_NOTIFICATION_ID);
+    expect(notification.title).toBe('Kazi reminder');
+    expect(notification.body).toContain("Have you recorded today's business transactions?");
   });
 });

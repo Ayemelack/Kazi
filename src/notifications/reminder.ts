@@ -8,6 +8,7 @@ import {
   KAZI_NOTIFICATION_CHANNEL,
   ensureNotificationChannel,
 } from './service';
+import { buildDailyReminderContent } from './reminderContent';
 
 export const REMINDER_STORAGE_KEY = 'kazi.dailyReminder';
 export const REMINDER_NOTIFICATION_ID = 'kazi-daily-reminder';
@@ -93,6 +94,10 @@ export async function scheduleDailyReminder(
         channelId: KAZI_NOTIFICATION_CHANNEL,
         importance: AndroidImportance.HIGH,
         pressAction: { id: 'default' },
+        // Show when the reminder was actually posted. `android.timestamp` is
+        // deliberately left unset: it would freeze the schedule time and show
+        // it as if it were the delivery time.
+        showTimestamp: true,
       },
     },
     {
@@ -114,4 +119,15 @@ export async function applyDailyReminder(
   } else {
     await cancelDailyReminder();
   }
+}
+
+// Re-schedules an enabled reminder with freshly composed content. The OS
+// repeats the notification it was given, so without this the figures would
+// stay as old as the last time the user opened the Reminder screen.
+export async function refreshDailyReminder(): Promise<void> {
+  const settings = await loadReminderSettings();
+  if (!settings.enabled) {
+    return;
+  }
+  await applyDailyReminder(settings, await buildDailyReminderContent());
 }

@@ -364,6 +364,8 @@ const fr: TranslationSchema = {
     saveError: 'Impossible de mettre à jour votre rappel. Veuillez réessayer.',
     notificationTitle: 'Rappel Kazi',
     notificationBody: "Avez-vous enregistré les transactions de votre journée ?",
+    notificationSummary: '{{date}} : reçu {{received}}, dépensé {{spent}}',
+    notificationDebts: 'Argent qu’on vous doit : {{amount}}',
   },
   notifications: {
     pushLabel: 'Notifications push',

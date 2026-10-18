@@ -283,6 +283,7 @@ const en = {
   more: {
     myBusiness: 'My business',
     reminder: 'Daily reminder',
+    notifications: 'Notifications',
     appLock: 'App Lock',
     feedback: 'Feedback',
     support: 'Contact support',
@@ -361,6 +362,16 @@ const en = {
     saveError: 'Could not update your reminder. Please try again.',
     notificationTitle: 'Kazi reminder',
     notificationBody: "Have you recorded today's business transactions?",
+  },
+  notifications: {
+    pushLabel: 'Push notifications',
+    pushDescription: 'Get low-stock alerts and other messages from Kazi on this account.',
+    saved: 'Push notifications updated.',
+    historyTitle: 'Notification history',
+    emptyTitle: 'No notifications yet',
+    emptyMessage: 'Messages Kazi sends you will appear here.',
+    markAllRead: 'Mark all as read',
+    markedRead: 'All notifications marked as read.',
   },
   feedback: {
     title: 'Help us improve Kazi',
@@ -491,6 +502,7 @@ const en = {
       asOf: 'Date',
       limit: 'Page size',
       offset: 'Page',
+      pushNotifications: 'Push notifications',
     },
   },
   auth: {

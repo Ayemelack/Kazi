@@ -285,6 +285,7 @@ const fr: TranslationSchema = {
   more: {
     myBusiness: 'Mon entreprise',
     reminder: 'Rappel quotidien',
+    notifications: 'Notifications',
     appLock: 'Verrouillage de l’application',
     feedback: 'Votre avis',
     support: 'Contacter l’assistance',
@@ -363,6 +364,17 @@ const fr: TranslationSchema = {
     saveError: 'Impossible de mettre à jour votre rappel. Veuillez réessayer.',
     notificationTitle: 'Rappel Kazi',
     notificationBody: "Avez-vous enregistré les transactions de votre journée ?",
+  },
+  notifications: {
+    pushLabel: 'Notifications push',
+    pushDescription:
+      'Recevez les alertes de stock bas et les autres messages de Kazi sur ce compte.',
+    saved: 'Notifications push mises à jour.',
+    historyTitle: 'Historique des notifications',
+    emptyTitle: 'Aucune notification',
+    emptyMessage: 'Les messages que Kazi vous envoie apparaîtront ici.',
+    markAllRead: 'Tout marquer comme lu',
+    markedRead: 'Toutes les notifications ont été marquées comme lues.',
   },
   feedback: {
     title: 'Aidez-nous à améliorer Kazi',
@@ -494,6 +506,7 @@ const fr: TranslationSchema = {
       asOf: 'Date',
       limit: 'Taille de page',
       offset: 'Page',
+      pushNotifications: 'Notifications push',
     },
   },
   auth: {

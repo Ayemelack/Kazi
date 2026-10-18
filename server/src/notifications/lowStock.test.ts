@@ -454,3 +454,28 @@ test('a dead token reported by FCM is removed when an alert is sent', async () =
   assert.equal(remaining.length, 1);
   assert.notEqual(remaining[0]?.token, dead);
 });
+
+test('an account that turned pushes off gets no alert and the 12-hour slot is not used', async () => {
+  const awa = await owner();
+  const itemId = await trackedItem(awa, 10, 3);
+  db.prepare('UPDATE users SET push_notifications = 0 WHERE id = ?').run(awa.userId);
+
+  assert.equal(await sendLowStockAlert(db, awa.userId, itemId), 'opted-out');
+  assert.equal(lastAlertAt(itemId), null, 'a skipped alert never claims the slot');
+  assert.equal(sent.length, 0);
+
+  // The same crossing driven by a real sale behaves identically.
+  assert.equal((await sale(awa, itemId, 7)).status, 201);
+  await settleLowStockAlerts();
+  assert.equal(sent.length, 0);
+  assert.equal(lastAlertAt(itemId), null);
+
+  // Turning pushes back on: the next crossing alerts, so the opt-out period
+  // did not quietly use up the 12-hour slot.
+  db.prepare('UPDATE users SET push_notifications = 1 WHERE id = ?').run(awa.userId);
+  assert.equal((await call('POST', `/items/${itemId}/stock-in`, { quantity: 5 }, awa.token)).status, 200);
+  assert.equal((await sale(awa, itemId, 5)).status, 201);
+  await settleLowStockAlerts();
+  assert.equal(sent.length, 1);
+  assert.ok(lastAlertAt(itemId));
+});

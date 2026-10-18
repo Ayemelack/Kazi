@@ -293,6 +293,7 @@ const wes: TranslationSchema = {
   more: {
     myBusiness: 'My business',
     reminder: 'Daily reminder',
+    notifications: 'Notifications',
     appLock: 'App Lock',
     feedback: 'Feedback',
     support: 'Contact support',
@@ -371,6 +372,16 @@ const wes: TranslationSchema = {
     saveError: 'We no fit update your reminder. Please try again.',
     notificationTitle: 'Kazi reminder',
     notificationBody: "You don record today's business transactions?",
+  },
+  notifications: {
+    pushLabel: 'Push notifications',
+    pushDescription: 'Make low stock alert and other message wey Kazi send reach this account.',
+    saved: 'Push notifications don update.',
+    historyTitle: 'Notification history',
+    emptyTitle: 'No notification yet',
+    emptyMessage: 'The message wey Kazi send you go show for here.',
+    markAllRead: 'Mark all as read',
+    markedRead: 'All notifications don mark as read.',
   },
   feedback: {
     title: 'Help us make Kazi better',
@@ -504,6 +515,7 @@ const wes: TranslationSchema = {
       asOf: 'Date',
       limit: 'Page size',
       offset: 'Page',
+      pushNotifications: 'Push notifications',
     },
   },
   auth: {

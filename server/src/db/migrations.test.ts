@@ -101,6 +101,7 @@ test('fresh database: baseline applied once, full schema, foreign keys on and cl
     'activity',
     'feedback',
     'client_ops',
+    'user_notifications',
     'schema_migrations',
   ]) {
     assert.ok(tables.includes(table), `missing table ${table}`);

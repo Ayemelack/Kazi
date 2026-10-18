@@ -2,12 +2,16 @@ import { Router, type RequestHandler } from 'express';
 import type Database from 'better-sqlite3';
 import { rateLimit } from '../middleware/rateLimit.js';
 import { requireAuth } from '../middleware/auth.js';
+import { listNotifications, markAllRead, unreadCount } from './history.js';
+import { getPushPreferences, setPushPreferences } from './preferences.js';
 import {
   registerPushToken,
   sendNotificationToUser,
   unregisterPushToken,
 } from './service.js';
 import {
+  listNotificationsSchema,
+  pushPreferencesSchema,
   registerPushTokenSchema,
   sendNotificationSchema,
   unregisterPushTokenSchema,
@@ -51,6 +55,51 @@ export function createNotificationsRouter(
       const input = validate(unregisterPushTokenSchema, req.body);
       unregisterPushToken(db, req.user?.id ?? 0, input.token);
       res.status(204).send();
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // One switch per account: whether Kazi may push to it at all (decision C1).
+  // deliverPush and the low-stock alert both read it before calling FCM.
+  router.get('/preferences', (req, res, next) => {
+    try {
+      res.status(200).json(getPushPreferences(db, req.user?.id ?? 0));
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.put('/preferences', (req, res, next) => {
+    try {
+      const input = validate(pushPreferencesSchema, req.body);
+      res.status(200).json(setPushPreferences(db, req.user?.id ?? 0, input.pushNotifications));
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // What at least one device actually accepted (decision C2), newest first.
+  router.get('/history', (req, res, next) => {
+    try {
+      const { limit } = validate(listNotificationsSchema, req.query);
+      res.status(200).json({ notifications: listNotifications(db, req.user?.id ?? 0, limit) });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.get('/unread-count', (req, res, next) => {
+    try {
+      res.status(200).json({ unread: unreadCount(db, req.user?.id ?? 0) });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post('/read-all', (req, res, next) => {
+    try {
+      res.status(200).json({ updated: markAllRead(db, req.user?.id ?? 0) });
     } catch (err) {
       next(err);
     }

@@ -50,7 +50,8 @@ test('a missing or unparseable item id degrades to null, not a failure', () => {
   assert.equal(parsePushData({ ...lowStockWire, itemId: '12.5' })?.itemId, null);
   assert.equal(parsePushData({ ...lowStockWire, itemId: '-3' })?.itemId, null);
   assert.equal(parsePushData({ ...lowStockWire, itemId: 'abc' })?.itemId, null);
-  const { itemId: _itemId, ...withoutItem } = lowStockWire;
+  const { itemId, ...withoutItem } = lowStockWire;
+  assert.equal(itemId, '42');
   assert.equal(parsePushData(withoutItem)?.itemId, null);
 });
 

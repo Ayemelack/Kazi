@@ -3,6 +3,8 @@ import type { BatchResponse, MulticastMessage } from 'firebase-admin/messaging';
 import { KAZI_PUSH_CHANNEL_ID, type PushDataExtras } from '@kazi/shared';
 import { AppError } from '../errors.js';
 import { firebaseMessaging } from './firebase.js';
+import { recordNotification } from './history.js';
+import { pushNotificationsAllowed } from './preferences.js';
 import type { RegisterPushTokenInput, SendNotificationInput } from './validation.js';
 
 export const KAZI_PUSH_CHANNEL = KAZI_PUSH_CHANNEL_ID;
@@ -144,6 +146,11 @@ export class PushTimeoutError extends Error {
  * Sends a push and reports what happened: an AppError when push isn't
  * configured, PushTimeoutError on a timeout, FCM's own error when it refuses
  * the request. The route-facing sendNotificationToUser hides the last two.
+ *
+ * An account with push notifications turned off (More > Notifications) is
+ * never sent to: nothing is read from FCM's side of the call, so the result
+ * is a clean zero rather than a failure. What at least one device accepted is
+ * remembered in the account's notification history.
  */
 export async function deliverPush(
   db: Database.Database,
@@ -151,6 +158,10 @@ export async function deliverPush(
   input: PushContent,
   timeoutMs = PUSH_TIMEOUT_MS,
 ): Promise<PushSendResult> {
+  if (!pushNotificationsAllowed(db, userId)) {
+    return { sent: 0, failed: 0, removedUnregisteredTokens: 0 };
+  }
+
   const rows = db
     .prepare('SELECT id, token FROM push_tokens WHERE user_id = ?')
     .all(userId) as unknown as { id: number; token: string }[];
@@ -181,6 +192,15 @@ export async function deliverPush(
     }
   });
 
+  if (response.successCount > 0) {
+    recordNotification(db, userId, {
+      title: input.title,
+      body: input.body,
+      type: input.data?.type ?? null,
+      itemId: historyItemId(input.data?.itemId),
+    });
+  }
+
   return {
     sent: response.successCount,
     failed: response.failureCount,
@@ -206,6 +226,15 @@ export async function sendNotificationToUser(
 
 function isUnregisteredError(code?: string): boolean {
   return UNREGISTERED_ERROR_CODES.has(code ?? '');
+}
+
+// The item a push names, as history wants it: a positive integer or null.
+function historyItemId(itemId: string | undefined): number | null {
+  if (itemId === undefined) {
+    return null;
+  }
+  const parsed = Number(itemId);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 /**

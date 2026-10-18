@@ -29,6 +29,7 @@ import DebtsScreen from '../screens/debts/DebtsScreen';
 import DebtFormScreen from '../screens/debts/DebtFormScreen';
 import MyBusinessScreen from '../screens/more/MyBusinessScreen';
 import ReminderScreen from '../screens/more/ReminderScreen';
+import NotificationsScreen from '../screens/more/NotificationsScreen';
 import FeedbackScreen from '../screens/more/FeedbackScreen';
 import SupportScreen from '../screens/more/SupportScreen';
 import PrivacyScreen from '../screens/more/PrivacyScreen';
@@ -87,6 +88,7 @@ export type MoreStackParamList = {
   MoreHome: undefined;
   MyBusiness: undefined;
   Reminder: undefined;
+  Notifications: undefined;
   AppLock: undefined;
   Feedback: undefined;
   Support: undefined;
@@ -158,6 +160,7 @@ function MoreNavigator() {
       <MoreStackNav.Screen name="MoreHome" component={MoreScreen} />
       <MoreStackNav.Screen name="MyBusiness" component={MyBusinessScreen} />
       <MoreStackNav.Screen name="Reminder" component={ReminderScreen} />
+      <MoreStackNav.Screen name="Notifications" component={NotificationsScreen} />
       <MoreStackNav.Screen name="AppLock" component={AppLockScreen} />
       <MoreStackNav.Screen name="Feedback" component={FeedbackScreen} />
       <MoreStackNav.Screen name="Support" component={SupportScreen} />

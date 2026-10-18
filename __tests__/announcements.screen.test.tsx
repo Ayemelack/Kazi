@@ -5,6 +5,7 @@ import MoreScreen from '../src/screens/more/MoreScreen';
 import { ToastProvider } from '../src/components/ui/Toast';
 import { AuthProvider } from '../src/auth/AuthContext';
 import { fetchActiveAnnouncement } from '../src/announcements/api';
+import { fetchUnreadCount } from '../src/notifications/api';
 import { getDismissedAnnouncementId, setDismissedAnnouncementId } from '../src/announcements/storage';
 import type { Announcement } from '../src/announcements/types';
 
@@ -12,6 +13,10 @@ jest.setTimeout(20000);
 
 jest.mock('../src/announcements/api', () => ({
   fetchActiveAnnouncement: jest.fn(),
+}));
+
+jest.mock('../src/notifications/api', () => ({
+  fetchUnreadCount: jest.fn(async () => ({ unread: 0 })),
 }));
 
 jest.mock('react-native-safe-area-context', () => {
@@ -32,7 +37,12 @@ jest.mock('react-native-safe-area-context', () => {
   };
 });
 
-const navigation = { goBack: jest.fn(), navigate: jest.fn() } as never;
+const navigation = {
+  goBack: jest.fn(),
+  navigate: jest.fn(),
+  // MoreScreen refreshes its unread badge whenever it is focused again.
+  addListener: jest.fn(() => () => {}),
+} as never;
 
 async function flush(): Promise<void> {
   for (let i = 0; i < 6; i += 1) {
@@ -117,5 +127,25 @@ describe('MoreScreen announcements', () => {
     const renderer = await renderScreen();
     expect(renderer.root.findAllByProps({ testID: 'announcement-body' })).toHaveLength(0);
     expect(renderer.root.findByProps({ testID: 'more-reminder' })).toBeTruthy();
+  });
+
+  it('shows the unread count on the Notifications row', async () => {
+    (fetchUnreadCount as jest.Mock).mockResolvedValue({ unread: 3 });
+    const renderer = await renderScreen();
+    expect(renderer.root.findByProps({ testID: 'notifications-badge' })).toBeTruthy();
+    expect(renderer.root.findByProps({ children: '3' })).toBeTruthy();
+  });
+
+  it('shows no badge when everything has been read', async () => {
+    (fetchUnreadCount as jest.Mock).mockResolvedValue({ unread: 0 });
+    const renderer = await renderScreen();
+    expect(renderer.root.findAllByProps({ testID: 'notifications-badge' })).toHaveLength(0);
+  });
+
+  it('leaves the row alone when the unread count cannot be fetched', async () => {
+    (fetchUnreadCount as jest.Mock).mockRejectedValue(new Error('offline'));
+    const renderer = await renderScreen();
+    expect(renderer.root.findAllByProps({ testID: 'notifications-badge' })).toHaveLength(0);
+    expect(renderer.root.findByProps({ testID: 'more-notifications' })).toBeTruthy();
   });
 });

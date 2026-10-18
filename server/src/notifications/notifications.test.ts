@@ -267,3 +267,211 @@ test('tokens FCM reports as dead are removed after a send; live ones stay', asyn
     assert.deepEqual(left, ['flaky-token', 'live-token']);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Push preferences (decision C1): one switch per account, off = nothing sent.
+// ---------------------------------------------------------------------------
+
+test('push preferences default to on, save, and are validated', async () => {
+  const fresh = await call('GET', '/notifications/preferences', undefined, awaToken);
+  assert.equal(fresh.status, 200);
+  assert.deepEqual(fresh.data, { pushNotifications: true });
+
+  const saved = await call(
+    'PUT',
+    '/notifications/preferences',
+    { pushNotifications: false },
+    awaToken,
+  );
+  assert.equal(saved.status, 200);
+  assert.deepEqual(saved.data, { pushNotifications: false });
+
+  const reread = await call('GET', '/notifications/preferences', undefined, awaToken);
+  assert.deepEqual(reread.data, { pushNotifications: false });
+
+  const invalid = await call(
+    'PUT',
+    '/notifications/preferences',
+    { pushNotifications: 'off' },
+    awaToken,
+  );
+  assert.equal(invalid.status, 400);
+  assert.equal((invalid.data.error as { code: string }).code, 'VALIDATION_ERROR');
+  assert.deepEqual(await call('GET', '/notifications/preferences', undefined, awaToken), reread);
+});
+
+test('push preferences need an authenticated account', async () => {
+  assert.equal((await call('GET', '/notifications/preferences')).status, 401);
+  assert.equal((await call('PUT', '/notifications/preferences', { pushNotifications: false })).status, 401);
+});
+
+test('an opted-out account is never sent to and records no history', async () => {
+  let pushes = 0;
+  const messaging: PushMessaging = {
+    sendEachForMulticast: async message => {
+      pushes += 1;
+      return {
+        responses: message.tokens.map(() => ({ success: true, messageId: 'm1' })),
+        successCount: message.tokens.length,
+        failureCount: 0,
+      } as Awaited<ReturnType<PushMessaging['sendEachForMulticast']>>;
+    },
+  };
+  await withApp({ testSend: true, pushMessaging: () => messaging }, async (url, appDb) => {
+    const token = await signUpAt(url);
+    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+    await fetch(`${url}/notifications/push-tokens`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ token: 'opt-out-device', platform: 'android' }),
+    });
+    const optedOut = await fetch(`${url}/notifications/preferences`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({ pushNotifications: false }),
+    });
+    assert.equal(optedOut.status, 200);
+
+    const send = await fetch(`${url}/notifications/send`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ title: 'Hi', body: 'There' }),
+    });
+    assert.equal(send.status, 200);
+    assert.deepEqual(((await send.json()) as { result: unknown }).result, {
+      sent: 0,
+      failed: 0,
+      removedUnregisteredTokens: 0,
+    });
+    assert.equal(pushes, 0, 'FCM is never asked');
+
+    const history = await fetch(`${url}/notifications/history`, { headers });
+    assert.deepEqual(await history.json(), { notifications: [] });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Notification history (decision C2): what a device accepted, per account.
+// ---------------------------------------------------------------------------
+
+test('an empty history answers with an empty page and a zero badge', async () => {
+  const history = await call('GET', '/notifications/history', undefined, awaToken);
+  assert.equal(history.status, 200);
+  assert.deepEqual(history.data, { notifications: [] });
+
+  assert.deepEqual((await call('GET', '/notifications/unread-count', undefined, awaToken)).data, {
+    unread: 0,
+  });
+  assert.deepEqual((await call('POST', '/notifications/read-all', undefined, awaToken)).data, {
+    updated: 0,
+  });
+});
+
+test('history paging outside 1..100 is rejected and the routes need a session', async () => {
+  assert.equal((await call('GET', '/notifications/history?limit=0', undefined, awaToken)).status, 400);
+  assert.equal((await call('GET', '/notifications/history?limit=101', undefined, awaToken)).status, 400);
+  assert.equal((await call('GET', '/notifications/history?limit=abc', undefined, awaToken)).status, 400);
+  assert.equal((await call('GET', '/notifications/history?limit=10', undefined, awaToken)).status, 200);
+
+  assert.equal((await call('GET', '/notifications/history')).status, 401);
+  assert.equal((await call('GET', '/notifications/unread-count')).status, 401);
+  assert.equal((await call('POST', '/notifications/read-all')).status, 401);
+});
+
+let gates = 20;
+
+async function signUpOther(url: string): Promise<string> {
+  // signUpAt always uses the same address and email; a second account needs
+  // both to be its own (signup is limited per address and unique per email).
+  const response = await fetch(`${url}/auth/signup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': `10.11.0.${++gates}` },
+    body: JSON.stringify({
+      firstName: 'Ngozi',
+      lastName: 'Tester',
+      email: `other-${gates}-${Math.random()}@push.dev`,
+      password: 'pushLedger2026',
+    }),
+  });
+  assert.equal(response.status, 201);
+  return ((await response.json()) as { token: string }).token;
+}
+
+test('a delivered push is listed unread, then cleared; accounts never see each other', async () => {
+  const messaging: PushMessaging = {
+    sendEachForMulticast: async message => ({
+      responses: message.tokens.map(() => ({ success: true, messageId: 'm1' })),
+      successCount: message.tokens.length,
+      failureCount: 0,
+    }) as Awaited<ReturnType<PushMessaging['sendEachForMulticast']>>,
+  };
+  await withApp({ testSend: true, pushMessaging: () => messaging }, async (url, appDb) => {
+    const first = await signUpAt(url);
+    const second = await signUpOther(url);
+    const headers = (token: string) => ({
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    });
+    const register = async (token: string, device: string) => {
+      const response = await fetch(`${url}/notifications/push-tokens`, {
+        method: 'POST',
+        headers: headers(token),
+        body: JSON.stringify({ token: device, platform: 'android' }),
+      });
+      assert.equal(response.status, 200);
+    };
+
+    await register(first, 'first-device');
+    await register(second, 'second-device');
+
+    const send = await fetch(`${url}/notifications/send`, {
+      method: 'POST',
+      headers: headers(first),
+      body: JSON.stringify({ title: 'Low stock alert', body: 'Rice 5kg: only 3 left.' }),
+    });
+    assert.equal(send.status, 200);
+    assert.equal(((await send.json()) as { result: { sent: number } }).result.sent, 1);
+
+    const history = await fetch(`${url}/notifications/history`, { headers: headers(first) });
+    const rows = ((await history.json()) as { notifications: Record<string, unknown>[] })
+      .notifications;
+    assert.equal(rows.length, 1);
+    const [row] = rows;
+    assert.equal(row?.title, 'Low stock alert');
+    assert.equal(row?.body, 'Rice 5kg: only 3 left.');
+    assert.equal(row?.type, null, 'a message without a type is display-only');
+    assert.equal(row?.itemId, null);
+    assert.equal(row?.read, false);
+    assert.match(String(row?.createdAt), /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+
+    const badge = await fetch(`${url}/notifications/unread-count`, { headers: headers(first) });
+    assert.deepEqual(await badge.json(), { unread: 1 });
+
+    // The other account sees neither the row nor the badge.
+    const theirs = await fetch(`${url}/notifications/history`, { headers: headers(second) });
+    assert.deepEqual(await theirs.json(), { notifications: [] });
+    const theirBadge = await fetch(`${url}/notifications/unread-count`, {
+      headers: headers(second),
+    });
+    assert.deepEqual(await theirBadge.json(), { unread: 0 });
+
+    const read = await fetch(`${url}/notifications/read-all`, {
+      method: 'POST',
+      headers: headers(first),
+    });
+    assert.deepEqual(await read.json(), { updated: 1 });
+    assert.deepEqual(
+      await (await fetch(`${url}/notifications/unread-count`, { headers: headers(first) })).json(),
+      { unread: 0 },
+    );
+    const after = await fetch(`${url}/notifications/history`, { headers: headers(first) });
+    assert.equal(((await after.json()) as { notifications: { read: boolean }[] }).notifications[0]?.read, true);
+
+    // Reading twice changes nothing the second time.
+    const again = await fetch(`${url}/notifications/read-all`, {
+      method: 'POST',
+      headers: headers(first),
+    });
+    assert.deepEqual(await again.json(), { updated: 0 });
+  });
+});

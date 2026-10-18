@@ -3,6 +3,7 @@ import { isAppLanguage, lowStockPushData } from '@kazi/shared';
 import { AppError } from '../errors.js';
 import { log } from '../log.js';
 import { lowStockMessage } from './lowStockMessage.js';
+import { pushNotificationsAllowed } from './preferences.js';
 import {
   PUSH_TIMEOUT_MS,
   PushTimeoutError,
@@ -66,7 +67,12 @@ export async function settleLowStockAlerts(): Promise<void> {
   }
 }
 
-export type LowStockAlertOutcome = 'sent' | 'no-devices' | 'not-configured' | 'skipped';
+export type LowStockAlertOutcome =
+  | 'sent'
+  | 'no-devices'
+  | 'not-configured'
+  | 'opted-out'
+  | 'skipped';
 
 export async function sendLowStockAlert(
   db: Database.Database,
@@ -75,6 +81,14 @@ export async function sendLowStockAlert(
   now = Date.now(),
   timeoutMs = PUSH_TIMEOUT_MS,
 ): Promise<LowStockAlertOutcome> {
+  // The account turned pushes off (More > Notifications): no alert, and the
+  // 12-hour slot stays free so turning them back on alerts on the next
+  // crossing. Checked before anything else so the owner's choice wins over
+  // every other condition.
+  if (!pushNotificationsAllowed(db, userId)) {
+    return 'opted-out';
+  }
+
   const devices = db
     .prepare('SELECT COUNT(*) AS n FROM push_tokens WHERE user_id = ?')
     .get(userId) as { n: number };

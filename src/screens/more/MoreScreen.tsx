@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import {
@@ -7,6 +7,7 @@ import {
   ChevronRight,
   FileText,
   HeartHandshake,
+  Inbox,
   LifeBuoy,
   Lock,
   LogOut,
@@ -25,6 +26,7 @@ import { APP_LANGUAGES, isAppLanguage } from '@kazi/shared';
 import { useAuth } from '../../auth/AuthContext';
 import { useAnnouncement } from '../../announcements/useAnnouncement';
 import { announcementBodyFor } from '../../announcements/logic';
+import { fetchUnreadCount } from '../../notifications/api';
 import type { MoreStackParamList } from '../../navigation/RootNavigator';
 import { colors, radius, spacing, typography } from '../../theme';
 
@@ -46,6 +48,7 @@ const MENU_ITEMS: {
 }[] = [
   { key: 'business', labelKey: 'more.myBusiness', icon: Building2, iconColor: colors.primaryDark, iconBg: colors.primarySoft, screen: 'MyBusiness' },
   { key: 'reminder', labelKey: 'more.reminder', icon: Bell, iconColor: colors.primaryDark, iconBg: colors.primarySoft, screen: 'Reminder' },
+  { key: 'notifications', labelKey: 'more.notifications', icon: Inbox, iconColor: colors.primaryDark, iconBg: colors.primarySoft, screen: 'Notifications' },
   { key: 'feedback', labelKey: 'more.feedback', icon: HeartHandshake, iconColor: colors.primaryDark, iconBg: colors.primarySoft, screen: 'Feedback' },
   { key: 'support', labelKey: 'more.support', icon: LifeBuoy, iconColor: colors.primaryDark, iconBg: colors.primarySoft, screen: 'Support' },
   { key: 'privacy', labelKey: 'more.privacy', icon: ShieldCheck, iconColor: colors.primaryDark, iconBg: colors.primarySoft, screen: 'Privacy' },
@@ -61,7 +64,23 @@ export default function MoreScreen({ navigation }: ScreenProps) {
   const current = isAppLanguage(i18n.language) ? i18n.language : 'en';
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const { announcement, dismiss } = useAnnouncement();
+
+  // The unread badge is refreshed when More is opened, never polled: the
+  // notifications are one tap away, and a timer on a settings screen is not
+  // worth the battery. A failed refresh (offline, signed out) leaves the
+  // badge as it was.
+  useEffect(() => {
+    const refresh = () => {
+      fetchUnreadCount()
+        .then(result => setUnreadNotifications(result.unread))
+        .catch(() => {});
+    };
+    refresh();
+    const unsubscribe = navigation.addListener('focus', refresh);
+    return unsubscribe;
+  }, [navigation]);
 
   const confirmSignOut = async () => {
     if (signingOut) return;
@@ -133,6 +152,13 @@ export default function MoreScreen({ navigation }: ScreenProps) {
               <item.icon size={20} color={item.iconColor} />
             </View>
             <Text style={styles.menuLabel}>{t(item.labelKey)}</Text>
+            {item.key === 'notifications' && unreadNotifications > 0 ? (
+              <View style={styles.badge} testID="notifications-badge">
+                <Text style={styles.badgeText}>
+                  {unreadNotifications > 99 ? '99+' : String(unreadNotifications)}
+                </Text>
+              </View>
+            ) : null}
             <ChevronRight size={20} color={colors.textMuted} />
           </Pressable>
         ))}
@@ -266,6 +292,21 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textPrimary,
     fontWeight: '600',
+  },
+  badge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.xs,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: spacing.sm,
+  },
+  badgeText: {
+    ...typography.label,
+    fontSize: 12,
+    color: colors.textOnPrimary,
   },
   sectionLabel: {
     ...typography.label,

@@ -6,9 +6,10 @@ import { dropPasswordFingerprints } from './0004_drop_password_fingerprints.js';
 import { resetCodes } from './0005_reset_codes.js';
 import { lowStockAlert } from './0006_low_stock_alert.js';
 import { announcements } from './0007_announcements.js';
+import { pushNotifications } from './0008_push_notifications.js';
 
 // Every schema change is a new file NNNN_<name>.ts added to the end of this
-// list. Applied migrations are never edited; see docs/ARCHITECTURE.md §6.
+// list. Applied migrations are never edited; see docs/ARCHITECTURE.md A6.
 export const MIGRATIONS: readonly Migration[] = [
   baseline,
   integerMoney,
@@ -17,4 +18,5 @@ export const MIGRATIONS: readonly Migration[] = [
   resetCodes,
   lowStockAlert,
   announcements,
+  pushNotifications,
 ];

@@ -12,9 +12,30 @@
 // "validated internet" signal decides reachability; where the OS gives no such
 // signal (iOS), NetInfo checks the HTTPS URL below. Plain HTTP must never be
 // used: release builds block cleartext traffic, so an HTTP check always fails.
+//
+// NetInfo is loaded behind a guard: its native module throws at load time on
+// a build whose APK predates it, and one missing optional native module must
+// never take the whole app down. In that case connectivity tracking is
+// disabled and the device is treated as online.
 
-import NetInfo, { type NetInfoState } from '@react-native-community/netinfo';
 import { AppState } from 'react-native';
+import type { NetInfoState } from '@react-native-community/netinfo';
+
+type NetInfoModule = typeof import('@react-native-community/netinfo').default;
+
+// Required (not imported) so a build whose APK predates NetInfo — where the
+// package throws at load time — degrades to "no connectivity tracking"
+// instead of crashing the app at startup.
+function loadNetInfo(): NetInfoModule | null {
+  try {
+    const loaded = require('@react-native-community/netinfo') as { default?: NetInfoModule };
+    return loaded.default ?? null;
+  } catch {
+    return null;
+  }
+}
+
+const netInfo = loadNetInfo();
 
 // Google's always-204 endpoint, the one Android uses for its own checks.
 export const REACHABILITY_URL = 'https://connectivitycheck.gstatic.com/generate_204';
@@ -48,15 +69,23 @@ function start(): void {
     return;
   }
   started = true;
-  NetInfo.configure({
-    reachabilityUrl: REACHABILITY_URL,
-    reachabilityTest: async response => response.status === 204,
-    // Only check while the app is on screen, so the radio is not woken in the
-    // background.
-    reachabilityShouldRun: () => AppState.currentState === 'active',
-    shouldFetchWiFiSSID: false,
-  });
-  NetInfo.addEventListener(state => emit(toOnline(state)));
+  if (netInfo === null) {
+    // Offline pill stays hidden; everything else keeps working.
+    return;
+  }
+  try {
+    netInfo.configure({
+      reachabilityUrl: REACHABILITY_URL,
+      reachabilityTest: async response => response.status === 204,
+      // Only check while the app is on screen, so the radio is not woken in
+      // the background.
+      reachabilityShouldRun: () => AppState.currentState === 'active',
+      shouldFetchWiFiSSID: false,
+    });
+    netInfo.addEventListener(state => emit(toOnline(state)));
+  } catch {
+    // A partially-working native module must not crash the app either.
+  }
 }
 
 export function isOnline(): boolean {
@@ -77,8 +106,11 @@ export function subscribeConnectivity(listener: (value: boolean) => void): () =>
 // stays.
 export async function probeConnectivity(): Promise<boolean> {
   start();
+  if (netInfo === null) {
+    return online;
+  }
   try {
-    emit(toOnline(await NetInfo.refresh()));
+    emit(toOnline(await netInfo.refresh()));
   } catch {
     // Keep the last known state.
   }

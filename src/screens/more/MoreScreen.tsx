@@ -89,12 +89,14 @@ export default function MoreScreen({ navigation }: ScreenProps) {
             </View>
             <View style={styles.accountText}>
               <Text style={styles.accountName} numberOfLines={1}>
-                {user?.companyName.trim()
+                {user?.companyName?.trim()
                   ? user.companyName
                   : `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || t('auth.account')}
               </Text>
               <Text style={styles.accountEmail} numberOfLines={1}>
-                {user ? `${user.firstName} ${user.lastName}`.trim() : t('auth.signedInAs')}
+                {user
+                  ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email
+                  : t('auth.signedInAs')}
               </Text>
             </View>
           </View>

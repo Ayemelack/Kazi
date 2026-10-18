@@ -80,6 +80,20 @@ describe('connectivity (NetInfo)', () => {
     expect(listener).not.toHaveBeenCalled();
   });
 
+  it('survives an APK that has no NetInfo native module', () => {
+    const { connectivity, netInfo } = load();
+    netInfo.configure.mockImplementation(() => {
+      throw new Error('NativeModule.RNCNetInfo is null');
+    });
+
+    let unsubscribe!: () => void;
+    expect(() => {
+      unsubscribe = connectivity.subscribeConnectivity(() => {});
+    }).not.toThrow();
+    expect(connectivity.isOnline()).toBe(true);
+    unsubscribe();
+  });
+
   it('probeConnectivity re-reads the state and keeps the last one on failure', async () => {
     const { connectivity, netInfo } = load();
     netInfo.refresh.mockResolvedValueOnce(state(false, false));
@@ -87,6 +101,27 @@ describe('connectivity (NetInfo)', () => {
 
     netInfo.refresh.mockRejectedValueOnce(new Error('native module gone'));
     await expect(connectivity.probeConnectivity()).resolves.toBe(false);
+  });
+
+  // Kept last: it replaces the NetInfo mock for every later require in this
+  // file, and nothing after it loads NetInfo.
+  it('treats a build whose APK predates NetInfo as always online', async () => {
+    // NetInfo throws when its native module is missing; this simulates the
+    // require() itself failing.
+    let connectivity!: Connectivity;
+    jest.isolateModules(() => {
+      jest.doMock('@react-native-community/netinfo', () => {
+        throw new Error('NativeModule.RNCNetInfo is null');
+      });
+      connectivity = require('../src/offline/connectivity');
+    });
+
+    expect(connectivity.isOnline()).toBe(true);
+    const seen: boolean[] = [];
+    const unsubscribe = connectivity.subscribeConnectivity(value => seen.push(value));
+    expect(seen).toEqual([]);
+    unsubscribe();
+    await expect(connectivity.probeConnectivity()).resolves.toBe(true);
   });
 });
 

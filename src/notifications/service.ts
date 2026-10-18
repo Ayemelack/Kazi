@@ -13,15 +13,19 @@ import {
   setBackgroundMessageHandler,
   type RemoteMessage,
 } from '@react-native-firebase/messaging';
+import { KAZI_PUSH_CHANNEL_ID, parsePushData, type ParsedPush } from '@kazi/shared';
 import { apiRequest } from '../api/client';
 import { pushMessaging, withPushMessaging } from './firebase';
+import { handlePushOpened } from './pushNavigation';
 
-const KAZI_CHANNEL_ID = 'kazi';
+// The same channel the API names in every push (shared contract).
+const KAZI_CHANNEL_ID = KAZI_PUSH_CHANNEL_ID;
 const KAZI_CHANNEL_NAME = 'Kazi';
 // The Android channel local notifications use too (daily reminder).
 export const KAZI_NOTIFICATION_CHANNEL = KAZI_CHANNEL_ID;
 let currentToken: string | null = null;
 let foregroundEventRegistered = false;
+let backgroundOpenRegistered = false;
 let foregroundMessageRegistered = false;
 let tokenRefreshRegistered = false;
 
@@ -136,10 +140,60 @@ export function setupForegroundHandler(): void {
   foregroundEventRegistered = true;
   notifee.onForegroundEvent(({ type, detail }: Event) => {
     if (type === EventType.PRESS && detail.notification) {
-      // Notification was tapped while app is in the foreground.
-      // Future: navigate to a specific screen based on notification data.
+      // Tapped while the app is in the foreground.
+      handleNotificationOpened(detail.notification.data);
     }
   });
+}
+
+// Called from index.js at module load: a tap that put the app in the
+// background (or launched it, on platforms where the headless handler runs)
+// reaches this before any navigator exists, so the navigation is queued until
+// AppStack registers the navigator.
+export function setupBackgroundOpenHandler(): void {
+  if (backgroundOpenRegistered) {
+    return;
+  }
+  backgroundOpenRegistered = true;
+  notifee.onBackgroundEvent(async event => {
+    if (event.type === EventType.PRESS && event.detail.notification) {
+      handleNotificationOpened(event.detail.notification.data);
+    }
+  });
+}
+
+// A tap that launched the app from terminated state: notifee hands the
+// initial notification over once, when the JS runtime starts. Consumed after
+// the navigator exists, so the queued tap can navigate.
+export async function consumeInitialNotificationNavigation(): Promise<void> {
+  try {
+    const initial = await notifee.getInitialNotification();
+    if (initial?.notification) {
+      handleNotificationOpened(initial.notification.data);
+    }
+  } catch {
+    // A missing initial notification must never crash startup.
+  }
+}
+
+function handleNotificationOpened(data: unknown): void {
+  const push = parsePushData(data);
+  if (push) {
+    handlePushOpened(push);
+  }
+}
+
+/** The push's own fields, so a tap can be routed after the app restarts. */
+function notificationData(data: RemoteMessage['data']): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(data ?? {})) {
+    if (typeof value === 'string') {
+      result[key] = value;
+    } else if (value != null) {
+      result[key] = String(value);
+    }
+  }
+  return result;
 }
 
 // Called from index.js at module load: it must never throw (KZ-02).
@@ -154,6 +208,7 @@ export function setupBackgroundHandler(): void {
       await notifee.displayNotification({
         title,
         body,
+        data: notificationData(remoteMessage.data),
         android: {
           channelId: KAZI_CHANNEL_ID,
           importance: AndroidImportance.HIGH,
@@ -178,6 +233,7 @@ export function setupForegroundMessageListener(): void {
       await notifee.displayNotification({
         title,
         body,
+        data: notificationData(remoteMessage.data),
         android: {
           channelId: KAZI_CHANNEL_ID,
           importance: AndroidImportance.HIGH,
@@ -208,11 +264,11 @@ function extractNotification(remoteMessage: RemoteMessage): {
   title?: string;
   body?: string;
 } {
-  if (remoteMessage.data) {
-    return {
-      title: remoteMessage.data.title as string | undefined,
-      body: remoteMessage.data.body as string | undefined,
-    };
+  // Data-only pushes (what the API sends) are validated against the shared
+  // contract; a notification-block message still displays as-is.
+  const parsed: ParsedPush | null = parsePushData(remoteMessage.data);
+  if (parsed) {
+    return { title: parsed.title, body: parsed.body };
   }
   if (remoteMessage.notification) {
     return {

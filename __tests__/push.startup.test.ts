@@ -30,7 +30,7 @@ interface Loaded {
   firebaseApp: FirebaseAppMock;
   messaging: MessagingMock;
   registerComponent: jest.SpyInstance;
-  notifee: { requestPermission: jest.Mock };
+  notifee: { requestPermission: jest.Mock; onBackgroundEvent: jest.Mock };
   apiRequest: jest.Mock;
   startupError: unknown;
   service: Service;
@@ -61,6 +61,7 @@ function load(arrange: (loaded: Omit<Loaded, 'startupError' | 'service'>) => voi
     base.messaging.onTokenRefresh.mockReset();
     base.messaging.setBackgroundMessageHandler.mockReset();
     base.notifee.requestPermission.mockReset().mockResolvedValue({ authorizationStatus: 1 });
+    base.notifee.onBackgroundEvent.mockReset().mockResolvedValue(undefined);
     base.apiRequest.mockReset().mockResolvedValue({});
     arrange(base);
     let startupError: unknown = null;
@@ -91,6 +92,9 @@ describe('index.js startup with push', () => {
     const loaded = load(() => {});
     expect(loaded.startupError).toBeNull();
     expect(loaded.messaging.setBackgroundMessageHandler).toHaveBeenCalledTimes(1);
+    // Tap handling needs no Firebase: it must register even on a placeholder
+    // build, so a tap can never crash at startup.
+    expect(loaded.notifee.onBackgroundEvent).toHaveBeenCalledTimes(1);
     expect(loaded.registerComponent).toHaveBeenCalledWith('Kazi', expect.any(Function));
   });
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import {
   NavigationContainer,
@@ -37,6 +37,8 @@ import DeleteAccountScreen from '../screens/more/DeleteAccountScreen';
 import AppLockScreen from '../screens/more/AppLockScreen';
 import AppLockUnlockScreen from '../screens/applock/AppLockUnlockScreen';
 import { AppLockProvider, useAppLock } from '../applock/AppLockContext';
+import { navigationRef, setPushNavigator } from '../notifications/pushNavigation';
+import { consumeInitialNotificationNavigation } from '../notifications/service';
 import { colors } from '../theme';
 import type { TransactionCorrection } from '../transactions/types';
 
@@ -48,7 +50,8 @@ export type MainTabParamList = {
 };
 
 export type RootStackParamList = {
-  Main: undefined;
+  // Nested so a push can open a tab (and a screen inside it) directly.
+  Main: NavigatorScreenParams<MainTabParamList> | undefined;
   BusinessProfile: undefined;
 };
 
@@ -202,6 +205,15 @@ function AppStack() {
   const { user } = useAuth();
   const hasBusiness = user?.hasBusiness ?? false;
 
+  // A push tapped before this stack existed (background, terminated, signed
+  // out) queues its navigation; registering here is what flushes it, and the
+  // tap that launched the app is consumed here too.
+  useEffect(() => {
+    setPushNavigator(navigationRef);
+    consumeInitialNotificationNavigation().catch(() => {});
+    return () => setPushNavigator(null);
+  }, []);
+
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {hasBusiness ? (
@@ -257,7 +269,7 @@ function RootNavigator() {
   return (
     <AppLockProvider>
       <View style={styles.root}>
-        <NavigationContainer theme={navigationTheme}>
+        <NavigationContainer ref={navigationRef} theme={navigationTheme}>
           {status === 'authenticated' ? <AppStack /> : <AuthFlow />}
         </NavigationContainer>
         <AppLockGate />

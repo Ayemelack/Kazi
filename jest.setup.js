@@ -82,6 +82,8 @@ jest.mock('@notifee/react-native', () => ({
     displayNotification: jest.fn(async () => 'notification-id'),
     requestPermission: jest.fn(async () => ({ authorizationStatus: 1 })),
     onForegroundEvent: jest.fn(),
+    onBackgroundEvent: jest.fn(async () => undefined),
+    getInitialNotification: jest.fn(async () => null),
     createTriggerNotification: jest.fn(async () => 'kazi-daily-reminder'),
     cancelNotification: jest.fn(async () => undefined),
     getTriggerNotifications: jest.fn(async () => []),

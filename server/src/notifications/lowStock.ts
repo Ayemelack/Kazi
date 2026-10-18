@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3';
-import { isAppLanguage } from '@kazi/shared';
+import { isAppLanguage, lowStockPushData } from '@kazi/shared';
 import { AppError } from '../errors.js';
 import { log } from '../log.js';
 import { lowStockMessage } from './lowStockMessage.js';
@@ -127,7 +127,7 @@ export async function sendLowStockAlert(
       userId,
       {
         ...lowStockMessage(row.name, row.stock, language),
-        data: { type: 'low_stock', itemId: String(itemId) },
+        data: lowStockPushData(itemId),
       },
       timeoutMs,
     );

@@ -1,10 +1,11 @@
 import type Database from 'better-sqlite3';
 import type { BatchResponse, MulticastMessage } from 'firebase-admin/messaging';
+import { KAZI_PUSH_CHANNEL_ID, type PushDataExtras } from '@kazi/shared';
 import { AppError } from '../errors.js';
 import { firebaseMessaging } from './firebase.js';
 import type { RegisterPushTokenInput, SendNotificationInput } from './validation.js';
 
-export const KAZI_PUSH_CHANNEL = 'kazi';
+export const KAZI_PUSH_CHANNEL = KAZI_PUSH_CHANNEL_ID;
 
 // How long a send may wait for FCM before it counts as failed (KZ-03). FCM's
 // own request is not cancelled; the API just stops waiting for it.
@@ -30,8 +31,8 @@ export function pushMessagingFor(db: Database.Database): PushMessaging {
 }
 
 export interface PushContent extends SendNotificationInput {
-  /** Extra string fields for the app, e.g. what the push is about. */
-  data?: Record<string, string>;
+  /** Per-type fields for the app (shared push contract), e.g. low_stock. */
+  data?: PushDataExtras;
 }
 
 // Firebase error codes that mean a token is dead and should be dropped.
@@ -163,12 +164,7 @@ export async function deliverPush(
   const response = await withTimeout(
     messaging.sendEachForMulticast({
       tokens: rows.map(row => row.token),
-      data: {
-        ...input.data,
-        title: input.title,
-        body: input.body,
-        channel: KAZI_PUSH_CHANNEL,
-      },
+      data: pushDataMap(input),
       android: { priority: 'high' },
     }),
     timeoutMs,
@@ -210,6 +206,25 @@ export async function sendNotificationToUser(
 
 function isUnregisteredError(code?: string): boolean {
   return UNREGISTERED_ERROR_CODES.has(code ?? '');
+}
+
+/**
+ * The FCM data map of a push, per the shared contract: title, body and
+ * channel always, plus the sender's per-type extras (e.g. low_stock's
+ * type + itemId).
+ */
+function pushDataMap(input: PushContent): Record<string, string> {
+  const data: Record<string, string> = {
+    title: input.title,
+    body: input.body,
+    channel: KAZI_PUSH_CHANNEL,
+  };
+  for (const [key, value] of Object.entries(input.data ?? {})) {
+    if (value !== undefined) {
+      data[key] = value;
+    }
+  }
+  return data;
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {

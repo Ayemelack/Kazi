@@ -371,6 +371,10 @@ const fr: TranslationSchema = {
     pushLabel: 'Notifications push',
     pushDescription:
       'Recevez les alertes de stock bas et les autres messages de Kazi sur ce compte.',
+    inactivityLabel: 'Rappels de retour',
+    inactivityDescription:
+      'Si vous n’avez pas ouvert Kazi depuis un moment, nous pouvons envoyer un rappel pour vous aider à tenir vos registres à jour.',
+    inactivityDisabledHint: 'Activez d’abord les notifications push.',
     saved: 'Notifications push mises à jour.',
     historyTitle: 'Historique des notifications',
     emptyTitle: 'Aucune notification',
@@ -509,6 +513,7 @@ const fr: TranslationSchema = {
       limit: 'Taille de page',
       offset: 'Page',
       pushNotifications: 'Notifications push',
+      inactivityNotifications: 'Rappels de retour',
     },
   },
   auth: {

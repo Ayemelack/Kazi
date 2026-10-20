@@ -73,7 +73,16 @@ export function createNotificationsRouter(
   router.put('/preferences', (req, res, next) => {
     try {
       const input = validate(pushPreferencesSchema, req.body);
-      res.status(200).json(setPushPreferences(db, req.user?.id ?? 0, input.pushNotifications));
+      res
+        .status(200)
+        .json(
+          setPushPreferences(
+            db,
+            req.user?.id ?? 0,
+            input.pushNotifications,
+            input.inactivityNotifications,
+          ),
+        );
     } catch (err) {
       next(err);
     }

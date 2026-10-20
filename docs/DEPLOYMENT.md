@@ -92,7 +92,7 @@ WantedBy=multi-user.target
 | `DATABASE_PATH` | | `server/data/kazi.db` | Absolute path on SSD recommended |
 | `TRUST_PROXY` | ✅ `1` | unset | Number of reverse proxies in front of the API (KZ-08): a whole number 0–10. Unset or `0`: `X-Forwarded-For` is ignored and limits use the connection address. Any other value (`true`, an address list, a typo) stops the API at boot. See "Rate limits and TRUST_PROXY" below |
 | `CORS_ORIGIN` | | unset (denied) | Only if a browser client is added |
-| `FIREBASE_SERVICE_ACCOUNT` or `GOOGLE_APPLICATION_CREDENTIALS` | ✅ for push | unset | Push disabled when unset: low-stock alerts are skipped. Boot logs `Push notifications: Firebase credentials set.` or `…: disabled (no Firebase credentials).` See §6 "Firebase and push setup" |
+| `FIREBASE_SERVICE_ACCOUNT` or `GOOGLE_APPLICATION_CREDENTIALS` | ✅ for push | unset | Push disabled when unset: low-stock alerts and the inactivity nudge are skipped, and the inactivity scheduler is not started at all. Boot logs `Push notifications: Firebase credentials set.` or `…: disabled (no Firebase credentials).` See §6 "Firebase and push setup" |
 | `NOTIFICATIONS_TEST_SEND` | ❌ must be unset | unset | `1` serves `POST /notifications/send` (push a message you write to your own devices) for testing delivery (KZ-03). Ignored when `NODE_ENV=production`; the route answers 404 otherwise. Boot warns while it is on |
 | `EMAIL_PROVIDER` | ✅ | unset | `brevo`, `postmark` or `http` (KZ-06). Without it the API starts only with `NODE_ENV=development` or `test`, where reset codes are printed to the console |
 | `EMAIL_API_KEY` | ✅ | — | Brevo API key, Postmark server token, or the bearer token of an `http` relay. Secret; never printed |
@@ -366,6 +366,22 @@ a Mac with Xcode, an iPhone and an Android phone. One Firebase project per envir
    - Uninstall the app on one phone, cause another alert (or a test send): the response reports
      `removedUnregisteredTokens: 1` (test send) and that device's row is gone.
    Record the results in the tracker update log and tick the KZ-02 and KZ-03 criteria.
+10. **Inactivity nudge check (KZ-04, decision D9).** This sender is off by default and only runs
+    when Firebase is configured (the boot log above is the gate). On staging:
+    - In the app, More → Notifications → turn on the master switch, then "Reminders to come back";
+      `SELECT push_notifications, inactivity_notifications FROM users WHERE id = <id>` shows `1, 1`.
+    - Backdate the breadcrumb so the account looks inactive:
+      `UPDATE users SET last_seen_at = <now - 8 days in ms>, inactivity_notified_at = NULL WHERE id = <id>`.
+      Within an hour (the scan interval) the device gets a re-engagement push in the account's
+      language and `inactivity_notified_at` is set. Tapping it opens Home.
+    - Re-run the scan by waiting a second hour: nothing (the repeat window is 7 days). Clearing
+      `inactivity_notified_at` and making one authenticated request does nothing either — the
+      breadcrumb is fresh again.
+    - Turn the inactivity opt-in off (leave the master on), backdate again and clear the slot: the
+      next scan logs nothing and sends nothing. Turn the master off instead: same.
+    - FCM down (the `/etc/hosts` trick above): the nudge is logged with an error code only and the
+      API is unaffected; the slot is released so the next scan retries (except after a timeout, when
+      it is kept).
 
 ---
 

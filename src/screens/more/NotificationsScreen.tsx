@@ -41,6 +41,7 @@ export default function NotificationsScreen({ navigation }: ScreenProps) {
   const { t } = useTranslation();
   const toast = useToast();
   const [pushEnabled, setPushEnabled] = useState<boolean | null>(null);
+  const [inactivityEnabled, setInactivityEnabled] = useState(false);
   const [preferencesError, setPreferencesError] = useState<unknown>(null);
   const [saving, setSaving] = useState(false);
   const [items, setItems] = useState<NotificationItem[] | null>(null);
@@ -52,6 +53,7 @@ export default function NotificationsScreen({ navigation }: ScreenProps) {
     try {
       const result = await fetchPushPreferences();
       setPushEnabled(result.pushNotifications);
+      setInactivityEnabled(result.inactivityNotifications);
     } catch (err) {
       setPreferencesError(err);
     }
@@ -79,8 +81,31 @@ export default function NotificationsScreen({ navigation }: ScreenProps) {
       }
       setSaving(true);
       try {
-        const result = await savePushPreferences(value);
+        // Send the current inactivity value so turning the master switch off
+        // and on again never silently changes the opt-in choice.
+        const result = await savePushPreferences(value, inactivityEnabled);
         setPushEnabled(result.pushNotifications);
+        setInactivityEnabled(result.inactivityNotifications);
+        toast.show('success', t('notifications.saved'));
+      } catch (err) {
+        toast.show('error', errorMessage(err, t));
+      } finally {
+        setSaving(false);
+      }
+    },
+    [pushEnabled, inactivityEnabled, saving, t, toast],
+  );
+
+  const toggleInactivity = useCallback(
+    async (value: boolean) => {
+      if (pushEnabled !== true || saving) {
+        return;
+      }
+      setSaving(true);
+      try {
+        const result = await savePushPreferences(true, value);
+        setPushEnabled(result.pushNotifications);
+        setInactivityEnabled(result.inactivityNotifications);
         toast.show('success', t('notifications.saved'));
       } catch (err) {
         toast.show('error', errorMessage(err, t));
@@ -142,6 +167,31 @@ export default function NotificationsScreen({ navigation }: ScreenProps) {
               value={pushEnabled === true}
               onValueChange={value => togglePush(value)}
               disabled={pushEnabled === null || saving}
+              trackColor={{ false: colors.disabled, true: colors.primary }}
+              thumbColor={colors.surface}
+            />
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleIcon}>
+              <Bell size={20} color={colors.primaryDark} />
+            </View>
+            <View style={styles.toggleText}>
+              <Text style={styles.title}>{t('notifications.inactivityLabel')}</Text>
+              <Text style={styles.description}>
+                {pushEnabled === false
+                  ? t('notifications.inactivityDisabledHint')
+                  : t('notifications.inactivityDescription')}
+              </Text>
+            </View>
+            <Switch
+              testID="inactivity-toggle"
+              accessibilityLabel={t('notifications.inactivityLabel')}
+              value={inactivityEnabled === true}
+              onValueChange={value => toggleInactivity(value)}
+              disabled={pushEnabled !== true || saving}
               trackColor={{ false: colors.disabled, true: colors.primary }}
               thumbColor={colors.surface}
             />
@@ -281,6 +331,11 @@ const styles = StyleSheet.create({
   toggleText: {
     flex: 1,
     marginRight: spacing.md,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing.md,
   },
   title: {
     ...typography.heading,

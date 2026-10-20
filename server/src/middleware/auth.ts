@@ -3,6 +3,7 @@ import type Database from 'better-sqlite3';
 import jwt from 'jsonwebtoken';
 import { AppError } from '../errors.js';
 import { verifyAccessToken } from '../auth/jwt.js';
+import { recordUserSeen } from '../notifications/presence.js';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -52,6 +53,14 @@ export function requireAuth(db: Database.Database) {
         return;
       }
       req.user = { id: user.id };
+      // The account is active (migration 0009): note it, at most hourly. This
+      // powers the inactivity push only; it never gates the request, and a
+      // tracking failure must not turn a valid request into an error.
+      try {
+        recordUserSeen(db, user.id);
+      } catch {
+        // Best-effort by design.
+      }
     } catch (err) {
       if (err instanceof jwt.TokenExpiredError) {
         next(new AppError(401, 'TOKEN_EXPIRED', 'Your session has expired. Sign in again.'));

@@ -95,6 +95,7 @@ export const VALIDATION_FIELDS = [
   'limit',
   'offset',
   'pushNotifications',
+  'inactivityNotifications',
 ] as const;
 
 export type ValidationField = (typeof VALIDATION_FIELDS)[number];

@@ -1,8 +1,11 @@
 import { apiRequest } from '../api/client';
 
-/** The account's one push switch, exactly as the server keeps it. */
+/** The account's push switches, exactly as the server keeps them. */
 export interface PushPreferences {
+  /** The master push switch; a hard gate for every remote push. */
   pushNotifications: boolean;
+  /** The opt-in inactivity-nudge switch (subordinate to the master switch). */
+  inactivityNotifications: boolean;
 }
 
 /** One delivered push as the account's history lists it. */
@@ -23,10 +26,16 @@ export function fetchPushPreferences(): Promise<PushPreferences> {
   return apiRequest<PushPreferences>('/notifications/preferences');
 }
 
-export function savePushPreferences(pushNotifications: boolean): Promise<PushPreferences> {
+export function savePushPreferences(
+  pushNotifications: boolean,
+  inactivityNotifications?: boolean,
+): Promise<PushPreferences> {
   return apiRequest<PushPreferences>('/notifications/preferences', {
     method: 'PUT',
-    body: { pushNotifications },
+    body:
+      inactivityNotifications === undefined
+        ? { pushNotifications }
+        : { pushNotifications, inactivityNotifications },
   });
 }
 

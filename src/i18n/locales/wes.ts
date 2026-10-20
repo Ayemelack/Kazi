@@ -378,6 +378,10 @@ const wes: TranslationSchema = {
   notifications: {
     pushLabel: 'Push notifications',
     pushDescription: 'Make low stock alert and other message wey Kazi send reach this account.',
+    inactivityLabel: 'Reminder to come back',
+    inactivityDescription:
+      'If you no open Kazi for some time, we fit send one reminder to help you keep your records up to date.',
+    inactivityDisabledHint: 'First turn on push notifications.',
     saved: 'Push notifications don update.',
     historyTitle: 'Notification history',
     emptyTitle: 'No notification yet',
@@ -518,6 +522,7 @@ const wes: TranslationSchema = {
       limit: 'Page size',
       offset: 'Page',
       pushNotifications: 'Push notifications',
+      inactivityNotifications: 'Reminder to come back',
     },
   },
   auth: {

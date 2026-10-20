@@ -16,9 +16,13 @@ export const sendNotificationSchema = z.object({
   body: z.string().trim().min(1, 'Message is required.').max(500, 'Message is too long.'),
 });
 
-// PUT /notifications/preferences: one switch, no other settings yet.
+// PUT /notifications/preferences: the master push switch, plus the opt-in
+// inactivity switch (decision D9). Both fields are accepted; a client that
+// only knows the master switch still works (the inactivity value is then left
+// as it is, not reset).
 export const pushPreferencesSchema = z.object({
   pushNotifications: z.boolean(),
+  inactivityNotifications: z.boolean().optional(),
 });
 
 // GET /notifications/history?limit=50: a missing limit pages in at 50, a

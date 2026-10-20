@@ -78,8 +78,11 @@ function item(overrides: Partial<NotificationItem> = {}): NotificationItem {
   };
 }
 
-function givenPreferences(pushNotifications: boolean): void {
-  (fetchPushPreferences as jest.Mock).mockResolvedValue({ pushNotifications });
+function givenPreferences(pushNotifications: boolean, inactivityNotifications = false): void {
+  (fetchPushPreferences as jest.Mock).mockResolvedValue({
+    pushNotifications,
+    inactivityNotifications,
+  });
 }
 
 function givenHistory(notifications: NotificationItem[]): void {
@@ -127,7 +130,9 @@ describe('NotificationsScreen', () => {
     });
     await flush();
 
-    expect(savePushPreferences).toHaveBeenCalledWith(false);
+    // The master toggle also passes the current opt-in so turning it off and
+    // on never silently clears the inactivity choice.
+    expect(savePushPreferences).toHaveBeenCalledWith(false, false);
     expect(renderer.root.findByProps({ testID: 'push-toggle' }).props.value).toBe(false);
   });
 

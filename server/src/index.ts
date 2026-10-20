@@ -7,6 +7,7 @@ import { checkJwtSecret } from './secrets.js';
 import { parseTrustProxy } from './trustProxy.js';
 import { testSendFromEnv } from './notifications/routes.js';
 import { settleLowStockAlerts } from './notifications/lowStock.js';
+import { startInactivityScheduler } from './notifications/inactivity.js';
 import { gracefulShutdown } from './shutdown.js';
 
 // Fail fast instead of serving 500s on the first authenticated request, and
@@ -69,6 +70,19 @@ const app = createApp(db, {
   testSend,
 });
 
+// Push (KZ-04, decision D9): the inactivity scheduler. It only ever sends to
+// accounts that opted in and kept pushes on, and only when Firebase is
+// configured; without credentials every send is skipped, so the scheduler is
+// not started at all. One scheduler per process — the production topology is a
+// single API process (DEPLOYMENT.md §2, ARCHITECTURE §10).
+const firebaseConfigured = Boolean(
+  process.env.FIREBASE_SERVICE_ACCOUNT || process.env.GOOGLE_APPLICATION_CREDENTIALS,
+);
+const inactivity = firebaseConfigured ? startInactivityScheduler(db) : null;
+if (firebaseConfigured) {
+  log.info('Inactivity notifications: scheduler started (opt-in accounts only).');
+}
+
 const server = app.listen(port, () => {
   log.info(`Kazi API listening on http://localhost:${port}`);
 });
@@ -82,7 +96,12 @@ server.on('error', (err: NodeJS.ErrnoException) => {
 // database (shutdown.ts).
 const shutdown = gracefulShutdown({
   server,
-  settle: settleLowStockAlerts,
+  settle: async () => {
+    // Stop the recurring scan first, then let any in-flight scan and every
+    // queued low-stock alert finish.
+    inactivity?.stop();
+    await settleLowStockAlerts();
+  },
   close: () => db.close(),
   exit: code => process.exit(code),
 });

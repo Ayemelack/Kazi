@@ -275,7 +275,9 @@ test('tokens FCM reports as dead are removed after a send; live ones stay', asyn
 test('push preferences default to on, save, and are validated', async () => {
   const fresh = await call('GET', '/notifications/preferences', undefined, awaToken);
   assert.equal(fresh.status, 200);
-  assert.deepEqual(fresh.data, { pushNotifications: true });
+  // The inactivity opt-in is off by default (decision D9): no account is
+  // silently enrolled in re-engagement nudges.
+  assert.deepEqual(fresh.data, { pushNotifications: true, inactivityNotifications: false });
 
   const saved = await call(
     'PUT',
@@ -284,10 +286,11 @@ test('push preferences default to on, save, and are validated', async () => {
     awaToken,
   );
   assert.equal(saved.status, 200);
-  assert.deepEqual(saved.data, { pushNotifications: false });
+  // A client that only knows the master switch leaves the opt-in untouched.
+  assert.deepEqual(saved.data, { pushNotifications: false, inactivityNotifications: false });
 
   const reread = await call('GET', '/notifications/preferences', undefined, awaToken);
-  assert.deepEqual(reread.data, { pushNotifications: false });
+  assert.deepEqual(reread.data, { pushNotifications: false, inactivityNotifications: false });
 
   const invalid = await call(
     'PUT',
@@ -298,6 +301,35 @@ test('push preferences default to on, save, and are validated', async () => {
   assert.equal(invalid.status, 400);
   assert.equal((invalid.data.error as { code: string }).code, 'VALIDATION_ERROR');
   assert.deepEqual(await call('GET', '/notifications/preferences', undefined, awaToken), reread);
+});
+
+test('the inactivity opt-in is saved independently of the master switch', async () => {
+  const optedIn = await call(
+    'PUT',
+    '/notifications/preferences',
+    { pushNotifications: true, inactivityNotifications: true },
+    awaToken,
+  );
+  assert.equal(optedIn.status, 200);
+  assert.deepEqual(optedIn.data, { pushNotifications: true, inactivityNotifications: true });
+
+  // Turning the master switch off (without naming the opt-in) must not reset
+  // the opt-in choice: it is only gated, not cleared.
+  const masterOff = await call(
+    'PUT',
+    '/notifications/preferences',
+    { pushNotifications: false },
+    awaToken,
+  );
+  assert.deepEqual(masterOff.data, { pushNotifications: false, inactivityNotifications: true });
+
+  const back = await call(
+    'GET',
+    '/notifications/preferences',
+    undefined,
+    awaToken,
+  );
+  assert.deepEqual(back.data, { pushNotifications: false, inactivityNotifications: true });
 });
 
 test('push preferences need an authenticated account', async () => {

@@ -49,6 +49,11 @@ export function pushRoute(push: ParsedPush): { name: string; params?: object } |
           },
         };
   }
+  if (push.type === 'inactivity') {
+    // A re-engagement nudge names no record: open the account's Home tab, the
+    // verified authenticated landing screen.
+    return { name: 'Main', params: { screen: 'Home' } };
+  }
   return null;
 }
 

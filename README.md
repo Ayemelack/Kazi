@@ -40,6 +40,9 @@ Both are built for the value proposition: *"Your business, kept simple."*
   plus low-stock alerts.
 - **Trilingual** — English, French and Cameroon Pidgin, detected from the device and switchable
   in the More tab.
+- **Notifications** — an in-app notification centre; a low-stock push when a tracked item crosses
+  its threshold; an optional daily reminder; and an opt-in "come back" push when an account has not
+  opened the app for a week (off by default, and only while the master push switch is on).
 
 ---
 

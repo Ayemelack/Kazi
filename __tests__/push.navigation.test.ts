@@ -61,6 +61,17 @@ describe('pushRoute', () => {
     const push = parsePushData({ title: 'Hello', body: 'From the test route' });
     expect(pushRoute(push!)).toBeNull();
   });
+
+  it('opens the Home tab for an inactivity nudge (a verified landing screen)', () => {
+    const { pushRoute } = loadNavigation();
+    const push = parsePushData({
+      title: 'Kazi',
+      body: 'Keep your business records up to date. Open Kazi to continue where you left off.',
+      channel: 'kazi',
+      type: 'inactivity',
+    });
+    expect(pushRoute(push!)).toEqual({ name: 'Main', params: { screen: 'Home' } });
+  });
 });
 
 describe('handlePushOpened', () => {

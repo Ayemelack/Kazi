@@ -368,6 +368,10 @@ const en = {
   notifications: {
     pushLabel: 'Push notifications',
     pushDescription: 'Get low-stock alerts and other messages from Kazi on this account.',
+    inactivityLabel: 'Reminders to come back',
+    inactivityDescription:
+      'If you have not opened Kazi for a while, we may send one reminder to help you keep your records up to date.',
+    inactivityDisabledHint: 'Turn on push notifications first.',
     saved: 'Push notifications updated.',
     historyTitle: 'Notification history',
     emptyTitle: 'No notifications yet',
@@ -505,6 +509,7 @@ const en = {
       limit: 'Page size',
       offset: 'Page',
       pushNotifications: 'Push notifications',
+      inactivityNotifications: 'Reminders to come back',
     },
   },
   auth: {

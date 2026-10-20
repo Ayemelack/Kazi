@@ -11,10 +11,12 @@ export const KAZI_PUSH_CHANNEL_ID = 'kazi';
 
 /** Machine-readable kind of push; the app maps each one to a screen. */
 export const PUSH_TYPE_LOW_STOCK = 'low_stock';
+/** A re-engagement nudge sent when an account has not opened Kazi for a while. */
+export const PUSH_TYPE_INACTIVITY = 'inactivity';
 
-export type PushType = typeof PUSH_TYPE_LOW_STOCK;
+export type PushType = typeof PUSH_TYPE_LOW_STOCK | typeof PUSH_TYPE_INACTIVITY;
 
-const PUSH_TYPES: readonly string[] = [PUSH_TYPE_LOW_STOCK];
+const PUSH_TYPES: readonly string[] = [PUSH_TYPE_LOW_STOCK, PUSH_TYPE_INACTIVITY];
 
 /** Per-type fields a sender attaches on top of the always-present ones. */
 export interface PushDataExtras {
@@ -36,6 +38,11 @@ export interface ParsedPush {
 /** The data extras for a low-stock alert about one item. */
 export function lowStockPushData(itemId: number): PushDataExtras {
   return { type: PUSH_TYPE_LOW_STOCK, itemId: String(itemId) };
+}
+
+/** The data extras for an inactivity nudge; it names no record. */
+export function inactivityPushData(): PushDataExtras {
+  return { type: PUSH_TYPE_INACTIVITY };
 }
 
 /**

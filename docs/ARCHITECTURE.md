@@ -354,6 +354,10 @@ never): when the API last sent a low-stock push for the item, for the once-per-1
 
 `0007_announcements` (merged from main, 2026-10-15) creates `announcements` (one slot, id 1: `body_en`, `body_fr`, `body_pid` — the Pidgin text, language code `wes` — `min_version`, `max_version`, `active`). main created it in the old pre-framework boot code, so the migration keeps `IF NOT EXISTS` and main's exact statement text: a database made by that code is baselined and ends with the same schema as a fresh one (`0007_announcements.test.ts`).
 
+`0008_push_notifications` (KZ-03) adds `users.push_notifications` (`INTEGER NOT NULL DEFAULT 1`): the master push switch the Notifications screen toggles.
+
+`0009_inactivity_notifications` (KZ-04, decision D9) adds three columns to `users`, all epoch ms or a flag, all additive (no table rebuild): `last_seen_at INTEGER` (NULL = never seen; written by the throttled presence hook, decision in §8.3), `inactivity_notifications INTEGER NOT NULL DEFAULT 0` (the separate opt-in switch; conservative default off, so nobody is nudged until they ask), and `inactivity_notified_at INTEGER` (NULL = never nudged; the once-per-repeat-window slot, claimed before the send like `items.last_low_stock_alert_at`).
+
 Rules for new migrations:
 
 - Never edit a migration that has shipped; add a new file with the next number.
@@ -485,6 +489,55 @@ response: no second sale, no second stock movement (KZ-11).
    AppStack with no user.
 4. Authenticated → request notification permission → register FCM token.
 
+### 8.3 Inactivity re-engagement push
+
+```mermaid
+sequenceDiagram
+  participant SCH as inactivity scheduler (1/hour)
+  participant DB as SQLite
+  participant FCM as FCM
+  SCH->>DB: SELECT eligible accounts (last_seen_at older than threshold)
+  SCH->>DB: UPDATE users.inactivity_notified_at = now (claim the slot)
+  SCH->>FCM: one multicast, account's language (5 s timeout, failure only logged)
+```
+
+**Activity breadcrumb (KZ-04).** `requireAuth` (`server/src/middleware/auth.ts`), after a request
+authenticates, records `users.last_seen_at = now` at most once per hour
+(`LAST_SEEN_THROTTLE_MS`, `notifications/presence.ts`). The write is **best-effort**: it is wrapped
+in a `try/catch` and never fails or delays the request it rode in on; a database error while
+stamping presence is swallowed. `last_seen_at` is NULL for everyone until their first
+authenticated request after this ships, and NULL is never treated as "inactive".
+
+**The scheduler (KZ-04, decision D9).** `startInactivityScheduler`
+(`server/src/notifications/inactivity.ts`) is started by `src/index.ts` **only when Firebase is
+configured** (`FIREBASE_SERVICE_ACCOUNT` or `GOOGLE_APPLICATION_CREDENTIALS`); without credentials
+every send is skipped, so nothing is scheduled. It runs on one `setInterval`
+(`INACTIVITY_SCAN_INTERVAL_MS`, 1 hour), `unref`'d so it never keeps the process alive, with a
+`running`/`inFlight` guard so two ticks can't overlap in the process. This is safe because the
+production topology is a single API process (§10). SIGTERM/SIGINT stops the scheduler first
+(`inactivity?.stop()` in the `shutdown.ts` `settle` step) before the low-stock queue is drained.
+
+**Eligibility and the two switches.** A scan (`findCandidates`, all in SQL) selects accounts whose
+`last_seen_at` exists and is older than `INACTIVITY_THRESHOLD_MS` (7 days), oldest activity first,
+capped at `INACTIVITY_BATCH_SIZE` (500) per tick. A send then requires **both** the account-level
+master switch (`users.push_notifications`) and the separate opt-in
+(`users.inactivity_notifications`, default **off**) — `inactivityNotificationsAllowed` in
+`preferences.ts`. An account with no devices is skipped without spending the slot. The nudge is one
+data-only multicast in the account's language (`inactivityMessage.ts`, en/fr/wes; `type: inactivity`
+data), and it repeats at most once per `INACTIVITY_REPEAT_MS` (7 days).
+
+**Failure rules (mirrors the low-stock alert).** The slot `users.inactivity_notified_at` is claimed
+in one `UPDATE` before the send, so a crash or restart mid-send can't double up. If FCM refuses, or
+answers with no device accepted (`NoDeviceAcceptedError`), the claim is released (only if it still
+holds the job's timestamp) so the next scan retries; after a timeout the claim is kept (a duplicate
+is worse than a miss). Dead tokens are deleted as for any send, invalid-token cleanup is unchanged,
+and a per-account error is logged with the user id and an error code only — never a token or email —
+without stopping the scan. History is recorded only for sends at least one device accepted
+(`notifications/service.ts`, unchanged).
+
+**The tap.** `type: inactivity` maps in the app's `pushNavigation.ts` to Home
+(`{ name: 'Main', params: { screen: 'Home' } }`).
+
 ---
 
 ## 9. Architecture decisions
@@ -505,6 +558,7 @@ response: no second sale, no second stock movement (KZ-11).
 | A13 | Pidgin is `wes` (ISO 639-3); dates use a formatting locale separate from the language code | Accepted (2026-10-11, KZ-24) | `pid` is Piaroa; a registered code beats a private-use tag; Intl has no `wes` data, so formatting uses `en-CM` (§7.3). A12 is reserved for the read cache (session 13) |
 | A14 | Password hashing runs bcryptjs on a worker-thread pool (CPUs − 1, between 1 and 4), started with the server | Accepted (2026-10-14, KZ-21) | bcryptjs async only yields every 100 ms and a cost-10 hash fits in one slice, so async alone still froze the event loop for each login (measured: 20 parallel compares blocked it for 2.35 s). Workers keep the pure-JS library (no native build, same `$2a$`/`$2b$` hashes); the native `bcrypt` package was the alternative |
 | A15 | Password reset by an emailed 6-digit code: stored as an HMAC, a uniform 202 with the work done after the response, one error for every failure, and a sender chosen at boot that fails closed | Accepted (2026-10-14, KZ-06) | The old flow returned the code in the response outside production and could not deliver in production. An HMAC keyed from `JWT_SECRET` keeps a leaked database from revealing live codes (a plain hash of 6 digits is reversed instantly). While the email provider (D2) is pending, a small HTTPS adapter supports Brevo, Postmark and a generic relay, so choosing one is configuration, not code |
+| A16 | An inactivity re-engagement push, decided per account, sent by one in-process scheduler guarded by a database-backed slot | Accepted (2026-10-16, KZ-04, decision D9) | A shop owner who stops opening the app loses the value of reminders. It is a second automated remote sender after the low-stock alert, so it reuses that machinery: a nullable `users.last_seen_at`, an opt-in switch that defaults off, and the same claim-before-send slot. The single-API-process topology (§10) makes an in-process interval safe; the slot claim makes overlapping ticks — or a future second instance — unable to double-send |
 
 Add a row for every new architectural decision, and update the status when it changes.
 

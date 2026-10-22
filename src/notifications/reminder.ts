@@ -1,14 +1,17 @@
 import notifee, {
   AndroidImportance,
+  AndroidVisibility,
   RepeatFrequency,
   TriggerType,
 } from '@notifee/react-native';
+import { Platform } from 'react-native';
 import { getJson, setJson } from '../storage/app.storage';
 import {
   KAZI_NOTIFICATION_CHANNEL,
   ensureNotificationChannel,
 } from './service';
 import { buildDailyReminderContent } from './reminderContent';
+import { lockScreenReminderContent } from './lockScreen';
 
 export const REMINDER_STORAGE_KEY = 'kazi.dailyReminder';
 export const REMINDER_NOTIFICATION_ID = 'kazi-daily-reminder';
@@ -81,18 +84,21 @@ export async function cancelDailyReminder(): Promise<void> {
 export async function scheduleDailyReminder(
   settings: ReminderSettings,
   content: ReminderContent,
+  platform: string = Platform.OS,
 ): Promise<void> {
   const normalized = normalizeReminderSettings(settings);
   await ensureNotificationChannel();
   const timestamp = nextReminderDate(normalized.hour, normalized.minute).getTime();
+  const display = lockScreenReminderContent(platform) ?? content;
   await notifee.createTriggerNotification(
     {
       id: REMINDER_NOTIFICATION_ID,
-      title: content.title,
-      body: content.body,
+      title: display.title,
+      body: display.body,
       android: {
         channelId: KAZI_NOTIFICATION_CHANNEL,
         importance: AndroidImportance.HIGH,
+        visibility: AndroidVisibility.SECRET,
         pressAction: { id: 'default' },
         // Show when the reminder was actually posted. `android.timestamp` is
         // deliberately left unset: it would freeze the schedule time and show
@@ -111,11 +117,12 @@ export async function scheduleDailyReminder(
 export async function applyDailyReminder(
   settings: ReminderSettings,
   content: ReminderContent,
+  platform: string = Platform.OS,
 ): Promise<void> {
   const normalized = normalizeReminderSettings(settings);
   await saveReminderSettings(normalized);
   if (normalized.enabled) {
-    await scheduleDailyReminder(normalized, content);
+    await scheduleDailyReminder(normalized, content, platform);
   } else {
     await cancelDailyReminder();
   }

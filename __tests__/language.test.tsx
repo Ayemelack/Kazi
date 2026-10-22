@@ -138,7 +138,7 @@ describe('language follows the account', () => {
   }
 
   it('after login, a phone with no saved choice takes the server language', async () => {
-    (logInAccount as jest.Mock).mockResolvedValue({ token: 't', user: user('wes') });
+    (logInAccount as jest.Mock).mockResolvedValue({ token: 't', refreshToken: 'r', user: user('wes') });
     const auth = await renderAuth();
     await act(async () => {
       await auth.current().logIn({ email: 'awa@example.cm', password: 'secret123' });
@@ -153,7 +153,7 @@ describe('language follows the account', () => {
     await act(async () => {
       await i18n.changeLanguage('fr');
     });
-    (logInAccount as jest.Mock).mockResolvedValue({ token: 't', user: user('wes') });
+    (logInAccount as jest.Mock).mockResolvedValue({ token: 't', refreshToken: 'r', user: user('wes') });
     const auth = await renderAuth();
     await act(async () => {
       await auth.current().logIn({ email: 'awa@example.cm', password: 'secret123' });
@@ -163,7 +163,7 @@ describe('language follows the account', () => {
   });
 
   it('saves a language change on the server without waiting for it or failing', async () => {
-    (logInAccount as jest.Mock).mockResolvedValue({ token: 't', user: user('en') });
+    (logInAccount as jest.Mock).mockResolvedValue({ token: 't', refreshToken: 'r', user: user('en') });
     let rejectServer!: (err: Error) => void;
     (updateLanguage as jest.Mock).mockReturnValue(
       new Promise((_, reject) => {
@@ -193,7 +193,7 @@ describe('language follows the account', () => {
     await act(async () => {
       await i18n.changeLanguage('fr');
     });
-    (signUpAccount as jest.Mock).mockResolvedValue({ token: 't', user: user('en') });
+    (signUpAccount as jest.Mock).mockResolvedValue({ token: 't', refreshToken: 'r', user: user('en') });
     (updateLanguage as jest.Mock).mockResolvedValue({ user: user('fr') });
     const auth = await renderAuth();
     await act(async () => {

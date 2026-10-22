@@ -12,6 +12,7 @@ import {
   isResetCodeFormat,
   utf8ByteLength,
 } from '@kazi/shared';
+import { REFRESH_TOKEN_PATTERN } from './session.js';
 
 // Letters (including accented letters used in French), spaces, hyphens and
 // apostrophes. Digits and symbols are rejected so names cannot hide numbers.
@@ -113,6 +114,15 @@ export const deleteAccountSchema = z.object({
   password: z.string().min(1, 'Password is required.'),
 });
 
+// KZ-13: the refresh token the app stored at sign-in. Its shape is fixed
+// (<32 hex>.<64 hex>), so a malformed value is refused before any lookup.
+export const refreshTokenSchema = z.object({
+  refreshToken: z
+    .string()
+    .trim()
+    .regex(REFRESH_TOKEN_PATTERN, 'Start the app again and sign in.'),
+});
+
 export type SignupInput = z.infer<typeof signupSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
@@ -121,6 +131,7 @@ export type ProfileInput = z.infer<typeof profileSchema>;
 export type AccountInput = z.infer<typeof accountSchema>;
 export type LanguageInput = z.infer<typeof languageSchema>;
 export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;
+export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
 
 export function validate<S extends z.ZodTypeAny>(
   schema: S,

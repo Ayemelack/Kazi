@@ -8,6 +8,7 @@ import { lowStockAlert } from './0006_low_stock_alert.js';
 import { announcements } from './0007_announcements.js';
 import { pushNotifications } from './0008_push_notifications.js';
 import { inactivityNotifications } from './0009_inactivity_notifications.js';
+import { sessions } from './0010_sessions.js';
 
 // Every schema change is a new file NNNN_<name>.ts added to the end of this
 // list. Applied migrations are never edited; see docs/ARCHITECTURE.md A6.
@@ -21,4 +22,5 @@ export const MIGRATIONS: readonly Migration[] = [
   announcements,
   pushNotifications,
   inactivityNotifications,
+  sessions,
 ];

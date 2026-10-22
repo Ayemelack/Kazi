@@ -388,6 +388,8 @@ const wes: TranslationSchema = {
     emptyMessage: 'The message wey Kazi send you go show for here.',
     markAllRead: 'Mark all as read',
     markedRead: 'All notifications don mark as read.',
+    privateTitle: 'Kazi',
+    privateBody: 'Open Kazi to see your latest update.',
   },
   feedback: {
     title: 'Help us make Kazi better',
@@ -489,6 +491,7 @@ const wes: TranslationSchema = {
       password: 'Password',
       code: 'Reset code',
       token: 'Notification token',
+      refreshToken: 'Session',
       companyName: 'Business name',
       businessType: 'Type of business',
       language: 'Language',

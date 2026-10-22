@@ -1,5 +1,5 @@
 import * as Keychain from 'react-native-keychain';
-import { constantTimeEqual, hashSecret, sha256Hex } from '../src/applock/hash';
+import { constantTimeEqual, hashSecret, randomSalt, sha256Hex } from '../src/applock/hash';
 import {
   LOCKOUT_BASE_MS,
   LOCKOUT_MAX_MS,
@@ -44,6 +44,31 @@ describe('hashSecret', () => {
 
   it('changes when the salt changes', () => {
     expect(hashSecret('1234', 'salt-a', 50)).not.toBe(hashSecret('1234', 'salt-b', 50));
+  });
+});
+
+describe('randomSalt', () => {
+  it('draws bytes from the platform CSPRNG, not Math.random', () => {
+    const source = (globalThis as unknown as {
+      crypto: { getRandomValues: (array: Uint8Array) => Uint8Array };
+    }).crypto;
+    const getRandomValues = jest.spyOn(source, 'getRandomValues');
+    const random = jest.spyOn(Math, 'random');
+
+    const salt = randomSalt(16);
+
+    expect(salt).toMatch(/^[0-9a-f]{32}$/);
+    expect(getRandomValues).toHaveBeenCalledTimes(1);
+    expect(getRandomValues.mock.calls[0][0]).toBeInstanceOf(Uint8Array);
+    expect((getRandomValues.mock.calls[0][0] as Uint8Array).length).toBe(16);
+    expect(random).not.toHaveBeenCalled();
+
+    random.mockRestore();
+    getRandomValues.mockRestore();
+  });
+
+  it('does not repeat a salt across calls', () => {
+    expect(randomSalt()).not.toBe(randomSalt());
   });
 });
 

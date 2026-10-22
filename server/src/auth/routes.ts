@@ -21,12 +21,14 @@ import {
   languageSchema,
   loginSchema,
   profileSchema,
+  refreshTokenSchema,
   resetPasswordSchema,
   signupSchema,
   validate,
 } from './validation.js';
 import { FixedWindowLimiter, byIp, rateLimit, tooManyRequests } from '../middleware/rateLimit.js';
 import { NO_RESET_DELIVERY, isDevelopmentOrTest, type ResetDelivery } from './delivery.js';
+import { deleteDeadSessions, revokeSession, rotateSession } from './session.js';
 
 // The one answer to every forgot-password request (KZ-06).
 export const RESET_REQUESTED = {
@@ -40,6 +42,12 @@ export const AUTH_WINDOW_MS = 15 * 60 * 1000;
 export const ACCOUNT_REQUESTS_PER_IP = 12;
 /** Login and account deletion attempts per IP. */
 export const PASSWORD_ATTEMPTS_PER_IP = 25;
+/**
+ * Refresh and logout attempts per IP. A phone renews its session once every
+ * 15 minutes, so this is generous for retries and several devices behind one
+ * address, while still bounding database work.
+ */
+export const SESSION_REQUESTS_PER_IP = 60;
 /** Wrong passwords per account (login: per email; deletion: per user), from any address. */
 export const PASSWORD_FAILURES_PER_ACCOUNT = 10;
 
@@ -69,6 +77,8 @@ export function createAuthRouter(
   const loginLimiter = perIp(PASSWORD_ATTEMPTS_PER_IP);
   // Deleting the account checks the password, so it is limited like login.
   const deleteLimiter = perIp(PASSWORD_ATTEMPTS_PER_IP);
+  const refreshLimiter = perIp(SESSION_REQUESTS_PER_IP);
+  const logoutLimiter = perIp(SESSION_REQUESTS_PER_IP);
 
   // Password guesses against one account, from any number of addresses. An
   // attempt is counted when it starts (so parallel guesses can't all pass the
@@ -117,7 +127,33 @@ export function createAuthRouter(
     }
   });
 
-  router.post('/logout', (_req, res) => {
+  // KZ-13: trade a refresh token for a new access token. Rotating means each
+  // refresh token works once; reusing one revokes the session (session.ts).
+  router.post('/refresh', refreshLimiter, (req, res, next) => {
+    try {
+      const { refreshToken } = validate(refreshTokenSchema, req.body);
+      const rotated = rotateSession(db, refreshToken);
+      deleteDeadSessions(db);
+      res.status(200).json({ token: rotated.token, refreshToken: rotated.refreshToken });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // KZ-13: logging out revokes the session server-side, so the access token
+  // and the refresh token both stop working at once. Only the refresh token
+  // proves ownership, so the call works even after the 15-minute access token
+  // expired, and no other session of the account is touched. Always 204: a
+  // missing, expired or unknown token must not reveal anything.
+  router.post('/logout', logoutLimiter, (req, res) => {
+    const body = req.body as { refreshToken?: unknown } | undefined;
+    if (typeof body?.refreshToken === 'string') {
+      try {
+        revokeSession(db, body.refreshToken);
+      } catch {
+        // Logout stays best effort even if the server is misconfigured.
+      }
+    }
     res.status(204).end();
   });
 

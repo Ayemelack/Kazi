@@ -131,12 +131,18 @@ function toHex(bytes: number[]): string {
   return hex;
 }
 
+type RandomSource = {
+  getRandomValues?: (array: Uint8Array) => Uint8Array;
+};
+
 export function randomSalt(byteLength = 16): string {
-  const bytes: number[] = [];
-  for (let i = 0; i < byteLength; i += 1) {
-    bytes.push(Math.floor(Math.random() * 256));
+  const source = (globalThis as { crypto?: RandomSource }).crypto;
+  if (!source || typeof source.getRandomValues !== 'function') {
+    throw new Error('A secure random source is required to generate an app-lock salt');
   }
-  return toHex(bytes);
+  const bytes = new Uint8Array(byteLength);
+  source.getRandomValues(bytes);
+  return toHex(Array.from(bytes));
 }
 
 export const HASH_ITERATIONS = 10000;

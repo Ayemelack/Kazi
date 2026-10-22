@@ -1,17 +1,65 @@
 import { env } from '../config/env';
-import { getToken } from '../storage/secure.storage';
+import {
+  clearSession,
+  getRefreshToken,
+  getToken,
+  saveSession,
+} from '../storage/secure.storage';
 import { ApiError, NetworkError } from '../errors/ApiError';
 import { isOnline } from '../offline/connectivity';
 import { isValidationRule } from '@kazi/shared';
+import { emitSessionExpired } from '../auth/sessionEvents';
+import type { RefreshResult } from '../auth/types';
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   auth?: boolean;
+  /** Internal: a request is retried after a refresh at most once. */
+  retried?: boolean;
 }
+
+// KZ-13: the access token lasts 15 minutes. These are the answers that mean
+// "renew the session and try again"; anything else (bad password, revoked
+// account) must not be retried.
+const RENEWABLE_CODES: ReadonlySet<string> = new Set(['TOKEN_EXPIRED', 'INVALID_TOKEN']);
 
 function isAbortError(err: unknown): boolean {
   return err instanceof Error && err.name === 'AbortError';
+}
+
+// One renewal at a time: several requests can be refused at once when the
+// access token expires, and the refresh token only works once.
+let renewal: Promise<string | null> | null = null;
+
+function renewSession(): Promise<string | null> {
+  if (!renewal) {
+    renewal = performRenewal().finally(() => {
+      renewal = null;
+    });
+  }
+  return renewal;
+}
+
+async function performRenewal(): Promise<string | null> {
+  const refreshToken = await getRefreshToken();
+  if (!refreshToken) {
+    return null;
+  }
+  try {
+    const next = await apiRequest<RefreshResult>('/auth/refresh', {
+      method: 'POST',
+      auth: false,
+      body: { refreshToken },
+    });
+    await saveSession(next.token, next.refreshToken);
+    return next.token;
+  } catch {
+    // The session is gone (revoked, expired, or a rotated token was replayed),
+    // so there is nothing left to renew.
+    await clearSession();
+    return null;
+  }
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -79,6 +127,21 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       // Non-JSON error body (a proxy page, for example): no code, so the
       // generic message is shown.
     }
+
+    // KZ-13: an expired or revoked access token is renewed once, transparently.
+    // A renewal that fails, or a retry that is still refused, means the session
+    // is over, and the provider signs the user out (sessionEvents).
+    if (auth && response.status === 401 && code !== undefined && RENEWABLE_CODES.has(code)) {
+      if (!options.retried) {
+        const renewed = await renewSession();
+        if (renewed) {
+          return apiRequest<T>(path, { ...options, retried: true });
+        }
+      }
+      await clearSession();
+      emitSessionExpired();
+    }
+
     throw new ApiError(response.status, message, code, {
       field,
       rule: isValidationRule(rule) ? rule : undefined,

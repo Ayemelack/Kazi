@@ -10,7 +10,7 @@ import React, {
 } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import { type LockMethod, type SecretKind, type UnlockResult } from './types';
-import { HASH_ITERATIONS, hashSecret } from './hash';
+import { HASH_ITERATIONS, constantTimeEqual, hashSecret } from './hash';
 import {
   configureFingerprint,
   configureSecret,
@@ -138,7 +138,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
       authenticatingRef.current = true;
       try {
         const candidate = hashSecret(secret, current.salt, HASH_ITERATIONS);
-        if (candidate === current.hash) {
+        if (constantTimeEqual(candidate, current.hash)) {
           await persist({ ...current, failedAttempts: 0, lockoutUntil: 0 });
           setLocked(false);
           return 'ok';

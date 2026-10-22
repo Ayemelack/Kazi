@@ -381,6 +381,8 @@ const fr: TranslationSchema = {
     emptyMessage: 'Les messages que Kazi vous envoie apparaîtront ici.',
     markAllRead: 'Tout marquer comme lu',
     markedRead: 'Toutes les notifications ont été marquées comme lues.',
+    privateTitle: 'Kazi',
+    privateBody: 'Ouvrez Kazi pour voir votre dernière mise à jour.',
   },
   feedback: {
     title: 'Aidez-nous à améliorer Kazi',
@@ -480,6 +482,7 @@ const fr: TranslationSchema = {
       password: 'Mot de passe',
       code: 'Code de réinitialisation',
       token: 'Jeton de notification',
+      refreshToken: 'Session',
       companyName: "Nom de l'entreprise",
       businessType: "Type d'activité",
       language: 'Langue',

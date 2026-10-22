@@ -3,7 +3,8 @@ import { RESET_CODE_MAX_ATTEMPTS, isAppLanguage, type AppLanguage } from '@kazi/
 import { AppError } from '../errors.js';
 import { log } from '../log.js';
 import { deliveryFailureReason, type ResetCodeSender } from './delivery.js';
-import { signAccessToken } from './jwt.js';
+import { accessTokenSecret } from './jwt.js';
+import { deleteDeadSessions, startSession, type SessionTokens } from './session.js';
 import {
   hashPassword,
   prepareDummyHash,
@@ -39,8 +40,7 @@ export interface PublicUser {
   language: string;
 }
 
-export interface AuthResult {
-  token: string;
+export interface AuthResult extends SessionTokens {
   user: PublicUser;
 }
 
@@ -139,7 +139,7 @@ export async function signUp(db: Database.Database, input: SignupInput): Promise
   const user = selectUser(db, userId) as unknown as UserRow;
 
   return {
-    token: signAccessToken(user.id, user.token_version, requiredSecret()),
+    ...startSession(db, user),
     user: toPublicUser(user),
   };
 }
@@ -159,7 +159,10 @@ export async function logIn(db: Database.Database, input: LoginInput): Promise<A
     throw invalidCredentials();
   }
 
-  return { token: signAccessToken(user.id, user.token_version, requiredSecret()), user: toPublicUser(user) };
+  // Housekeeping: sessions that can no longer be used.
+  deleteDeadSessions(db);
+
+  return { ...startSession(db, user), user: toPublicUser(user) };
 }
 
 export function findUserById(db: Database.Database, userId: number): PublicUser | null {
@@ -234,7 +237,7 @@ export async function deleteAccount(
   if (!(await verifyPassword(input.password, row.password_hash))) {
     throw invalidCredentials();
   }
-  // Foreign keys cascade to reset codes, items, stock movements,
+  // Foreign keys cascade to sessions, reset codes, items, stock movements,
   // transactions, debts, activity and feedback.
   db.prepare('DELETE FROM users WHERE id = ?').run(userId);
 }
@@ -254,7 +257,7 @@ export interface IssuedResetCode {
  * HMAC is stored.
  */
 export function issueResetCode(db: Database.Database, email: string): IssuedResetCode | null {
-  const secret = requiredSecret();
+  const secret = accessTokenSecret();
   const now = Date.now();
   const issue = db.transaction((): IssuedResetCode | null => {
     // Housekeeping: codes that can no longer be used.
@@ -323,7 +326,7 @@ export async function resetPassword(
   db: Database.Database,
   input: ResetPasswordInput,
 ): Promise<void> {
-  const secret = requiredSecret();
+  const secret = accessTokenSecret();
   const email = input.email.toLowerCase();
 
   // The newest code that can still be used: not used, not expired, fewer than
@@ -382,12 +385,14 @@ export async function resetPassword(
       throw invalidResetCode();
     }
     // Bumping token_version invalidates every session token signed before the
-    // reset, so a leaked token cannot outlive the password change.
+    // reset, so a leaked token cannot outlive the password change; deleting
+    // the session rows also kills their refresh tokens.
     db.prepare(
       `UPDATE users
        SET password_hash = ?, token_version = token_version + 1, updated_at = datetime('now')
        WHERE id = ?`,
     ).run(passwordHash, candidate.user_id);
+    db.prepare('DELETE FROM sessions WHERE user_id = ?').run(candidate.user_id);
     db.prepare('DELETE FROM password_resets WHERE user_id = ? AND id != ?').run(
       candidate.user_id,
       candidate.id,
@@ -395,12 +400,4 @@ export async function resetPassword(
   });
 
   update();
-}
-
-function requiredSecret(): string {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    throw new AppError(500, 'INTERNAL', 'Server is missing the JWT secret.');
-  }
-  return secret;
 }

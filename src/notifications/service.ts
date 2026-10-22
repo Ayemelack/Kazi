@@ -1,6 +1,7 @@
 import { Platform, PermissionsAndroid } from 'react-native';
 import notifee, {
   AndroidImportance,
+  AndroidVisibility,
   type Event,
   EventType,
 } from '@notifee/react-native';
@@ -18,6 +19,7 @@ import { apiRequest } from '../api/client';
 import { pushMessaging, withPushMessaging } from './firebase';
 import { handlePushOpened } from './pushNavigation';
 import { refreshDailyReminder } from './reminder';
+import { lockScreenPushContent } from './lockScreen';
 
 // The same channel the API names in every push (shared contract).
 const KAZI_CHANNEL_ID = KAZI_PUSH_CHANNEL_ID;
@@ -35,6 +37,7 @@ export async function ensureNotificationChannel(): Promise<string> {
     id: KAZI_CHANNEL_ID,
     name: KAZI_CHANNEL_NAME,
     importance: AndroidImportance.HIGH,
+    visibility: AndroidVisibility.SECRET,
     vibration: true,
     sound: 'default',
     bypassDnd: false,
@@ -201,18 +204,18 @@ function notificationData(data: RemoteMessage['data']): Record<string, string> {
 export function setupBackgroundHandler(): void {
   withPushMessaging(messaging =>
     setBackgroundMessageHandler(messaging, async remoteMessage => {
-      const { title, body } = extractNotification(remoteMessage);
-      if (!title || !body) {
+      const content = pushDisplayContent(remoteMessage);
+      if (!content) {
         return;
       }
       await ensureNotificationChannel();
       await notifee.displayNotification({
-        title,
-        body,
+        ...content,
         data: notificationData(remoteMessage.data),
         android: {
           channelId: KAZI_CHANNEL_ID,
           importance: AndroidImportance.HIGH,
+          visibility: AndroidVisibility.SECRET,
           pressAction: { id: 'default' },
           // Android hides the time unless asked to show it. `when` stays the
           // default (the moment the push was displayed), so the time a user
@@ -230,18 +233,18 @@ export function setupForegroundMessageListener(): void {
   }
   foregroundMessageRegistered = withPushMessaging(messaging =>
     onMessage(messaging, async remoteMessage => {
-      const { title, body } = extractNotification(remoteMessage);
-      if (!title || !body) {
+      const content = pushDisplayContent(remoteMessage);
+      if (!content) {
         return;
       }
       await ensureNotificationChannel();
       await notifee.displayNotification({
-        title,
-        body,
+        ...content,
         data: notificationData(remoteMessage.data),
         android: {
           channelId: KAZI_CHANNEL_ID,
           importance: AndroidImportance.HIGH,
+          visibility: AndroidVisibility.SECRET,
           pressAction: { id: 'default' },
           showTimestamp: true,
         },
@@ -286,4 +289,15 @@ function extractNotification(remoteMessage: RemoteMessage): {
     };
   }
   return {};
+}
+
+/** What the OS shows for a push: detailed everywhere but the iOS lock screen. */
+function pushDisplayContent(
+  remoteMessage: RemoteMessage,
+): { title: string; body: string } | null {
+  const detail = extractNotification(remoteMessage);
+  if (!detail.title || !detail.body) {
+    return null;
+  }
+  return lockScreenPushContent() ?? { title: detail.title, body: detail.body };
 }

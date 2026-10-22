@@ -8,7 +8,12 @@ import React, {
 } from 'react';
 import { ApiError } from '../errors/ApiError';
 import { getJson, removeKey, setJson } from '../storage/app.storage';
-import { clearToken, getToken, saveToken } from '../storage/secure.storage';
+import {
+  clearSession,
+  getRefreshToken,
+  getToken,
+  saveSession,
+} from '../storage/secure.storage';
 import {
   deleteAccount,
   fetchCurrentUser,
@@ -34,6 +39,7 @@ import type {
   ResetPasswordInput,
   SignUpInput,
 } from './types';
+import { onSessionExpired } from './sessionEvents';
 
 const USER_STORAGE_KEY = 'kazi.user';
 
@@ -108,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setStatus('authenticated');
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) {
-          await clearToken();
+          await clearSession();
           await removeKey(USER_STORAGE_KEY);
           if (!cancelled) {
             setUser(null);
@@ -136,6 +142,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [status]);
 
+  // KZ-13: the API client renews the session on its own; when renewal fails
+  // the session is over, so drop the user out instead of leaving every screen
+  // showing errors until the next launch.
+  useEffect(() => {
+    return onSessionExpired(() => {
+      (async () => {
+        await clearSession();
+        await removeKey(USER_STORAGE_KEY);
+        setUser(null);
+        setStatus('unauthenticated');
+      })();
+    });
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       status,
@@ -143,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       hasBusiness: user?.hasBusiness ?? false,
       async signUp(input) {
         const result = await signUpAccount(input);
-        await saveToken(result.token);
+        await saveSession(result.token, result.refreshToken);
         await setJson(USER_STORAGE_KEY, result.user);
         // A new account starts in the language the app is showing.
         saveLanguageOnServer(i18n.language);
@@ -152,16 +172,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       async logIn(input) {
         const result = await logInAccount(input);
-        await saveToken(result.token);
+        await saveSession(result.token, result.refreshToken);
         await adoptServerLanguage(result.user);
         await setJson(USER_STORAGE_KEY, result.user);
         setUser(result.user);
         setStatus('authenticated');
       },
       async logOut() {
+        const refreshToken = await getRefreshToken();
         await unregisterCurrentToken().catch(() => {});
-        logOutAccount().catch(() => {});
-        await clearToken();
+        // Revoke the server session (KZ-13), then forget the tokens. The
+        // request is not awaited: logging out of this phone must not depend on
+        // the network.
+        logOutAccount(refreshToken).catch(() => {});
+        await clearSession();
         await removeKey(USER_STORAGE_KEY);
         setUser(null);
         setStatus('unauthenticated');
@@ -185,8 +209,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // and this phone's push registration exactly as they were.
         await deleteAccount(password);
         await unregisterCurrentToken().catch(() => {});
-        logOutAccount().catch(() => {});
-        await clearToken();
+        // The account is gone, so its sessions went with it; only the copy on
+        // this phone is left to clear.
+        await clearSession();
         await removeKey(USER_STORAGE_KEY);
         setUser(null);
         setStatus('unauthenticated');

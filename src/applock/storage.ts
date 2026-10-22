@@ -5,7 +5,7 @@ import {
   type LockMethod,
   type SecretKind,
 } from './types';
-import { HASH_ITERATIONS, hashSecret, randomSalt } from './hash';
+import { HASH_ITERATIONS, constantTimeEqual, hashSecret, randomSalt } from './hash';
 import { promptBiometric } from './biometrics';
 
 const CONFIG_SERVICE = 'com.kazi.app.lock';
@@ -203,7 +203,7 @@ export function verifySecret(config: LockConfigRecord, secret: string): boolean 
   if (!config.salt || !config.hash) {
     return false;
   }
-  return hashSecret(secret, config.salt, HASH_ITERATIONS) === config.hash;
+  return constantTimeEqual(hashSecret(secret, config.salt, HASH_ITERATIONS), config.hash);
 }
 
 export function registerFailedAttempt(config: LockConfigRecord): LockConfigRecord {

@@ -11,7 +11,15 @@ export interface PublicUser {
 
 export interface AuthResult {
   token: string;
+  /** KZ-13: exchanged for a new pair when the access token expires. */
+  refreshToken: string;
   user: PublicUser;
+}
+
+/** KZ-13: what POST /auth/refresh returns; the session stays the same. */
+export interface RefreshResult {
+  token: string;
+  refreshToken: string;
 }
 
 export interface SignUpInput {

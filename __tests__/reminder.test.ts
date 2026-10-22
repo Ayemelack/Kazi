@@ -1,4 +1,5 @@
-import notifee from '@notifee/react-native';
+import notifee, { AndroidVisibility } from '@notifee/react-native';
+import i18n from '../src/i18n';
 import {
   DEFAULT_REMINDER_SETTINGS,
   REMINDER_NOTIFICATION_ID,
@@ -72,7 +73,7 @@ describe('applyDailyReminder', () => {
   });
 
   it('schedules a repeating daily trigger and saves the settings', async () => {
-    await applyDailyReminder({ enabled: true, hour: 18, minute: 30 }, CONTENT);
+    await applyDailyReminder({ enabled: true, hour: 18, minute: 30 }, CONTENT, 'android');
 
     expect(notifee.createTriggerNotification).toHaveBeenCalledTimes(1);
     const [notification, trigger] = (notifee.createTriggerNotification as jest.Mock).mock
@@ -80,6 +81,7 @@ describe('applyDailyReminder', () => {
     expect(notification.id).toBe(REMINDER_NOTIFICATION_ID);
     expect(notification.title).toBe(CONTENT.title);
     expect(notification.body).toBe(CONTENT.body);
+    expect(notification.android.visibility).toBe(AndroidVisibility.SECRET);
     expect(trigger.repeatFrequency).toBe(1);
 
     await expect(loadReminderSettings()).resolves.toEqual({
@@ -87,6 +89,15 @@ describe('applyDailyReminder', () => {
       hour: 18,
       minute: 30,
     });
+  });
+
+  it('sends only the plain nudge to the iOS lock screen', async () => {
+    await applyDailyReminder({ enabled: true, hour: 18, minute: 30 }, CONTENT, 'ios');
+
+    const [notification] = (notifee.createTriggerNotification as jest.Mock).mock.calls[0];
+    expect(notification.title).toBe(i18n.t('reminder.notificationTitle'));
+    expect(notification.body).toBe(i18n.t('reminder.notificationBody'));
+    expect(notification.android.visibility).toBe(AndroidVisibility.SECRET);
   });
 
   it('cancels the reminder when it is disabled', async () => {
@@ -129,7 +140,7 @@ describe('refreshDailyReminder', () => {
     expect(notifee.createTriggerNotification).toHaveBeenCalledTimes(1);
     const [notification] = (notifee.createTriggerNotification as jest.Mock).mock.calls[0];
     expect(notification.id).toBe(REMINDER_NOTIFICATION_ID);
-    expect(notification.title).toBe('Kazi reminder');
-    expect(notification.body).toContain("Have you recorded today's business transactions?");
+    expect(notification.title).toBe(i18n.t('reminder.notificationTitle'));
+    expect(notification.body).toBe(i18n.t('reminder.notificationBody'));
   });
 });

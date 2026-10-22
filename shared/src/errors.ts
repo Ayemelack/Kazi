@@ -62,6 +62,7 @@ export const VALIDATION_FIELDS = [
   'password',
   'code',
   'token',
+  'refreshToken',
   'companyName',
   'businessType',
   'language',

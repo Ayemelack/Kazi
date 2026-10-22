@@ -3,6 +3,7 @@ import type Database from 'better-sqlite3';
 import jwt from 'jsonwebtoken';
 import { AppError } from '../errors.js';
 import { verifyAccessToken } from '../auth/jwt.js';
+import { sessionUser } from '../auth/session.js';
 import { recordUserSeen } from '../notifications/presence.js';
 
 declare global {
@@ -33,15 +34,11 @@ export function requireAuth(db: Database.Database) {
 
     try {
       const payload = verifyAccessToken(token, secret);
-      // The token is only valid while its version matches the account's
-      // current token_version. A password reset bumps the version, which
-      // invalidates every previously issued token. This lookup also rejects
-      // tokens for accounts that have been deleted.
-      const user = db
-        .prepare('SELECT id, token_version FROM users WHERE id = ?')
-        .get(Number(payload.sub)) as
-        | { id: number; token_version: number }
-        | undefined;
+      // The session row is what makes a token revocable (KZ-13): logging out
+      // revokes it, and a password reset deletes it. Its token_version must
+      // also still match the account's, which a password reset bumps. A
+      // missing session also rejects tokens for accounts that were deleted.
+      const user = sessionUser(db, payload.sid, Number(payload.sub));
       if (!user || payload.ver !== user.token_version) {
         next(
           new AppError(

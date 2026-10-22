@@ -27,11 +27,17 @@ export function logInAccount(input: LogInInput): Promise<AuthResult> {
   });
 }
 
-export async function logOutAccount(): Promise<void> {
+// KZ-13: revokes the server-side session. The refresh token proves ownership,
+// so this works even after the 15-minute access token has expired.
+export async function logOutAccount(refreshToken: string | null): Promise<void> {
   try {
-    await apiRequest<void>('/auth/logout', { method: 'POST', auth: true });
+    await apiRequest<void>('/auth/logout', {
+      method: 'POST',
+      auth: false,
+      body: refreshToken === null ? undefined : { refreshToken },
+    });
   } catch {
-    // The server token is stateless; clearing it locally is the real logout.
+    // Logging out of this phone must succeed even when the server is down.
   }
 }
 

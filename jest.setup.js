@@ -1,3 +1,9 @@
+// The native module is not compiled for tests. Node's crypto already provides
+// getRandomValues, so the polyfill only has to exist, not do anything.
+jest.mock('react-native-get-random-values', () => ({
+  getRandomValues: (array) => require('crypto').randomFillSync(array),
+}));
+
 jest.mock('react-native-localize', () => ({
   getLocales: () => [{ countryCode: 'US', languageCode: 'en', languageTag: 'en-US', isRTL: false }],
   getNumberFormatSettings: () => ({
@@ -89,6 +95,7 @@ jest.mock('@notifee/react-native', () => ({
     getTriggerNotifications: jest.fn(async () => []),
   },
   AndroidImportance: { DEFAULT: 3, HIGH: 4 },
+  AndroidVisibility: { PRIVATE: 0, PUBLIC: 1, SECRET: -1 },
   EventType: { PRESS: 1 },
   TriggerType: { TIMESTAMP: 0 },
   RepeatFrequency: { HOURLY: 0, DAILY: 1, WEEKLY: 2 },

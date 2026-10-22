@@ -2,6 +2,9 @@
  * @format
  */
 
+// Must load before anything that needs a secure random source: App Lock salts
+// use crypto.getRandomValues, which React Native does not provide on its own.
+import 'react-native-get-random-values';
 import { AppRegistry } from 'react-native';
 import App from './App';
 import { name as appName } from './app.json';

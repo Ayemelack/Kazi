@@ -378,6 +378,8 @@ const en = {
     emptyMessage: 'Messages Kazi sends you will appear here.',
     markAllRead: 'Mark all as read',
     markedRead: 'All notifications marked as read.',
+    privateTitle: 'Kazi',
+    privateBody: 'Open Kazi to see your latest update.',
   },
   feedback: {
     title: 'Help us improve Kazi',
@@ -476,6 +478,7 @@ const en = {
       password: 'Password',
       code: 'Reset code',
       token: 'Notification token',
+      refreshToken: 'Session',
       companyName: 'Business name',
       businessType: 'Type of business',
       language: 'Language',

@@ -561,8 +561,8 @@ test('SECURITY: two accounts may use the same password and nothing reveals it (K
     password: 'sharedLedger2026',
   });
   assert.equal(beta.status, 201);
-  // Same response shape as any signup: a token and the new account only.
-  assert.deepEqual(Object.keys(beta.data).sort(), ['token', 'user']);
+  // Same response shape as any signup: a token pair and the new account only.
+  assert.deepEqual(Object.keys(beta.data).sort(), ['refreshToken', 'token', 'user']);
   assert.equal((beta.data.user as { email: string }).email, 'beta@market.cm');
 });
 

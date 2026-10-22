@@ -187,10 +187,12 @@ Each domain folder has the same three files:
   compared against a dummy hash made once at start (KZ-21). Weak passwords are refused by
   `auth/passwordPolicy.ts` with the shared rules in `shared/src/password.ts` and the list in
   `server/assets/common-passwords.txt` (KZ-05). `DELETE /auth/me` needs the password (KZ-20).
-- Session: HS256 JWT, 30 days, carries `sub` and `ver` (`users.token_version`). `requireAuth`
-  checks the version on every request, so a password reset invalidates old tokens.
-- **Target (KZ-13, decision D4):** 15-minute access token + rotating refresh token stored hashed in
-  a `sessions` table; logout and "log out everywhere" revoke server-side.
+- Session (KZ-13, decision D4): HS256 access token, 15 minutes, carries `sub`, `ver`
+  (`users.token_version`) and `sid` (the `sessions` row). `requireAuth` checks the row is live and
+  the version matches, so logout and password resets invalidate immediately. A 60-day refresh token
+  (`<sid>.<secret>`) is rotated on every use and stored only as an HMAC; reuse revokes the session.
+  `POST /auth/refresh` renews the pair and `POST /auth/logout { refreshToken }` revokes the session.
+  "Log out everywhere" is not built yet.
 - Password reset (KZ-06, decision D2: email):
   - `POST /auth/forgot-password { email }` always answers `202` with one fixed body. The route
     checks only the per-email limit (3 codes per address per hour, counted for every address, in
@@ -550,7 +552,7 @@ without stopping the scan. History is recorded only for sends at least one devic
 | A4 | Activity log written in the same transaction as the source record | Accepted | History can never disagree with the source tables |
 | A5 | Separate read-only admin process | Accepted | App users can never reach admin data; admin cannot write. Exception pending decision D8: with `ADMIN_ANNOUNCEMENTS=1` it opens a second, writable handle used only for the announcement slot (off by default) |
 | A6 | Whole-number FCFA everywhere | Accepted (2026-10-11, KZ-04, KZ-25) | Removes the decimal-separator ambiguity that corrupts amounts |
-| A7 | Short-lived access token + refresh token | Proposed (KZ-13, D4) | Real logout and revocation |
+| A7 | Short-lived access token + refresh token | Accepted (2026-10-22, KZ-13, D4) | Real logout and revocation |
 | A8 | Images stored and served separately from item JSON | Proposed (KZ-14) | Keeps list payloads small on 3G |
 | A9 | Error codes, not messages, drive the UI | Accepted (2026-10-11, KZ-12) | Correct language for every user; codes, rules and fields live in `@kazi/shared` (§5.4) |
 | A10 | One shared contracts package (`@kazi/shared`, built with tsc, `file:` links) | Accepted (2026-10-10, session 1) | App and API can't drift on limits, parsers and codes. Metro 0.87 (symlinks + `exports` on by default), Jest and NodeNext all resolved the link without workarounds, so the path-mapped-source fallback wasn't needed |

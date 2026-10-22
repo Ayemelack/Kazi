@@ -67,7 +67,7 @@ The earlier adversarial test report is in `SECURITY_ASSESSMENT.md` at the reposi
 | ~~Reset code returned in HTTP response unless `NODE_ENV=production` (fail-open); no delivery in production~~ | Fixed (KZ-06): emailed codes; the response never carries a code outside development; boot fails closed. Staging end-to-end check waits on the email provider (D2) | KZ-06 ✅ (staging check 🟨) |
 | ~~Rate limiter shares one bucket for all users behind a proxy; unbounded memory~~ | Fixed (KZ-08): `trust proxy` from `TRUST_PROXY` (hop count only); per-email login and per-account delete failure limits; per-user write limit; buckets swept every minute and capped at 10 000 keys; `Retry-After` on every 429 | KZ-08 ✅ |
 | Release APK signed with the public debug key | High | KZ-09 |
-| Logout doesn't revoke; 30-day tokens | Medium | KZ-13 |
+| ~~Logout doesn't revoke; 30-day tokens~~ | Fixed (KZ-13): `sessions` table; 15-minute access token naming its session; 60-day refresh token rotated on every use and stored as an HMAC; reuse revokes the session; logout revokes it immediately; password reset deletes the account's sessions; the app renews once on 401 and returns to Login when renewal fails | KZ-13 ✅ |
 | Image bytes never checked against declared type | Medium | KZ-15 |
 | ~~Vulnerable dependencies (`proxy-addr` critical, others high)~~ | Fixed (KZ-19): server clean at high/critical (express 4.22.3); app runtime clean; two build-tooling advisories documented in §6; CI audit gate blocking | KZ-19 ✅ |
 | ~~Account deletion without password re-entry~~ | Fixed (KZ-20): `DELETE /auth/me` needs `{ password }`, rate-limited like login | KZ-20 ✅ |
@@ -93,8 +93,13 @@ The earlier adversarial test report is in `SECURITY_ASSESSMENT.md` at the reposi
 - Hashing: bcrypt cost ≥ 10, async and off the request thread (KZ-21: bcryptjs on a worker pool,
   `server/src/auth/passwordHash.ts`); an unknown email still costs one compare. Never log, return
   or store a plain password.
-- Sessions (after KZ-13): access token ≤ 15 min; refresh token rotated on use, stored hashed,
-  revocable; reuse of a rotated refresh token revokes the session family.
+- Sessions (KZ-13): `server/src/auth/session.ts`, table `sessions` (migration 0010). The access
+  token lasts 15 minutes and carries its session id (`sid`); `requireAuth` checks the session row,
+  so revocation is immediate. The refresh token is `<session id>.<secret>`, valid 60 days, rotated
+  on every use and stored only as `HMAC-SHA256(HKDF(JWT_SECRET, "kazi-refresh-token"), "<id>:<secret>")`;
+  reuse of a rotated token revokes the session; logout revokes it; a password reset deletes the
+  account's sessions (token_version still bumps too). The app keeps both tokens in Keychain and
+  renews once, single-flight, on `TOKEN_EXPIRED`/`INVALID_TOKEN`; a failed renewal signs it out.
 - Password reset (KZ-06): 6-digit code from `crypto.randomInt`, stored only as
   `HMAC-SHA256(HKDF(JWT_SECRET, "kazi-reset-code"), "<user id>:<code>")`, 15-minute expiry, dead
   after 5 wrong tries, a new code replaces the old one, single-use; delivered by email (decision
@@ -207,8 +212,9 @@ Each entry needs an owner and a review date.
 
 ## 7. Incident response (short form)
 
-1. **Contain:** rotate the affected secret (rotating `JWT_SECRET` logs everyone out; after KZ-13,
-   revoke sessions instead); block abusive IPs at the proxy.
+1. **Contain:** rotate the affected secret (rotating `JWT_SECRET` invalidates every access and
+   refresh token, so all sessions end; for a single account, revoke its sessions with
+   `UPDATE sessions SET revoked_at = ...`); block abusive IPs at the proxy.
 2. **Assess:** use request logs (KZ-34) to identify affected users and time window.
 3. **Recover:** restore from backup if data was altered (KZ-35).
 4. **Notify:** affected users and, where required by law, the authorities, within the legal deadline.
@@ -231,7 +237,8 @@ Each entry needs an owner and a review date.
 
 All must be true before a production release (milestone M3 in the tracker):
 
-- [ ] KZ-05, KZ-06, KZ-08, KZ-09, KZ-13, KZ-15, KZ-19, KZ-20, KZ-29 are Done.
+- [ ] KZ-05, KZ-06, KZ-08, KZ-09, KZ-15, KZ-19, KZ-20, KZ-29 are Done.
+- [x] KZ-13 is Done (server-side sessions, revocation and app renewal).
 - [ ] `NODE_ENV=production`, `TRUST_PROXY` set, `ALLOW_DEV_RESET_CODE` unset on the server;
       reset-code email configured and the staging end-to-end reset check passed (KZ-06).
 - [ ] API reachable only through the TLS proxy; port 4000 not exposed publicly.

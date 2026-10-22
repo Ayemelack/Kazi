@@ -118,7 +118,7 @@ resume prompt at the end of that file.
 | KZ-10 | Home "today" totals use the server's date instead of the user's | Medium | API / App | ✅ Done | [→](REMEDIATION_PLAN.md#kz-10) |
 | KZ-11 | App never sends `clientOpId`; retries create duplicate records | Medium | App | ✅ Done | [→](REMEDIATION_PLAN.md#kz-11) |
 | KZ-12 | Server errors shown in English to French / Pidgin users | Medium | App / API | ✅ Done | [→](REMEDIATION_PLAN.md#kz-12) |
-| KZ-13 | Logout does not end the session; 30-day tokens; mid-session 401 not handled | Medium | API / App / Security | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-13) |
+| KZ-13 | Logout does not end the session; 30-day tokens; mid-session 401 not handled | Medium | API / App / Security | ✅ Done (2026-10-22) | [→](REMEDIATION_PLAN.md#kz-13) |
 | KZ-14 | Item list ships every photo (up to 2 MB each) on every load | Medium | API / App / Perf | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-14) |
 | KZ-15 | iPhone HEIC photos rejected; image bytes never checked | Medium | App / API / Security | ⬜ Not started | [→](REMEDIATION_PLAN.md#kz-15) |
 | KZ-16 | App and server validation rules drift apart | Medium | App / API | ✅ Done | [→](REMEDIATION_PLAN.md#kz-16) |

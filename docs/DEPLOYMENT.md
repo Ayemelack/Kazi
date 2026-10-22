@@ -203,7 +203,7 @@ Start: `npm run admin` (after KZ-18). Access: `ssh -L 4100:127.0.0.1:4100 user@s
 
 | Secret | Stored in | Rotation |
 |---|---|---|
-| `JWT_SECRET` | `/etc/kazi/api.env` | Generate new, restart. Logs everyone out until KZ-13; afterwards sessions are revoked instead |
+| `JWT_SECRET` | `/etc/kazi/api.env` | Generate new, restart. Rotating it invalidates every token and session (KZ-13), so everyone signs in again |
 | Firebase service account | `/etc/kazi/firebase.json` (0600) | Create new key in Google Cloud, deploy, delete old key |
 | Reset-code email key (`EMAIL_API_KEY`) | `/etc/kazi/api.env` | Create a new key in the provider, update `api.env`, restart, then revoke the old key. Rotating `JWT_SECRET` also invalidates outstanding reset codes (15-minute lifetime) |
 | Admin credentials | `server/data/admin-auth.json` (0600) | Delete the file and restart to generate new ones; or set `ADMIN_PASSWORD` |

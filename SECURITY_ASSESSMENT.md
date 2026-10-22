@@ -372,3 +372,129 @@ JSON -> `400`, path traversal -> `404`, no stack traces in responses.
 Residual follow-ups from §7 still open: production reset-code delivery (1), email enumeration
 acceptance decision (2), image content validation (3), per-account login throttling (4),
 production `JWT_SECRET`/keystore/TLS (5), dependency refresh (6).
+
+---
+
+## 10. Re-assessment addendum (2026-10-22)
+
+A third pass combined a fresh static review of the app and API with adversarial probes (JWT
+`alg`/secret/expiry, cross-tenant IDOR and mass assignment, password-reset semantics, login and
+reset rate limits, SQL injection, upload handling, admin session, dependency advisories and Git
+history) and then patched every confirmed finding. Four new findings (A-1 to A-4) and the tracked
+session gap KZ-13 were fixed. The earlier F1-F9 and E-1-E-8 findings keep their status; the
+controls in section 4 held again, including tenant isolation (cross-account reads, writes and
+deletes answer resource-specific `404`s), `401` on every resource route without a token, mass
+assignment inertness, `alg:none`/wrong-secret/expired-token rejection, no user enumeration on
+forgot-password, and rate limits with `Retry-After`.
+
+| # | Severity | Finding | Status |
+|---|----------|---------|--------|
+| A-1 | High | `launch-editor` 2.14.1 (a Metro/CLI dependency) pulled a vulnerable `shell-quote`; the audit gate failed on it | Fixed by the 2.14.2 patch release (`shell-quote ^1.10.0`) |
+| A-2 | Low | The app-lock compared its derived secret with `!==` (non-constant-time) in `AppLockContext.tsx` and `storage.ts` | Fixed: `constantTimeEqual` at both call sites, pinned by a test |
+| A-3 | Low | The app-lock salt came from `Math.random`, so a salt could repeat across installs/entries | Fixed: CSPRNG via `react-native-get-random-values`; `randomSalt` now fails closed |
+| A-4 | Medium | Lock-screen notifications carried business detail (item names, stock counts, money figures in reminders) | Fixed: Android posts `AndroidVisibility.SECRET`; iOS shows generic text (`notifications.privateTitle/Body`) |
+| A-5 | Medium | KZ-13: 30-day access tokens, logout did not revoke, and a mid-session 401 produced error screens | Fixed: server-side sessions, 15-minute access tokens, rotating refresh tokens, real revocation, automatic renewal |
+
+### A-1. Vulnerable dependency in the build tooling
+
+`npm audit` reported a high advisory against `launch-editor` 2.14.1 through `shell-quote`. The fix
+is the 2.14.2 patch release, which moves to `shell-quote ^1.10.0`. `npm install`/`npm update` on
+npm 10.9.0 rewrote unrelated lockfile entries (stripping `"peer": true` from ~25 packages), so the
+two relevant entries were edited by hand instead and validated twice with `npm ci`, which leaves
+the lockfile untouched. The remaining gate exceptions are the two documented build-tooling
+advisories (`braces`, `image-size`, section 6), expiring 2027-01-14; the gate now passes.
+
+### A-2. App-lock comparison is constant-time
+
+Both checks that compare the entered secret to the stored derived value (unlock in
+`AppLockContext.tsx`, and `verifySecret` in `storage.ts`) now use `constantTimeEqual` from
+`hash.ts`, which XORs every byte of both UTF-8 strings. The value is a fixed-length SHA-256-derived
+hex digest and the KDF is unchanged (SHA-256 over `salt:secret`, 10 000 iterations), so this is
+defence in depth rather than a fix for an exploitable oracle. `__tests__/applock.constant-time.test.tsx`
+spies on the helper and asserts both call sites use it, plus the resulting unlock verdicts.
+
+### A-3. App-lock salt from a CSPRNG
+
+`randomSalt()` used `Math.random()`. React Native 0.87 exposes no `crypto.getRandomValues`, so the
+app now imports `react-native-get-random-values` first in `index.js` (polyfill: a TurboModule) and
+`randomSalt` requires `globalThis.crypto.getRandomValues`, throwing "A secure random source is
+required to generate an app-lock salt" if it is ever unavailable - it never falls back. Tests use a
+CSPRNG spy and assert 16-byte `Uint8Array` output, that `Math.random` is not called, and that
+successive salts differ. This adds a native dependency: a release build must re-run `pod install` /
+Gradle autolinking. The Jest setup mocks the module (its untransformed CommonJS declares a
+top-level `let module`, which collides with Jest's wrapper; the Metro bundles Babel-rewrite it to
+`var`, verified in both dev and release bundles).
+
+### A-4. Lock-screen notification content
+
+Android: the notification channel and both `displayNotification` calls now set
+`visibility: AndroidVisibility.SECRET`, so content is hidden on the lock screen and still shown in
+full once unlocked. iOS offers no per-app lock-screen setting, so the OS-visible text is now generic
+(`notifications.privateTitle` = "Kazi", `notifications.privateBody` = "Open Kazi to see your latest
+update.", translated for en/fr/wes) while the detail stays in the app and in
+`GET /notifications/history`; the push `data` payload keeps the routing fields (it is not rendered
+by the OS). The same generic/secret treatment applies to reminder notifications, and the platform is
+an explicit parameter so both branches are tested (`__tests__/push.display.test.ts`,
+`__tests__/notifications.lock-screen.test.ts`, `__tests__/reminder.test.ts`).
+
+### A-5. KZ-13: revocable sessions
+
+- **Migration 0010** adds `sessions (id, user_id, refresh_hash, created_at, last_used_at,
+  expires_at, revoked_at)`, with the refresh HMAC bound to its session id and `ON DELETE CASCADE`.
+  Additive only; no data is rewritten.
+- **Access token:** 15 minutes, carries `sub`, `ver` and `sid`. `requireAuth` now resolves the
+  session (`sessionUser`) and rejects tokens whose session is missing, revoked or expired, or whose
+  `sub` is not the session's owner, in addition to the existing `token_version` check. Revocation is
+  therefore immediate, and a password reset deletes the account's sessions as well as bumping
+  `token_version`.
+- **Refresh token:** `<session id>.<secret>` (32 + 64 hex), valid 60 days, rotated on every use and
+  stored only as `HMAC-SHA256(HKDF(JWT_SECRET, "kazi-refresh-token"), "<id>:<secret>")`. A rotated
+  token presented again revokes the session (reuse detection). `POST /auth/refresh` returns a new
+  pair; `POST /auth/logout { refreshToken }` revokes the session and needs no valid access token, so
+  it also works after the 15 minutes. Both are per-IP limited (60 per 15 minutes). Signup and login
+  return `{ token, refreshToken, user }`; dead sessions are swept on login and refresh.
+- **App:** the pair lives in Keychain (`com.kazi.app.auth` and `.refresh`, both
+  `WHEN_UNLOCKED_THIS_DEVICE_ONLY`; the refresh token is written before the access token, so an
+  app killed mid-write still holds a pair that can renew). `apiRequest` renews once, single-flight,
+  on `TOKEN_EXPIRED`/`INVALID_TOKEN` and retries the original request; a failed renewal clears both
+  tokens and notifies `AuthContext`, which returns to the Login screen instead of leaving error
+  screens. Logout sends the refresh token (not awaited, so it never blocks) and then clears local
+  state; account deletion relies on the cascade.
+
+### Verification (2026-10-22)
+
+- **Server:** `npm run check:server` -> typecheck clean, **434/434 tests pass** (up from 419; 15 new
+  session/migration tests), build clean. New: `server/src/auth/session.test.ts` covers revocation
+  on logout, per-session isolation (other devices stay signed in), rotation, reuse detection,
+  malformed tokens, `TOKEN_EXPIRED` recovery, reset/delete revocation and a forged `sub`/`sid` pair;
+  `0010_sessions.test.ts` covers the schema, constraints, cascade and fresh-vs-upgraded parity.
+- **Mobile:** `npx tsc --noEmit` clean; `npx jest` -> **41 suites / 430 tests pass** (up from 38/412);
+  `npx eslint .` -> 0 errors, 90 warnings (all pre-existing `no-bitwise` and similar). New:
+  `__tests__/auth.session.test.ts` (renew-and-retry, single renewal for concurrent 401s, failed
+  renewal clears and signals, no retry for a refused password, one retry maximum, logout payload,
+  storage round-trip).
+- **Shared:** `npm run check:shared` -> typecheck, **142/142 tests**, build.
+- **Dependencies:** `npm ci` twice against the hand-edited lockfile (success, no lockfile change);
+  `node scripts/audit-gate.js .` -> `3 high/critical advisories, 3 excepted` / `Audit gate passed`.
+  Android release and dev Metro bundles build (`react-native bundle`), and the dev bundle was
+  checked for the polyfill's `module` binding.
+- **Manual/live:** the probe scripts used for this pass lived outside the repository
+  (`%TEMP%/opencode`) and were removed with it; no probe or scratch file is in the tree.
+
+### Residual risk and follow-ups
+
+1. **One forced sign-in on deploy:** tokens issued before this change have no `sid`, so every
+   session ends once when this build is released. Expected; mention it in the release notes.
+2. **Reuse detection can log out the legitimate holder:** if two instances race with the same
+   refresh token, the second use is indistinguishable from theft and revokes the session. The app's
+   single-flight renewal makes this marginal; ending the session is the safe side.
+3. **iOS lock screen:** the OS cannot be told to hide app notification content, so detail is kept
+   out of the OS-visible text. A user can still disable notification previews in iOS settings; the
+   full detail remains in `GET /notifications/history`.
+4. **KZ-13 scope:** "Log out other devices" and per-session device labels (the `device` column in
+   the remediation plan) are not built; the `sessions` model supports both.
+5. **Native rebuild:** `react-native-get-random-values` is a native module; JS tests mock it, so the
+   first real check is a device/emulator build (Gradle) and an iOS `pod install`.
+6. **Earlier follow-ups unchanged:** production reset-code delivery (F1/§7 item 1), image content
+   validation (KZ-15), release signing (KZ-09), backups and request logs (KZ-35/KZ-34), and the
+   two accepted build-tooling advisories.

@@ -362,8 +362,10 @@ Rules for every fix:
   reuse of an old refresh token revokes the whole session family. Logout revokes the session.
   "Log out other devices" in More. App: `apiRequest` refreshes once on `TOKEN_EXPIRED`, and on a
   final 401 calls `logOut()` and shows the login screen with a message.
-- **Acceptance:** [ ] After logout the old access token stops working within 15 min and the
-  refresh token immediately. [ ] Expired session returns the user to Login without error toasts.
+- **Acceptance:** [x] After logout the old access token stops working immediately (the session row
+  is revoked, not just after the 15 minutes) and the refresh token immediately. [x] Expired session
+  returns the user to Login without error toasts (the client renews once; a failed renewal clears
+  the tokens and the auth provider signs out).
 
 ### KZ-14
 **Item list ships every photo**
